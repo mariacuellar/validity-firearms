@@ -1,9 +1,8 @@
 ---
 title: "Data Simulation for Firearms Validity Studies"
 format: html
-editor: visual
+editor: source
 ---
-
 
 ## Goal
 
@@ -13,6 +12,7 @@ Cuellar, M., Vanderplas, S., Luby, A., & Rosenblum, M. (2024). Methodological pr
 
 ## Data generation
 
+First, install the packages used in the analysis if they are not already available on the machine.
 
 ```{r}
 # Preamble
@@ -21,11 +21,9 @@ new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"
 if(length(new.packages)) install.packages(new.packages)
 ```
 
-
-**First**, let there be a fixed number of examiners (50) and comparisons (100), and let the proporion of same-source comparisons be 0.5.
+Now define the main simulation settings, including the study size, the baseline response rates, and the amount of examiner and question heterogeneity.
 
 ```{r}
-
 set.seed(123)
 
 # Parameters
@@ -33,78 +31,230 @@ n_examiners <- 50
 n_comparisons <- 100
 match_rate <- 0.5  # 50% same-source comparisons
 
-# Error probabilities
+# Baseline response probabilities
 false_positive_rate <- 0.02
 false_negative_rate <- 0.05
 inconclusive_rate <- 0.1
 
-# Create empty data frame
-library(dplyr)
-
+# Heterogeneity parameters
+examiner_sd <- 0.7
+question_sd <- 0.8
 ```
 
-
-Now design the test given to examiners.
-
-
-
+Next, load the packages used to build and manipulate the simulated data.
 
 ```{r}
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(ggplot2)
+```
 
+Now generate the set of underlying comparisons. Each question has a fixed truth label and a difficulty value that is shared across examiners.
 
-# Simulate the test given to examiners, with ground truth.
-sim_test <- expand.grid(
+```{r}
+comparison_set <- tibble(
+  question_id = 1:n_comparisons,
+  ground_truth = rbinom(n_comparisons, 1, match_rate),
+  question_difficulty = rnorm(n_comparisons, mean = 0, sd = question_sd)
+)
+```
+
+Now generate the examiner panel. Each examiner gets a latent skill value and a separate tendency to call a comparison inconclusive.
+
+```{r}
+examiner_panel <- tibble(
   examiner_id = paste0("E", 1:n_examiners),
-  question_id = 1:n_comparisons
-) %>%
-  mutate(
-    ground_truth = rbinom(n(), 1, match_rate),  # 1 = same-source, 0 = different-source
-    response = NA_character_
-  ) %>%
-  arrange(examiner_id)  # Sorting by examiner_id
+  examiner_skill = rnorm(n_examiners, mean = 0, sd = examiner_sd),
+  examiner_inconclusive_tendency = rnorm(n_examiners, mean = 0, sd = examiner_sd / 2)
+)
+```
 
-# View a sample
+Next, combine the shared question set with the examiner panel so that every examiner sees the same questions. Then compute a challenge score for each examiner-question pair.
+
+```{r}
+sim_test <- tidyr::crossing(examiner_panel, comparison_set) %>%
+  mutate(
+    ground_truth_label = if_else(ground_truth == 1, "same-source", "different-source"),
+    decision_challenge = question_difficulty - examiner_skill
+  ) %>%
+  arrange(examiner_id, question_id)
+```
+
+At this point, inspect the structure of the simulated test before any responses are generated.
+
+```{r}
 head(sim_test)
 dim(sim_test) # there are 50 examiners, with 100 questions each, for 5000 total responses
-
 ```
 
-
-Now design the responses given by examiners.
+Now define the response model for a single examiner-question pair. The baseline false positive, false negative, and inconclusive rates are treated as average rates in the population. For each examiner-question pair, those baseline probabilities are moved up or down on the log-odds scale according to the challenge of that pairing, so harder questions and weaker examiners lead to higher error probabilities while easier questions and stronger examiners lead to lower ones.
 
 ```{r}
+# Response model for a single examiner-comparison pair.
+simulate_response <- function(ground_truth,
+                              decision_challenge,
+                              examiner_inconclusive_tendency,
+                              false_positive_rate,
+                              false_negative_rate,
+                              inconclusive_rate) {
+  if (ground_truth == 1) {
+    error_probability <- plogis(qlogis(false_negative_rate) + decision_challenge)
+  } else {
+    error_probability <- plogis(qlogis(false_positive_rate) + decision_challenge)
+  }
 
-# Simulate the answers given by examiners.
-sim_data <- sim_test %>%
-  rowwise() %>%
-  mutate(response = {
-    if (ground_truth == 1) {
-      # True match
-      p <- runif(1)
-      if (p < false_negative_rate) "elimination"
-      else if (p < false_negative_rate + inconclusive_rate) "inconclusive"
-      else "identification"
+  inconclusive_probability <- plogis(
+    qlogis(inconclusive_rate) +
+      0.5 * decision_challenge +
+      examiner_inconclusive_tendency
+  )
+
+  total_probability <- error_probability + inconclusive_probability
+
+  if (total_probability >= 0.95) {
+    scaling_factor <- 0.95 / total_probability
+    error_probability <- error_probability * scaling_factor
+    inconclusive_probability <- inconclusive_probability * scaling_factor
+  }
+
+  p <- runif(1)
+
+  if (ground_truth == 1) {
+    if (p < error_probability) {
+      "elimination"
+    } else if (p < error_probability + inconclusive_probability) {
+      "inconclusive"
     } else {
-      # True non-match
-      p <- runif(1)
-      if (p < false_positive_rate) "identification"
-      else if (p < false_positive_rate + inconclusive_rate) "inconclusive"
-      else "elimination"
+      "identification"
     }
-  })
-
-head(sim_data)
-
+  } else {
+    if (p < error_probability) {
+      "identification"
+    } else if (p < error_probability + inconclusive_probability) {
+      "inconclusive"
+    } else {
+      "elimination"
+    }
+  }
+}
 ```
 
+Next, apply the response model to every examiner-question pair and generate the simulated examiner decisions.
+
+```{r}
+sim_data <- sim_test %>%
+  mutate(
+    response = purrr::pmap_chr(
+      list(
+        ground_truth = ground_truth,
+        decision_challenge = decision_challenge,
+        examiner_inconclusive_tendency = examiner_inconclusive_tendency
+      ),
+      simulate_response,
+      false_positive_rate = false_positive_rate,
+      false_negative_rate = false_negative_rate,
+      inconclusive_rate = inconclusive_rate
+    )
+  )
+```
+
+Then inspect the simulated responses to check whether the generated data look sensible.
+
+```{r}
+head(sim_data)
+```
+
+Each row in this table is one examiner-question pair. The columns identify the examiner, the question, the true status of the comparison, the latent difficulty of the question, the latent skill and inconclusive tendency of the examiner, the overall challenge of that pairing, and the simulated response that the examiner gave.
+
+These summary statistics describe the simulated dataset as a whole, including the number of rows, the number of unique examiners and questions, and the distribution of truth labels and responses.
+
+```{r}
+sim_data_summary <- tibble(
+  quantity = c(
+    "Rows in simulated dataset",
+    "Examiners",
+    "Questions",
+    "Same-source comparisons",
+    "Different-source comparisons",
+    "Identification responses",
+    "Elimination responses",
+    "Inconclusive responses",
+    "Mean examiner skill",
+    "Mean question difficulty",
+    "Mean decision challenge"
+  ),
+  value = c(
+    nrow(sim_data),
+    n_distinct(sim_data$examiner_id),
+    n_distinct(sim_data$question_id),
+    mean(sim_data$ground_truth == 1),
+    mean(sim_data$ground_truth == 0),
+    mean(sim_data$response == "identification"),
+    mean(sim_data$response == "elimination"),
+    mean(sim_data$response == "inconclusive"),
+    mean(sim_data$examiner_skill),
+    mean(sim_data$question_difficulty),
+    mean(sim_data$decision_challenge)
+  )
+) %>%
+  mutate(
+    value = case_when(
+      quantity %in% c(
+        "Rows in simulated dataset",
+        "Examiners",
+        "Questions"
+      ) ~ as.character(round(value, 0)),
+      grepl("Mean", quantity) ~ sprintf("%.2f", value),
+      TRUE ~ scales::percent(value, accuracy = 0.1)
+    )
+  )
+
+sim_data_summary
+```
+
+These plots give a quick view of the simulated dataset. The first two plots show latent simulation quantities rather than directly observed measurements: examiner skill is a relative skill parameter, question difficulty is a relative difficulty parameter, and both are plotted on the latent scale used to generate the response probabilities. The third plot shows the mix of simulated response types.
+
+```{r}
+ggplot(examiner_panel, aes(x = examiner_skill)) +
+  geom_histogram(bins = 15) +
+  labs(
+    title = "Distribution of examiner skill",
+    x = "Relative examiner skill (latent scale)",
+    y = "Count"
+  ) +
+  theme_minimal()
+```
+
+```{r}
+ggplot(comparison_set, aes(x = question_difficulty)) +
+  geom_histogram(bins = 15) +
+  labs(
+    title = "Distribution of question difficulty",
+    x = "Relative question difficulty (latent scale)",
+    y = "Count"
+  ) +
+  theme_minimal()
+```
+
+```{r}
+sim_data %>%
+  count(response) %>%
+  ggplot(aes(x = response, y = n, fill = response)) +
+  geom_col(show.legend = FALSE) +
+  labs(
+    title = "Distribution of simulated responses",
+    x = "Response",
+    y = "Count"
+  ) +
+  theme_minimal()
+```
 
 ## Evaluation of performance
 
-First let's look at the responses for all examiners. Were they correct (TRUE) or incorrect (FALSE)?
+Now convert the raw responses into performance indicators at the comparison level, including whether the response was correct, false positive, false negative, true positive, true negative, or inconclusive.
 
 ```{r}
-
-
 question_level_metrics <- sim_data %>%
   mutate(
     correct = case_when(
@@ -125,12 +275,9 @@ head(question_level_metrics)
 
 ```
 
-
-
 ### Performance by examiner
 
-
-Now let's evaluate the performance for each examiner.
+Next, summarize those comparison-level outcomes for each examiner so you can compare performance across the panel.
 
 ```{r}
 # Summarizing performance by examiner.
@@ -155,14 +302,11 @@ head(examiner_performance)
 
 Now show performance across all examiners.
 
-
 ### Performance across examiners
 
-
-We can see the performance overall if we average across examiners.
+Finally, average the examiner-level summaries to produce an overall description of the simulated study.
 
 ```{r}
-
 # Summarizing performance across all examiners
 overall_summary <- examiner_performance %>%
   summarise(
@@ -178,9 +322,7 @@ overall_summary <- examiner_performance %>%
 overall_summary
 ```
 
-
 # Consequences of having flaws A-F from Cuellar et al. 2024
-
 
 # A. Inadequate sample size
 
@@ -189,7 +331,6 @@ Below we show how the accuracy measures vary with varying sample size.
 Idea: Do several simulations to show how even if you have many studies (10, 50, 1000!), if they all have small sample size, they will give you incorrect results.
 
 Sample size for examiners AND bullet/cartridge samples.
-
 
 ### An example sample size estimation
 
@@ -239,26 +380,18 @@ n_examiners
 
 ```
 
+B. Non-representative sample AMANDA
 
-
-
-B. Non-representative sample
-AMANDA
-
-C. Non-representative testing conditions and environment (Contextual bias)
-MARIA
+C. Non-representative testing conditions and environment (Contextual bias) MARIA
 
 Use Scurich and Dror's numbers to show bias here.
 
-D. Inconclusive responses are treated as correct or ignored
-e.g., If you treat them as correct the FPR is 0.1%, if you treat them as incorrec it's 90% etc.
+D. Inconclusive responses are treated as correct or ignored e.g., If you treat them as correct the FPR is 0.1%, if you treat them as incorrec it's 90% etc.
 
-E. Invalid or nonexistent uncertainty measures for error rates
-This is just a statistical requirement. No need for a simulation.
+E. Invalid or nonexistent uncertainty measures for error rates This is just a statistical requirement. No need for a simulation.
 
 Note: Look at Hicklin 2024 bootstrap sample (still invalid because non-representative sample, but we can use it to compare).
 
-F. Missing data
-MARIA
+F. Missing data MARIA
 
 A correctly done study
