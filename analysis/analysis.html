@@ -115,31 +115,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   </ul></li>
   <li><a href="#reviewing-the-flaws-from-cuellar-et-al-2024" id="toc-reviewing-the-flaws-from-cuellar-et-al-2024">Reviewing the flaws from Cuellar et al.&nbsp;(2024)</a>
   <ul>
-  <li><a href="#inadequate-sample-size" id="toc-inadequate-sample-size">A. Inadequate sample size (MARIA)</a>
-  <ul>
-  <li><a href="#why-sample-size-matters" id="toc-why-sample-size-matters">Why sample size matters</a></li>
-  <li><a href="#simulation-design" id="toc-simulation-design">Simulation design</a></li>
-  <li><a href="#results" id="toc-results">Results</a></li>
-  <li><a href="#stability-of-the-false-positive-rate" id="toc-stability-of-the-false-positive-rate">Stability of the false positive rate</a></li>
-  <li><a href="#interpretation" id="toc-interpretation">Interpretation</a></li>
-  </ul></li>
+  <li><a href="#inadequate-sample-size" id="toc-inadequate-sample-size">A. Inadequate sample size (MARIA)</a></li>
   <li><a href="#nonrepresentative-sample" id="toc-nonrepresentative-sample">B. Non-representative sample (AMANDA)</a></li>
-  <li><a href="#contextual-bias" id="toc-contextual-bias">C. Non-representative testing conditions and environment/Contextual bias (MARIA)</a>
-  <ul>
-  <li><a href="#why-testing-conditions-matter" id="toc-why-testing-conditions-matter">Why testing conditions matter</a></li>
-  <li><a href="#simulation-design-for-contextual-bias" id="toc-simulation-design-for-contextual-bias">Simulation design for contextual bias</a></li>
-  <li><a href="#results-for-contextual-bias" id="toc-results-for-contextual-bias">Results for contextual bias</a></li>
-  <li><a href="#interpretation-of-contextual-bias" id="toc-interpretation-of-contextual-bias">Interpretation of contextual bias</a></li>
-  </ul></li>
+  <li><a href="#contextual-bias" id="toc-contextual-bias">C. Non-representative testing conditions and environment/Contextual bias (MARIA)</a></li>
   <li><a href="#inconclusives" id="toc-inconclusives">D. Inconclusive responses are treated as correct or ignored (AMANDA)</a></li>
   <li><a href="#uncertainty-measures" id="toc-uncertainty-measures">E. Invalid or nonexistent uncertainty measures for error rates (AMANDA)</a></li>
-  <li><a href="#missing-data" id="toc-missing-data">F. Missing data (MARIA)</a>
-  <ul>
-  <li><a href="#why-missing-data-matters" id="toc-why-missing-data-matters">Why missing data matters</a></li>
-  <li><a href="#simulation-design-for-missingness" id="toc-simulation-design-for-missingness">Simulation design for missingness</a></li>
-  <li><a href="#results-for-missing-data" id="toc-results-for-missing-data">Results for missing data</a></li>
-  <li><a href="#interpretation-of-missing-data" id="toc-interpretation-of-missing-data">Interpretation of missing data</a></li>
-  </ul></li>
+  <li><a href="#missing-data" id="toc-missing-data">F. Missing data (MARIA)</a></li>
   <li><a href="#discussion" id="toc-discussion">Discussion</a></li>
   </ul></li>
   <li><a href="#section" id="toc-section"></a></li>
@@ -781,13 +762,13 @@ Attaching package: 'gridExtra'</code></pre>
 <p>The first flaw considered here is inadequate sample size. Even when the study design is otherwise well structured, too few examiners or too few comparisons can produce error-rate estimates that are unstable, overly reassuring, and far more sensitive to chance than they appear.</p>
 <section id="inadequate-sample-size" class="level2">
 <h2 class="anchored" data-anchor-id="inadequate-sample-size">A. Inadequate sample size (MARIA)</h2>
-<section id="why-sample-size-matters" class="level3">
-<h3 class="anchored" data-anchor-id="why-sample-size-matters">Why sample size matters</h3>
+<section id="why-sample-size-matters" class="level4">
+<h4 class="anchored" data-anchor-id="why-sample-size-matters">Why sample size matters</h4>
 <p>Small sample size matters because it does not merely make error-rate estimates less precise. It can also make them look more reassuring than the design justifies. With too few examiners or too few comparisons, a study can easily observe very few errors, or even no errors at all, simply by chance.</p>
 <p>To illustrate that problem, the next analysis repeats the entire study many times at three different sizes. For each simulated study, it calculates pooled false positive and false negative rates, approximate confidence interval widths, and whether the study observed zero false positives. The point is not to recover one correct estimate, but to show how unstable the reported estimates are when the study is too small.</p>
 </section>
-<section id="simulation-design" class="level3">
-<h3 class="anchored" data-anchor-id="simulation-design">Simulation design</h3>
+<section id="simulation-design" class="level4">
+<h4 class="anchored" data-anchor-id="simulation-design">Simulation design</h4>
 <p>First, define a function that simulates one complete study at a given number of examiners and comparisons, using the same data-generating process introduced above.</p>
 <div class="cell">
 <details class="code-fold">
@@ -926,8 +907,8 @@ Attaching package: 'gridExtra'</code></pre>
 </div>
 <p>These summary statistics show how the estimated error rates and uncertainty behave across repeated studies at each sample size.</p>
 </section>
-<section id="results" class="level3">
-<h3 class="anchored" data-anchor-id="results">Results</h3>
+<section id="results" class="level4">
+<h4 class="anchored" data-anchor-id="results">Results</h4>
 <div class="cell">
 <details class="code-fold">
 <summary>Code</summary>
@@ -1150,8 +1131,8 @@ Attaching package: 'gridExtra'</code></pre>
 </div>
 </div>
 </section>
-<section id="stability-of-the-false-positive-rate" class="level3">
-<h3 class="anchored" data-anchor-id="stability-of-the-false-positive-rate">Stability of the false positive rate</h3>
+<section id="stability-of-the-false-positive-rate" class="level4">
+<h4 class="anchored" data-anchor-id="stability-of-the-false-positive-rate">Stability of the false positive rate</h4>
 <p>This next plot shows the stability of the estimated false positive rate across study sizes. The horizontal dashed line marks the true false positive rate used in the simulation, while the solid line and ribbon show the median and central 90% of the simulated estimates. Small studies produce a much wider range of apparent false positive rates, including estimates near zero.</p>
 <div class="cell">
 <details class="code-fold">
@@ -1207,8 +1188,8 @@ Attaching package: 'gridExtra'</code></pre>
 </div>
 </div>
 </section>
-<section id="interpretation" class="level3">
-<h3 class="anchored" data-anchor-id="interpretation">Interpretation</h3>
+<section id="interpretation" class="level4">
+<h4 class="anchored" data-anchor-id="interpretation">Interpretation</h4>
 <p>Taken together, these simulations show that inadequate sample size can produce error-rate estimates that appear reassuring simply because the study is too small to reveal the underlying variability. A small study may report very low observed error rates, or even zero observed false positives, without providing strong evidence that the true error rate is comparably low.</p>
 </section>
 </section>
@@ -1217,12 +1198,12 @@ Attaching package: 'gridExtra'</code></pre>
 </section>
 <section id="contextual-bias" class="level2">
 <h2 class="anchored" data-anchor-id="contextual-bias">C. Non-representative testing conditions and environment/Contextual bias (MARIA)</h2>
-<section id="why-testing-conditions-matter" class="level3">
-<h3 class="anchored" data-anchor-id="why-testing-conditions-matter">Why testing conditions matter</h3>
+<section id="why-testing-conditions-matter" class="level4">
+<h4 class="anchored" data-anchor-id="why-testing-conditions-matter">Why testing conditions matter</h4>
 <p>Testing conditions matter because examiner behavior can change when examiners know they are being tested. Scurich et al.&nbsp;(2025) report that the inconclusive rate for discovered test items at the Houston Forensic Science Center was 56.4%, compared with 39.3% for undiscovered blind test items. That is, the inconclusive rate was 43.5% higher when examiners recognized that the item was part of a test. The same pattern appeared for bullet comparisons (83% vs.&nbsp;59%) and cartridge case comparisons (29% vs.&nbsp;20%). Those findings are consistent with the concern that non-blind studies do not reproduce ordinary casework conditions and may therefore distort the resulting performance estimates.</p>
 </section>
-<section id="simulation-design-for-contextual-bias" class="level3">
-<h3 class="anchored" data-anchor-id="simulation-design-for-contextual-bias">Simulation design for contextual bias</h3>
+<section id="simulation-design-for-contextual-bias" class="level4">
+<h4 class="anchored" data-anchor-id="simulation-design-for-contextual-bias">Simulation design for contextual bias</h4>
 <p>To illustrate that problem, the next simulation compares two settings: a blind condition, in which examiners behave as they do in routine casework, and a known-test condition, in which the probability of an inconclusive decision is increased using the shift reported by Scurich et al.&nbsp;(2025). The idea is simple: when examiners know they are being tested, they may protect themselves by moving difficult decisions into the inconclusive category. If that happens, the measured error rates among conclusive decisions can look better even though the underlying difficulty of the task has not changed.</p>
 <p>First, translate the Scurich et al.&nbsp;(2025) finding into a shift on the log-odds scale. This shift is based on the difference between the reported inconclusive rates for discovered and undiscovered items.</p>
 <div class="cell">
@@ -1341,8 +1322,8 @@ Attaching package: 'gridExtra'</code></pre>
 </details>
 </div>
 </section>
-<section id="results-for-contextual-bias" class="level3">
-<h3 class="anchored" data-anchor-id="results-for-contextual-bias">Results for contextual bias</h3>
+<section id="results-for-contextual-bias" class="level4">
+<h4 class="anchored" data-anchor-id="results-for-contextual-bias">Results for contextual bias</h4>
 <p>These summary statistics compare the blind and known-test conditions across the repeated studies.</p>
 <div class="cell">
 <details class="code-fold">
@@ -1491,8 +1472,8 @@ Attaching package: 'gridExtra'</code></pre>
 </div>
 </div>
 </section>
-<section id="interpretation-of-contextual-bias" class="level3">
-<h3 class="anchored" data-anchor-id="interpretation-of-contextual-bias">Interpretation of contextual bias</h3>
+<section id="interpretation-of-contextual-bias" class="level4">
+<h4 class="anchored" data-anchor-id="interpretation-of-contextual-bias">Interpretation of contextual bias</h4>
 <p>This simulation shows how non-representative testing conditions can bias the performance quantities reported by a validation study. Using the shift observed by Scurich et al.&nbsp;(2025), the known-test condition produces a substantially higher inconclusive rate than the blind condition. That shift matters because it changes which examiner-item pairs remain in the pool of conclusive decisions. When examiners can move more difficult decisions into the inconclusive category, the resulting false positive and false negative rates can look better than they would under genuinely blind, casework-like conditions. In that sense, non-blind testing environments do not merely alter examiner behavior in a superficial way; they can change the very quantities that the study is trying to estimate.</p>
 </section>
 </section>
@@ -1505,12 +1486,12 @@ Attaching package: 'gridExtra'</code></pre>
 </section>
 <section id="missing-data" class="level2">
 <h2 class="anchored" data-anchor-id="missing-data">F. Missing data (MARIA)</h2>
-<section id="why-missing-data-matters" class="level3">
-<h3 class="anchored" data-anchor-id="why-missing-data-matters">Why missing data matters</h3>
+<section id="why-missing-data-matters" class="level4">
+<h4 class="anchored" data-anchor-id="why-missing-data-matters">Why missing data matters</h4>
 <p>Missing data can bias reported error rates when the missing responses are not a random subset of the study. If difficult items, weak examiner-item pairings, or outright errors are more likely to be missing, then calculating error rates only from the observed responses will systematically understate the rate of error. In that setting, the problem is not just that the study has less information than intended. The observed data are selectively filtered in a way that changes the apparent performance of the examiners.</p>
 </section>
-<section id="simulation-design-for-missingness" class="level3">
-<h3 class="anchored" data-anchor-id="simulation-design-for-missingness">Simulation design for missingness</h3>
+<section id="simulation-design-for-missingness" class="level4">
+<h4 class="anchored" data-anchor-id="simulation-design-for-missingness">Simulation design for missingness</h4>
 <p>To illustrate that point, the next simulation starts with the complete simulated dataset and then imposes missingness. Missing responses are made more likely when the examiner-question pairing is difficult, when the response is incorrect, and when the response is inconclusive. This creates a simple missing-not-at-random mechanism in which the responses most likely to make performance look worse are also the most likely to disappear from the observed dataset.</p>
 <p>First, define a function that imposes missingness on a complete study.</p>
 <div class="cell">
@@ -1587,8 +1568,8 @@ Attaching package: 'gridExtra'</code></pre>
 </details>
 </div>
 </section>
-<section id="results-for-missing-data" class="level3">
-<h3 class="anchored" data-anchor-id="results-for-missing-data">Results for missing data</h3>
+<section id="results-for-missing-data" class="level4">
+<h4 class="anchored" data-anchor-id="results-for-missing-data">Results for missing data</h4>
 <p>These summary statistics compare the complete-data error rates to the error rates that would be reported if the missing responses were simply ignored.</p>
 <div class="cell">
 <details class="code-fold">
@@ -1658,6 +1639,7 @@ Attaching package: 'gridExtra'</code></pre>
 </table>
 </div>
 </div>
+</section>
 <section id="bias-from-ignoring-missing-responses" class="level4">
 <h4 class="anchored" data-anchor-id="bias-from-ignoring-missing-responses">Bias from ignoring missing responses</h4>
 <p>The next plot compares the true and observed error rates across the repeated studies. If missing responses are ignored, the observed rates tend to look better than the truth.</p>
@@ -1813,9 +1795,8 @@ Attaching package: 'gridExtra'</code></pre>
 </div>
 </div>
 </section>
-</section>
-<section id="interpretation-of-missing-data" class="level3">
-<h3 class="anchored" data-anchor-id="interpretation-of-missing-data">Interpretation of missing data</h3>
+<section id="interpretation-of-missing-data" class="level4">
+<h4 class="anchored" data-anchor-id="interpretation-of-missing-data">Interpretation of missing data</h4>
 <p>These simulations show that missing data can bias reported error rates when the missing responses are systematically related to difficult items or poor performance. In that setting, simply dropping the missing responses does not recover the true error rates from the remaining observed data. Instead, it creates a more favorable picture of examiner performance by disproportionately removing the responses most likely to count as errors or inconclusives.</p>
 </section>
 </section>
