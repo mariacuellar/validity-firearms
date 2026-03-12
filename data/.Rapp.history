@@ -1,0 +1,3 @@
+load("/Users/mariacuellar/Github/validity-firearms/data/sim_data.rda")
+ls
+sim_data
