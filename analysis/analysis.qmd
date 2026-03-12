@@ -16,7 +16,7 @@ Cuellar, M., Vanderplas, S., Luby, A., & Rosenblum, M. (2024). Methodological pr
 
 First, install the packages used in the analysis if they are not already available on the machine.
 
-```{r}
+```{r load-packages}
 # Preamble
 list.of.packages <- c("tidyverse", "ggthemes")
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
@@ -30,7 +30,7 @@ library(ggplot2)
 
 Now define the main simulation settings, including the study size, the baseline response rates, and the amount of examiner and question heterogeneity.
 
-```{r}
+```{r set-simulation-parameters}
 set.seed(123)
 
 # Parameters
@@ -52,7 +52,7 @@ question_sd <- 0.8
 
 Now generate the set of underlying comparisons. Each question has a fixed truth label and a difficulty value that is shared across examiners.
 
-```{r}
+```{r generate-comparison-set}
 comparison_set <- tibble(
   question_id = 1:n_comparisons,
   ground_truth = rbinom(n_comparisons, 1, match_rate),
@@ -64,7 +64,7 @@ Now generate the examiner panel. Each examiner gets a latent skill value and a s
 
 ### Examiner performance
 
-```{r}
+```{r generate-examiner-panel}
 examiner_panel <- tibble(
   examiner_id = paste0("E", 1:n_examiners),
   examiner_skill = rnorm(n_examiners, mean = 0, sd = examiner_sd),
@@ -76,7 +76,7 @@ Next, combine the shared question set with the examiner panel so that every exam
 
 ### Assigning questions to examiners
 
-```{r}
+```{r assign-questions-to-examiners}
 sim_test <- tidyr::crossing(examiner_panel, comparison_set) %>%
   mutate(
     ground_truth_label = if_else(ground_truth == 1, "same-source", "different-source"),
@@ -87,7 +87,7 @@ sim_test <- tidyr::crossing(examiner_panel, comparison_set) %>%
 
 At this point, inspect the structure of the simulated test before any responses are generated.
 
-```{r}
+```{r preview-simulated-test}
 head(sim_test)
 dim(sim_test) # there are 50 examiners, with 100 questions each, for 5000 total responses
 ```
@@ -96,7 +96,7 @@ dim(sim_test) # there are 50 examiners, with 100 questions each, for 5000 total 
 
 Now define the response model for a single examiner-question pair. The baseline false positive, false negative, and inconclusive rates are treated as average rates in the population. For each examiner-question pair, those baseline probabilities are moved up or down on the log-odds scale according to the challenge of that pairing, so harder questions and weaker examiners lead to higher error probabilities while easier questions and stronger examiners lead to lower ones.
 
-```{r}
+```{r define-response-model}
 # Response model for a single examiner-comparison pair.
 simulate_response <- function(ground_truth,
                               decision_challenge,
@@ -148,7 +148,7 @@ simulate_response <- function(ground_truth,
 
 Next, apply the response model to every examiner-question pair and generate the simulated examiner decisions.
 
-```{r}
+```{r generate-simulated-responses}
 sim_data <- sim_test %>%
   mutate(
     response = purrr::pmap_chr(
@@ -167,7 +167,7 @@ sim_data <- sim_test %>%
 
 Then inspect a small, readable slice of the simulated responses to check whether the generated data look sensible. The table below shows the first several rows from the first few examiners.
 
-```{r}
+```{r preview-simulated-responses}
 sim_data_preview <- sim_data %>%
   filter(examiner_id %in% paste0("E", 1:3)) %>%
   group_by(examiner_id) %>%
@@ -209,7 +209,7 @@ Each row in this table is one examiner-question pair. The columns identify the e
 
 These summary statistics describe the simulated dataset as a whole, including the number of rows, the number of unique examiners and questions, and the distribution of truth labels and responses.
 
-```{r}
+```{r summarize-simulated-data}
 sim_data_summary <- tibble(
   quantity = c(
     "Rows in simulated dataset",
@@ -255,7 +255,7 @@ sim_data_summary
 
 These plots give a quick view of the simulated dataset. The first two plots show latent simulation quantities rather than directly observed measurements: examiner skill is a relative skill parameter, question difficulty is a relative difficulty parameter, and both are plotted on the latent scale used to generate the response probabilities. The third plot shows the mix of simulated response types.
 
-```{r}
+```{r plot-examiner-skill}
 ggplot(examiner_panel, aes(x = examiner_skill)) +
   geom_histogram(bins = 15) +
   labs(
@@ -266,7 +266,7 @@ ggplot(examiner_panel, aes(x = examiner_skill)) +
   theme_minimal()
 ```
 
-```{r}
+```{r plot-question-difficulty}
 ggplot(comparison_set, aes(x = question_difficulty)) +
   geom_histogram(bins = 15) +
   labs(
@@ -277,7 +277,7 @@ ggplot(comparison_set, aes(x = question_difficulty)) +
   theme_minimal()
 ```
 
-```{r}
+```{r plot-response-distribution}
 sim_data %>%
   count(response) %>%
   ggplot(aes(x = response, y = n, fill = response)) +
@@ -294,7 +294,7 @@ sim_data %>%
 
 Now convert the raw responses into performance indicators at the comparison level, including whether the response was correct, false positive, false negative, true positive, true negative, or inconclusive.
 
-```{r}
+```{r create-question-level-metrics}
 question_level_metrics <- sim_data %>%
   mutate(
     correct = case_when(
@@ -319,7 +319,7 @@ head(question_level_metrics)
 
 Next, summarize those comparison-level outcomes for each examiner so you can compare performance across the panel.
 
-```{r}
+```{r summarize-performance-by-examiner}
 # Summarizing performance by examiner.
 examiner_performance <- question_level_metrics %>%
   group_by(examiner_id) %>%
@@ -346,7 +346,7 @@ Now show performance across all examiners.
 
 Finally, average the examiner-level summaries to produce an overall description of the simulated study.
 
-```{r}
+```{r summarize-overall-performance}
 # Summarizing performance across all examiners
 overall_summary <- examiner_performance %>%
   summarise(
@@ -366,59 +366,220 @@ overall_summary
 
 # A. Inadequate sample size
 
-Below we show how the accuracy measures vary with varying sample size.
+Small sample size matters because it does not merely make error-rate estimates less precise. It can also make them look more reassuring than the design justifies. With too few examiners or too few comparisons, a study can easily observe very few errors, or even no errors at all, simply by chance.
 
-Idea: Do several simulations to show how even if you have many studies (10, 50, 1000!), if they all have small sample size, they will give you incorrect results.
+To illustrate that problem, the next analysis repeats the entire study many times at three different sizes. For each simulated study, it calculates pooled false positive and false negative rates, approximate confidence interval widths, and whether the study observed zero false positives. The point is not to recover one correct estimate, but to show how unstable the reported estimates are when the study is too small.
 
-Sample size for examiners AND bullet/cartridge samples.
+### Repeated simulated studies at different sample sizes
 
-### An example sample size estimation
+First, define a function that simulates one complete study at a given number of examiners and comparisons, using the same data-generating process introduced above.
 
-```{r}
+```{r define-study-simulation-function}
+simulate_study <- function(n_examiners, n_comparisons) {
+  comparison_set <- tibble(
+    question_id = 1:n_comparisons,
+    ground_truth = rbinom(n_comparisons, 1, match_rate),
+    question_difficulty = rnorm(n_comparisons, mean = 0, sd = question_sd)
+  )
 
-n_small=10
-n_medium=100
-n_large=500
+  examiner_panel <- tibble(
+    examiner_id = paste0("E", 1:n_examiners),
+    examiner_skill = rnorm(n_examiners, mean = 0, sd = examiner_sd),
+    examiner_inconclusive_tendency = rnorm(n_examiners, mean = 0, sd = examiner_sd / 2)
+  )
 
+  sim_test <- tidyr::crossing(examiner_panel, comparison_set) %>%
+    mutate(
+      decision_challenge = question_difficulty - examiner_skill
+    )
 
-p=0.95 # sensitivity
-E=0.03 # desired margin of error
-Z=1.96 # confidence level: 95%
-
-n1=(Z^2 * p*(1-p))/ E^2
-n1
-
-p2=0.85 # specificity
-n2=(Z^2 * p2*(1-p2))/ E^2
-n2
-
-# Adjusting for Examiner Clustering (Design Effect)
-
-rho=0.05 # intra-class correlation
-m=20 # number of trials per examiner
-
-DE = 1+(m-1)*rho # desired effect
-DE
-
-matches = n1*DE
-nonmatches = n2*DE
-trials=matches*2
-
-matches
-nonmatches
-trials
-
-n_examiners = trials/20
-n_examiners
-
-#Summary
-# Estimated sample size: ~400 known match comparisons and ~1,100 known non-match comparisons
-# Assuming 20 trials per examiner, recruit ~40–60 examiners
-# Design accounts for examiner clustering and ±3% margin of error
-
-
-
+  sim_test %>%
+    mutate(
+      response = purrr::pmap_chr(
+        list(
+          ground_truth = ground_truth,
+          decision_challenge = decision_challenge,
+          examiner_inconclusive_tendency = examiner_inconclusive_tendency
+        ),
+        simulate_response,
+        false_positive_rate = false_positive_rate,
+        false_negative_rate = false_negative_rate,
+        inconclusive_rate = inconclusive_rate
+      )
+    )
+}
 ```
+
+Now define a function that summarizes one simulated study. Here the false positive and false negative rates are calculated with the appropriate denominators: non-matches for the false positive rate and matches for the false negative rate.
+
+```{r define-study-summary-function}
+summarize_study <- function(study_data) {
+  nonmatch_total <- sum(study_data$ground_truth == 0)
+  match_total <- sum(study_data$ground_truth == 1)
+
+  false_positives <- sum(study_data$response == "identification" & study_data$ground_truth == 0)
+  false_negatives <- sum(study_data$response == "elimination" & study_data$ground_truth == 1)
+  inconclusives <- sum(study_data$response == "inconclusive")
+
+  fpr <- false_positives / nonmatch_total
+  fnr <- false_negatives / match_total
+  inconclusive_rate_study <- inconclusives / nrow(study_data)
+
+  fpr_ci <- prop.test(false_positives, nonmatch_total)$conf.int
+  fnr_ci <- prop.test(false_negatives, match_total)$conf.int
+
+  tibble(
+    fpr = fpr,
+    fnr = fnr,
+    inconclusive_rate = inconclusive_rate_study,
+    fpr_ci_width = diff(fpr_ci),
+    fnr_ci_width = diff(fnr_ci),
+    zero_false_positives = false_positives == 0,
+    nonmatch_total = nonmatch_total,
+    match_total = match_total
+  )
+}
+```
+
+Now specify three study sizes. The small study has few examiners and few comparisons, the medium study is larger but still limited, and the large study is closer to the baseline design used above.
+
+```{r define-sample-size-scenarios}
+sample_size_scenarios <- tribble(
+  ~scenario, ~n_examiners, ~n_comparisons,
+  "Small", 10, 20,
+  "Medium", 25, 50,
+  "Large", 50, 100
+)
+```
+
+Now simulate many studies under each scenario. Repeating the study many times shows the range of error-rate estimates that one could easily obtain from the same underlying process.
+
+```{r run-sample-size-simulations}
+set.seed(456)
+
+n_replications <- 200
+
+sample_size_results <- sample_size_scenarios %>%
+  mutate(
+    results = purrr::map2(
+      n_examiners,
+      n_comparisons,
+      function(n_examiners, n_comparisons) {
+        purrr::map_dfr(
+          1:n_replications,
+          function(replicate_id) {
+            simulate_study(n_examiners, n_comparisons) %>%
+              summarize_study() %>%
+              mutate(replicate_id = replicate_id)
+          }
+        )
+      }
+    )
+  ) %>%
+  select(scenario, n_examiners, n_comparisons, results) %>%
+  tidyr::unnest(results)
+```
+
+These summary statistics show how the estimated error rates and uncertainty behave across repeated studies at each sample size.
+
+```{r summarize-sample-size-results}
+sample_size_summary <- sample_size_results %>%
+  group_by(scenario, n_examiners, n_comparisons) %>%
+  summarise(
+    mean_fpr = mean(fpr),
+    sd_fpr = sd(fpr),
+    mean_fnr = mean(fnr),
+    sd_fnr = sd(fnr),
+    mean_fpr_ci_width = mean(fpr_ci_width),
+    mean_fnr_ci_width = mean(fnr_ci_width),
+    proportion_zero_false_positives = mean(zero_false_positives),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    mean_fpr = scales::percent(mean_fpr, accuracy = 0.1),
+    sd_fpr = scales::percent(sd_fpr, accuracy = 0.1),
+    mean_fnr = scales::percent(mean_fnr, accuracy = 0.1),
+    sd_fnr = scales::percent(sd_fnr, accuracy = 0.1),
+    mean_fpr_ci_width = scales::percent(mean_fpr_ci_width, accuracy = 0.1),
+    mean_fnr_ci_width = scales::percent(mean_fnr_ci_width, accuracy = 0.1),
+    proportion_zero_false_positives = scales::percent(proportion_zero_false_positives, accuracy = 0.1)
+  )
+
+knitr::kable(
+  sample_size_summary,
+  col.names = c(
+    "Scenario",
+    "Examiners",
+    "Comparisons",
+    "Mean FPR",
+    "SD of FPR",
+    "Mean FNR",
+    "SD of FNR",
+    "Mean FPR CI width",
+    "Mean FNR CI width",
+    "Studies with zero observed false positives"
+  )
+)
+```
+
+The next plot shows the distribution of false positive rate estimates across the repeated studies. Small studies produce much more variable estimates, including many studies that report no false positives at all.
+
+```{r plot-fpr-by-sample-size}
+ggplot(sample_size_results, aes(x = scenario, y = fpr)) +
+  geom_boxplot() +
+  labs(
+    title = "Estimated false positive rates across repeated studies",
+    x = "Study size scenario",
+    y = "Estimated false positive rate"
+  ) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  theme_minimal()
+```
+
+This plot shows the same pattern for false negative rates. Again, the smallest studies produce the most unstable estimates.
+
+```{r plot-fnr-by-sample-size}
+ggplot(sample_size_results, aes(x = scenario, y = fnr)) +
+  geom_boxplot() +
+  labs(
+    title = "Estimated false negative rates across repeated studies",
+    x = "Study size scenario",
+    y = "Estimated false negative rate"
+  ) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  theme_minimal()
+```
+
+This final plot shows how the average width of the confidence intervals shrinks as the study gets larger. Small studies do not simply have noisier estimates; they also carry much greater uncertainty.
+
+```{r plot-ci-width-by-sample-size}
+sample_size_results %>%
+  select(scenario, fpr_ci_width, fnr_ci_width) %>%
+  pivot_longer(
+    cols = c(fpr_ci_width, fnr_ci_width),
+    names_to = "metric",
+    values_to = "ci_width"
+  ) %>%
+  mutate(
+    metric = recode(
+      metric,
+      fpr_ci_width = "False positive rate",
+      fnr_ci_width = "False negative rate"
+    )
+  ) %>%
+  ggplot(aes(x = scenario, y = ci_width)) +
+  geom_boxplot() +
+  facet_wrap(~ metric) +
+  labs(
+    title = "Confidence interval widths across repeated studies",
+    x = "Study size scenario",
+    y = "Confidence interval width"
+  ) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  theme_minimal()
+```
+
+Taken together, these simulations show that inadequate sample size can produce error-rate estimates that appear reassuring simply because the study is too small to reveal the underlying variability. A small study may report very low observed error rates, or even zero observed false positives, without providing strong evidence that the true error rate is comparably low.
 
 B. Non-representative sample AMANDA
 
