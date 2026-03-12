@@ -342,6 +342,19 @@ ggsave(
 response_distribution_plot
 ```
 
+## Data-generating assumptions
+
+The simulation rests on the following assumptions:
+
+- There is a fixed number of examiners and comparison items.
+- Each examiner evaluates the same set of items.
+- About half of the items are same-source and half are different-source.
+- Each item has a latent difficulty level.
+- Each examiner has a latent skill level.
+- Each examiner also has a latent tendency to respond inconclusive.
+- Baseline false positive, false negative, and inconclusive rates are specified in advance.
+- Harder items and weaker examiners increase the probability of error and inconclusive responses.
+- Responses are generated probabilistically for each examiner-item pair.
 
 
 # Reviewing the flaws from Cuellar et al. (2024) {#reviewing-the-flaws-from-cuellar-et-al-2024}

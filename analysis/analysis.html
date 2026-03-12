@@ -112,6 +112,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#assigning-questions-to-examiners" id="toc-assigning-questions-to-examiners">Assigning questions to examiners</a></li>
   <li><a href="#simulated-responses" id="toc-simulated-responses">Simulated responses</a></li>
   <li><a href="#what-the-simulated-data-look-like" id="toc-what-the-simulated-data-look-like">What the simulated data look like</a></li>
+  <li><a href="#data-generating-assumptions" id="toc-data-generating-assumptions">Data-generating assumptions</a></li>
   </ul></li>
   <li><a href="#reviewing-the-flaws-from-cuellar-et-al-2024" id="toc-reviewing-the-flaws-from-cuellar-et-al-2024">Reviewing the flaws from Cuellar et al.&nbsp;(2024)</a>
   <ul>
@@ -754,6 +755,21 @@ Attaching package: 'gridExtra'</code></pre>
 </div>
 </div>
 </div>
+</section>
+<section id="data-generating-assumptions" class="level2">
+<h2 class="anchored" data-anchor-id="data-generating-assumptions">Data-generating assumptions</h2>
+<p>The simulation rests on the following assumptions:</p>
+<ul>
+<li>There is a fixed number of examiners and comparison items.</li>
+<li>Each examiner evaluates the same set of items.</li>
+<li>About half of the items are same-source and half are different-source.</li>
+<li>Each item has a latent difficulty level.</li>
+<li>Each examiner has a latent skill level.</li>
+<li>Each examiner also has a latent tendency to respond inconclusive.</li>
+<li>Baseline false positive, false negative, and inconclusive rates are specified in advance.</li>
+<li>Harder items and weaker examiners increase the probability of error and inconclusive responses.</li>
+<li>Responses are generated probabilistically for each examiner-item pair.</li>
+</ul>
 </section>
 </section>
 <section id="reviewing-the-flaws-from-cuellar-et-al-2024" class="level1">
