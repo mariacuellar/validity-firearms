@@ -24,7 +24,7 @@ execute:
 
 ├── data/
 
-├── analysis/ (see online here: https://username.github.io/validity-firearms/analysis/analysis.html)
+├── analysis/ (see online here: https://mariacuellar.github.io/validity-firearms/analysis/analysis.html)
 
 ├── R/
 

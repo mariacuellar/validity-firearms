@@ -20,7 +20,7 @@ Maria Cuellar and Amanda Luby
 ├── data/
 
 ├── analysis/ (see online here:
-https://username.github.io/validity-firearms/analysis/analysis.html)
+https://mariacuellar.github.io/validity-firearms/analysis/analysis.html)
 
 ├── R/
 
