@@ -11,19 +11,16 @@ Maria Cuellar and Amanda Luby
 
 ## Repository Structure
 
-├── README.qmd
-
-├── README.md
-
-├── project.Rproj
-
-├── data/
-
 ├── analysis/ (see online here:
 https://mariacuellar.github.io/validity-firearms/analysis/analysis.html)
 
-├── R/
+├── README.md
 
-├── results/
+├── README.qmd
 
-└── output/
+├── validity-firearms.Rproj
+
+├── results
+
+└── output/paper (see online here:
+https://github.com/mariacuellar/validity-firearms/blob/main/output/paper/validation-firearms.pdf)

@@ -26,4 +26,4 @@ execute:
 
 ├── results
 
-└── output/paper
+└── output/paper (see online here: https://github.com/mariacuellar/validity-firearms/blob/main/output/paper/validation-firearms.pdf)
