@@ -27,11 +27,11 @@ list.of.packages <- c("tidyverse", "ggthemes", "gridExtra")
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages)
 
-library(dplyr)
-library(tidyr)
-library(purrr)
-library(ggplot2)
-library(gridExtra)
+suppressPackageStartupMessages(library(dplyr))
+suppressPackageStartupMessages(library(tidyr))
+suppressPackageStartupMessages(library(purrr))
+suppressPackageStartupMessages(library(ggplot2))
+suppressPackageStartupMessages(library(gridExtra))
 ```
 
 Now define the output folder for exported figures.
