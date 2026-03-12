@@ -1,0 +1,33 @@
+
+---
+title: "Response to Chin et al."
+author: "Maria Cuellar and Amanda Luby"
+date: "03/12/2026"
+format: gfm
+execute:
+  echo: false
+---
+
+# Description
+
+> This repository contains the analysis code for evaluating the accuracy of a forensic comparison algorithm using cross-validation.
+
+---
+
+## Repository Structure
+
+├── README.qmd
+
+├── README.md
+
+├── project.Rproj
+
+├── data/
+
+├── analysis/
+
+├── R/
+
+├── results/
+
+└── output/

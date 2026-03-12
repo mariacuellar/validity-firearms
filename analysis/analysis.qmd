@@ -1,0 +1,264 @@
+---
+title: "Data Simulation for Firearms Validity Studies"
+format: html
+editor: visual
+---
+
+
+## Goal
+
+The purpose of this study is to simulate what could happen due to the flaws outlined in this article:
+
+Cuellar, M., Vanderplas, S., Luby, A., & Rosenblum, M. (2024). Methodological problems in every black-box study of forensic firearm comparisons. *Law, Probability and Risk*, 23(1), mgae015.
+
+## Data generation
+
+
+```{r}
+# Preamble
+list.of.packages <- c("tidyverse", "ggthemes")
+new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+if(length(new.packages)) install.packages(new.packages)
+```
+
+
+**First**, let there be a fixed number of examiners (50) and comparisons (100), and let the proporion of same-source comparisons be 0.5.
+
+```{r}
+
+set.seed(123)
+
+# Parameters
+n_examiners <- 50
+n_comparisons <- 100
+match_rate <- 0.5  # 50% same-source comparisons
+
+# Error probabilities
+false_positive_rate <- 0.02
+false_negative_rate <- 0.05
+inconclusive_rate <- 0.1
+
+# Create empty data frame
+library(dplyr)
+
+```
+
+
+Now design the test given to examiners.
+
+
+
+
+```{r}
+
+
+# Simulate the test given to examiners, with ground truth.
+sim_test <- expand.grid(
+  examiner_id = paste0("E", 1:n_examiners),
+  question_id = 1:n_comparisons
+) %>%
+  mutate(
+    ground_truth = rbinom(n(), 1, match_rate),  # 1 = same-source, 0 = different-source
+    response = NA_character_
+  ) %>%
+  arrange(examiner_id)  # Sorting by examiner_id
+
+# View a sample
+head(sim_test)
+dim(sim_test) # there are 50 examiners, with 100 questions each, for 5000 total responses
+
+```
+
+
+Now design the responses given by examiners.
+
+```{r}
+
+# Simulate the answers given by examiners.
+sim_data <- sim_test %>%
+  rowwise() %>%
+  mutate(response = {
+    if (ground_truth == 1) {
+      # True match
+      p <- runif(1)
+      if (p < false_negative_rate) "elimination"
+      else if (p < false_negative_rate + inconclusive_rate) "inconclusive"
+      else "identification"
+    } else {
+      # True non-match
+      p <- runif(1)
+      if (p < false_positive_rate) "identification"
+      else if (p < false_positive_rate + inconclusive_rate) "inconclusive"
+      else "elimination"
+    }
+  })
+
+head(sim_data)
+
+```
+
+
+## Evaluation of performance
+
+First let's look at the responses for all examiners. Were they correct (TRUE) or incorrect (FALSE)?
+
+```{r}
+
+
+question_level_metrics <- sim_data %>%
+  mutate(
+    correct = case_when(
+      ground_truth == 1 & response == "identification" ~ TRUE,
+      ground_truth == 0 & response == "elimination" ~ TRUE,
+      response == "inconclusive" ~ NA,
+      TRUE ~ FALSE
+    ),
+    is_inconclusive = response == "inconclusive",
+    is_fp = response == "identification" & ground_truth == 0,
+    is_fn = response == "elimination" & ground_truth == 1,
+    is_tp = response == "identification" & ground_truth == 1,
+    is_tn = response == "elimination" & ground_truth == 0
+  )
+
+# Preview of metrics for each comparison
+head(question_level_metrics)
+
+```
+
+
+
+### Performance by examiner
+
+
+Now let's evaluate the performance for each examiner.
+
+```{r}
+# Summarizing performance by examiner.
+examiner_performance <- question_level_metrics %>%
+  group_by(examiner_id) %>%
+  summarise(
+    n_comparisons = n(),
+    accuracy = mean(correct, na.rm = TRUE),
+    inconclusive_rate = mean(is_inconclusive, na.rm = TRUE),
+    false_positive_rate = mean(is_fp, na.rm = TRUE),
+    false_negative_rate = mean(is_fn, na.rm = TRUE),
+    true_positive_rate = mean(is_tp, na.rm = TRUE),
+    true_negative_rate = mean(is_tn, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# Preview the summarized data by examiner
+head(examiner_performance)
+```
+
+**NOTE**: We should probably provide a likelihood ratio here instead of the FPR, FNR, etc. ALso, note how the FPR and FNR are being calculated regarding the inconclusives.
+
+Now show performance across all examiners.
+
+
+### Performance across examiners
+
+
+We can see the performance overall if we average across examiners.
+
+```{r}
+
+# Summarizing performance across all examiners
+overall_summary <- examiner_performance %>%
+  summarise(
+    mean_accuracy = mean(accuracy, na.rm = TRUE),
+    mean_inconclusive_rate = mean(inconclusive_rate, na.rm = TRUE),
+    mean_false_positive_rate = mean(false_positive_rate, na.rm = TRUE),
+    mean_false_negative_rate = mean(false_negative_rate, na.rm = TRUE),
+    mean_true_positive_rate = mean(true_positive_rate, na.rm = TRUE),
+    mean_true_negative_rate = mean(true_negative_rate, na.rm = TRUE)
+  )
+
+# Preview the overall summary
+overall_summary
+```
+
+
+# Consequences of having flaws A-F from Cuellar et al. 2024
+
+
+# A. Inadequate sample size
+
+Below we show how the accuracy measures vary with varying sample size.
+
+Idea: Do several simulations to show how even if you have many studies (10, 50, 1000!), if they all have small sample size, they will give you incorrect results.
+
+Sample size for examiners AND bullet/cartridge samples.
+
+
+### An example sample size estimation
+
+```{r}
+
+n_small=10
+n_medium=100
+n_large=500
+
+
+p=0.95 # sensitivity
+E=0.03 # desired margin of error
+Z=1.96 # confidence level: 95%
+
+n1=(Z^2 * p*(1-p))/ E^2
+n1
+
+p2=0.85 # specificity
+n2=(Z^2 * p2*(1-p2))/ E^2
+n2
+
+# Adjusting for Examiner Clustering (Design Effect)
+
+rho=0.05 # intra-class correlation
+m=20 # number of trials per examiner
+
+DE = 1+(m-1)*rho # desired effect
+DE
+
+matches = n1*DE
+nonmatches = n2*DE
+trials=matches*2
+
+matches
+nonmatches
+trials
+
+n_examiners = trials/20
+n_examiners
+
+#Summary
+# Estimated sample size: ~400 known match comparisons and ~1,100 known non-match comparisons
+# Assuming 20 trials per examiner, recruit ~40–60 examiners
+# Design accounts for examiner clustering and ±3% margin of error
+
+
+
+```
+
+
+
+
+B. Non-representative sample
+AMANDA
+
+C. Non-representative testing conditions and environment (Contextual bias)
+MARIA
+
+Use Scurich and Dror's numbers to show bias here.
+
+D. Inconclusive responses are treated as correct or ignored
+e.g., If you treat them as correct the FPR is 0.1%, if you treat them as incorrec it's 90% etc.
+
+E. Invalid or nonexistent uncertainty measures for error rates
+This is just a statistical requirement. No need for a simulation.
+
+Note: Look at Hicklin 2024 bootstrap sample (still invalid because non-representative sample, but we can use it to compare).
+
+F. Missing data
+MARIA
+
+A correctly done study
