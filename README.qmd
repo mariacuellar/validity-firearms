@@ -16,18 +16,14 @@ execute:
 
 ## Repository Structure
 
-├── README.qmd
+├── analysis/ (see online here: https://mariacuellar.github.io/validity-firearms/analysis/analysis.html)
 
 ├── README.md
 
-├── project.Rproj
+├── README.qmd
 
-├── data/
+├── validity-firearms.Rproj
 
-├── analysis/ (see online here: https://mariacuellar.github.io/validity-firearms/analysis/analysis.html)
+├── results
 
-├── R/
-
-├── results/
-
-└── output/
+└── output/paper
