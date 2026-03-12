@@ -1,7 +1,11 @@
 ---
 title: "Data Simulation for Firearms Validity Studies"
-format: html
-editor: source
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-location: body
+    number-sections: false
 ---
 
 ## Goal
@@ -10,7 +14,8 @@ The purpose of this study is to simulate what could happen due to the flaws outl
 
 Cuellar, M., Vanderplas, S., Luby, A., & Rosenblum, M. (2024). Methodological problems in every black-box study of forensic firearm comparisons. *Law, Probability and Risk*, 23(1), mgae015.
 
-## Data generation
+
+## Data generation {#data-generation}
 
 ### Number of examiners and comparisons
 
@@ -165,7 +170,9 @@ sim_data <- sim_test %>%
   )
 ```
 
-Then inspect a small, readable slice of the simulated responses to check whether the generated data look sensible. The table below shows the first several rows from the first few examiners.
+### What the simulated data look like
+
+Now inspect a small, readable slice of the simulated responses to check whether the generated data look sensible. The table below shows the first several rows from the first few examiners.
 
 ```{r preview-simulated-responses}
 sim_data_preview <- sim_data %>%
@@ -204,8 +211,6 @@ knitr::kable(
 ```
 
 Each row in this table is one examiner-question pair. The columns identify the examiner, the question, the true status of the comparison, the latent difficulty of the question, the latent skill and inconclusive tendency of the examiner, the overall challenge of that pairing, and the simulated response that the examiner gave.
-
-### What the simulated data look like
 
 These summary statistics describe the simulated dataset as a whole, including the number of rows, the number of unique examiners and questions, and the distribution of truth labels and responses.
 
@@ -290,7 +295,9 @@ sim_data %>%
   theme_minimal()
 ```
 
-## Evaluation of performance
+## Evaluation of performance {#evaluation-of-performance}
+
+### Item-level outcomes
 
 Now convert the raw responses into performance indicators at the comparison level, including whether the response was correct, false positive, false negative, true positive, true negative, or inconclusive.
 
@@ -362,15 +369,21 @@ overall_summary <- examiner_performance %>%
 overall_summary
 ```
 
-# Consequences of having flaws A-F from Cuellar et al. 2024
+## Reviewing the flaws from Cuellar et al. (2024) {#reviewing-the-flaws-from-cuellar-et-al-2024}
 
-# A. Inadequate sample size
+The sections that follow return to the flaws identified in Cuellar et al. (2024) and consider how each one affects the interpretation of reported error rates. Some flaws primarily affect how the data are summarized and can therefore be addressed, at least in part, through reanalysis. Other flaws arise at the level of study design and data collection. Those flaws are more serious because they determine what information is present in the dataset in the first place.
+
+The first flaw considered here is inadequate sample size. Even when the study design is otherwise well structured, too few examiners or too few comparisons can produce error-rate estimates that are unstable, overly reassuring, and far more sensitive to chance than they appear.
+
+### A. Inadequate sample size (MARIA) {#inadequate-sample-size}
+
+#### Why sample size matters
 
 Small sample size matters because it does not merely make error-rate estimates less precise. It can also make them look more reassuring than the design justifies. With too few examiners or too few comparisons, a study can easily observe very few errors, or even no errors at all, simply by chance.
 
 To illustrate that problem, the next analysis repeats the entire study many times at three different sizes. For each simulated study, it calculates pooled false positive and false negative rates, approximate confidence interval widths, and whether the study observed zero false positives. The point is not to recover one correct estimate, but to show how unstable the reported estimates are when the study is too small.
 
-### Repeated simulated studies at different sample sizes
+#### Simulation design
 
 First, define a function that simulates one complete study at a given number of examiners and comparisons, using the same data-generating process introduced above.
 
@@ -395,18 +408,44 @@ simulate_study <- function(n_examiners, n_comparisons) {
 
   sim_test %>%
     mutate(
-      response = purrr::pmap_chr(
-        list(
-          ground_truth = ground_truth,
-          decision_challenge = decision_challenge,
-          examiner_inconclusive_tendency = examiner_inconclusive_tendency
-        ),
-        simulate_response,
-        false_positive_rate = false_positive_rate,
-        false_negative_rate = false_negative_rate,
-        inconclusive_rate = inconclusive_rate
+      error_probability = if_else(
+        ground_truth == 1,
+        plogis(qlogis(false_negative_rate) + decision_challenge),
+        plogis(qlogis(false_positive_rate) + decision_challenge)
+      ),
+      inconclusive_probability = plogis(
+        qlogis(inconclusive_rate) +
+          0.5 * decision_challenge +
+          examiner_inconclusive_tendency
+      ),
+      total_probability = error_probability + inconclusive_probability,
+      scaling_factor = if_else(total_probability >= 0.95, 0.95 / total_probability, 1),
+      error_probability = error_probability * scaling_factor,
+      inconclusive_probability = inconclusive_probability * scaling_factor,
+      draw = runif(n()),
+      response = case_when(
+        ground_truth == 1 & draw < error_probability ~ "elimination",
+        ground_truth == 1 & draw < error_probability + inconclusive_probability ~ "inconclusive",
+        ground_truth == 1 ~ "identification",
+        ground_truth == 0 & draw < error_probability ~ "identification",
+        ground_truth == 0 & draw < error_probability + inconclusive_probability ~ "inconclusive",
+        TRUE ~ "elimination"
       )
-    )
+    ) %>%
+    select(-error_probability, -inconclusive_probability, -total_probability, -scaling_factor, -draw)
+}
+```
+
+Now define a lightweight helper that computes an approximate 95\% confidence interval width for a proportion. This is faster than calling `prop.test()` in every replication and is sufficient for illustrating how uncertainty changes with sample size.
+
+```{r define-ci-width-function}
+approx_ci_width <- function(successes, total) {
+  if (total == 0) {
+    return(NA_real_)
+  }
+
+  p_hat <- successes / total
+  2 * 1.96 * sqrt(p_hat * (1 - p_hat) / total)
 }
 ```
 
@@ -425,15 +464,12 @@ summarize_study <- function(study_data) {
   fnr <- false_negatives / match_total
   inconclusive_rate_study <- inconclusives / nrow(study_data)
 
-  fpr_ci <- prop.test(false_positives, nonmatch_total)$conf.int
-  fnr_ci <- prop.test(false_negatives, match_total)$conf.int
-
   tibble(
     fpr = fpr,
     fnr = fnr,
     inconclusive_rate = inconclusive_rate_study,
-    fpr_ci_width = diff(fpr_ci),
-    fnr_ci_width = diff(fnr_ci),
+    fpr_ci_width = approx_ci_width(false_positives, nonmatch_total),
+    fnr_ci_width = approx_ci_width(false_negatives, match_total),
     zero_false_positives = false_positives == 0,
     nonmatch_total = nonmatch_total,
     match_total = match_total
@@ -454,10 +490,10 @@ sample_size_scenarios <- tribble(
 
 Now simulate many studies under each scenario. Repeating the study many times shows the range of error-rate estimates that one could easily obtain from the same underlying process.
 
-```{r run-sample-size-simulations}
+```{r run-sample-size-simulations, cache=TRUE}
 set.seed(456)
 
-n_replications <- 200
+n_replications <- 100
 
 sample_size_results <- sample_size_scenarios %>%
   mutate(
@@ -481,6 +517,8 @@ sample_size_results <- sample_size_scenarios %>%
 ```
 
 These summary statistics show how the estimated error rates and uncertainty behave across repeated studies at each sample size.
+
+#### Results
 
 ```{r summarize-sample-size-results}
 sample_size_summary <- sample_size_results %>%
@@ -579,20 +617,475 @@ sample_size_results %>%
   theme_minimal()
 ```
 
+#### Stability of the false positive rate {#stability-of-the-false-positive-rate}
+
+This next plot shows the stability of the estimated false positive rate across study sizes. The horizontal dashed line marks the true false positive rate used in the simulation, while the solid line and ribbon show the median and central 90\% of the simulated estimates. Small studies produce a much wider range of apparent false positive rates, including estimates near zero.
+
+```{r plot-fpr-stability-by-sample-size}
+sample_size_stability <- sample_size_results %>%
+  group_by(scenario, n_examiners, n_comparisons) %>%
+  summarise(
+    median_fpr = median(fpr),
+    lower_fpr = quantile(fpr, 0.05),
+    upper_fpr = quantile(fpr, 0.95),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    total_responses = n_examiners * n_comparisons
+  )
+
+ggplot(sample_size_stability, aes(x = total_responses, y = median_fpr)) +
+  geom_ribbon(aes(ymin = lower_fpr, ymax = upper_fpr), alpha = 0.2) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 2) +
+  geom_hline(
+    yintercept = false_positive_rate,
+    linetype = "dashed"
+  ) +
+  scale_x_continuous(
+    breaks = sample_size_stability$total_responses
+  ) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  labs(
+    title = "Stability of the estimated false positive rate by study size",
+    subtitle = "Ribbon shows the central 90% of simulated estimates; dashed line shows the true rate",
+    x = "Total examiner-comparison responses in the study",
+    y = "Estimated false positive rate"
+  ) +
+  theme_minimal()
+```
+
+#### Interpretation {#interpretation}
+
 Taken together, these simulations show that inadequate sample size can produce error-rate estimates that appear reassuring simply because the study is too small to reveal the underlying variability. A small study may report very low observed error rates, or even zero observed false positives, without providing strong evidence that the true error rate is comparably low.
 
-B. Non-representative sample AMANDA
+### B. Non-representative sample (AMANDA) {#nonrepresentative-sample}
 
-C. Non-representative testing conditions and environment (Contextual bias) MARIA
+### C. Non-representative testing conditions and environment/Contextual bias (MARIA) {#contextual-bias}
 
-Use Scurich and Dror's numbers to show bias here.
+#### Why testing conditions matter {#why-testing-conditions-matter}
 
-D. Inconclusive responses are treated as correct or ignored e.g., If you treat them as correct the FPR is 0.1%, if you treat them as incorrec it's 90% etc.
+Testing conditions matter because examiner behavior can change when examiners know they are being tested. Scurich et al. (2025) report that the inconclusive rate for discovered test items at the Houston Forensic Science Center was 56.4\%, compared with 39.3\% for undiscovered blind test items. That is, the inconclusive rate was 43.5\% higher when examiners recognized that the item was part of a test. The same pattern appeared for bullet comparisons (83\% vs. 59\%) and cartridge case comparisons (29\% vs. 20\%). Those findings are consistent with the concern that non-blind studies do not reproduce ordinary casework conditions and may therefore distort the resulting performance estimates.
 
-E. Invalid or nonexistent uncertainty measures for error rates This is just a statistical requirement. No need for a simulation.
+#### Simulation design for contextual bias {#simulation-design-for-contextual-bias}
+
+To illustrate that problem, the next simulation compares two settings: a blind condition, in which examiners behave as they do in routine casework, and a known-test condition, in which the probability of an inconclusive decision is increased using the shift reported by Scurich et al. (2025). The idea is simple: when examiners know they are being tested, they may protect themselves by moving difficult decisions into the inconclusive category. If that happens, the measured error rates among conclusive decisions can look better even though the underlying difficulty of the task has not changed.
+
+First, translate the Scurich et al. (2025) finding into a shift on the log-odds scale. This shift is based on the difference between the reported inconclusive rates for discovered and undiscovered items.
+
+```{r define-context-bias-shift}
+blind_inconclusive_rate <- 0.393
+known_test_inconclusive_rate <- 0.564
+
+hawthorne_shift <- qlogis(known_test_inconclusive_rate) - qlogis(blind_inconclusive_rate)
+hawthorne_shift
+```
+
+Now define a function that simulates one study under either blind or known-test conditions. The only difference between the two conditions is the added shift in the probability of an inconclusive response.
+
+```{r define-context-bias-simulation}
+simulate_study_with_context <- function(n_examiners, n_comparisons, known_test = FALSE) {
+  context_shift <- ifelse(known_test, hawthorne_shift, 0)
+
+  comparison_set <- tibble(
+    question_id = 1:n_comparisons,
+    ground_truth = rbinom(n_comparisons, 1, match_rate),
+    question_difficulty = rnorm(n_comparisons, mean = 0, sd = question_sd)
+  )
+
+  examiner_panel <- tibble(
+    examiner_id = paste0("E", 1:n_examiners),
+    examiner_skill = rnorm(n_examiners, mean = 0, sd = examiner_sd),
+    examiner_inconclusive_tendency = rnorm(n_examiners, mean = 0, sd = examiner_sd / 2)
+  )
+
+  tidyr::crossing(examiner_panel, comparison_set) %>%
+    mutate(
+      decision_challenge = question_difficulty - examiner_skill,
+      error_probability = if_else(
+        ground_truth == 1,
+        plogis(qlogis(false_negative_rate) + decision_challenge),
+        plogis(qlogis(false_positive_rate) + decision_challenge)
+      ),
+      inconclusive_probability = plogis(
+        qlogis(inconclusive_rate) +
+          0.5 * decision_challenge +
+          examiner_inconclusive_tendency +
+          context_shift
+      ),
+      total_probability = error_probability + inconclusive_probability,
+      scaling_factor = if_else(total_probability >= 0.95, 0.95 / total_probability, 1),
+      error_probability = error_probability * scaling_factor,
+      inconclusive_probability = inconclusive_probability * scaling_factor,
+      draw = runif(n()),
+      response = case_when(
+        ground_truth == 1 & draw < error_probability ~ "elimination",
+        ground_truth == 1 & draw < error_probability + inconclusive_probability ~ "inconclusive",
+        ground_truth == 1 ~ "identification",
+        ground_truth == 0 & draw < error_probability ~ "identification",
+        ground_truth == 0 & draw < error_probability + inconclusive_probability ~ "inconclusive",
+        TRUE ~ "elimination"
+      )
+    ) %>%
+    select(-error_probability, -inconclusive_probability, -total_probability, -scaling_factor, -draw)
+}
+```
+
+Now define a summary function that compares the resulting inconclusive, false positive, and false negative rates under the two testing conditions.
+
+```{r define-context-bias-summary}
+summarize_context_bias <- function(study_data) {
+  conclusive_data <- study_data %>%
+    filter(response != "inconclusive")
+
+  tibble(
+    inconclusive_rate = mean(study_data$response == "inconclusive"),
+    false_positive_rate = sum(study_data$response == "identification" & study_data$ground_truth == 0) /
+      sum(study_data$ground_truth == 0),
+    false_negative_rate = sum(study_data$response == "elimination" & study_data$ground_truth == 1) /
+      sum(study_data$ground_truth == 1),
+    conclusive_accuracy = mean(
+      (conclusive_data$ground_truth == 1 & conclusive_data$response == "identification") |
+        (conclusive_data$ground_truth == 0 & conclusive_data$response == "elimination")
+    )
+  )
+}
+```
+
+Finally, repeat the simulation many times under both conditions.
+
+```{r run-context-bias-simulations, cache=TRUE}
+set.seed(987)
+
+n_context_replications <- 100
+
+context_bias_results <- expand_grid(
+  condition = c("Blind", "Known test"),
+  replicate_id = 1:n_context_replications
+) %>%
+  mutate(
+    results = purrr::map2(
+      condition,
+      replicate_id,
+      function(condition, replicate_id) {
+        simulate_study_with_context(
+          n_examiners = n_examiners,
+          n_comparisons = n_comparisons,
+          known_test = condition == "Known test"
+        ) %>%
+          summarize_context_bias()
+      }
+    )
+  ) %>%
+  tidyr::unnest(results)
+```
+
+#### Results for contextual bias {#results-for-contextual-bias}
+
+These summary statistics compare the blind and known-test conditions across the repeated studies.
+
+```{r summarize-context-bias-results}
+context_bias_summary <- context_bias_results %>%
+  group_by(condition) %>%
+  summarise(
+    mean_inconclusive_rate = mean(inconclusive_rate),
+    mean_false_positive_rate = mean(false_positive_rate),
+    mean_false_negative_rate = mean(false_negative_rate),
+    mean_conclusive_accuracy = mean(conclusive_accuracy),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    mean_inconclusive_rate = scales::percent(mean_inconclusive_rate, accuracy = 0.1),
+    mean_false_positive_rate = scales::percent(mean_false_positive_rate, accuracy = 0.1),
+    mean_false_negative_rate = scales::percent(mean_false_negative_rate, accuracy = 0.1),
+    mean_conclusive_accuracy = scales::percent(mean_conclusive_accuracy, accuracy = 0.1)
+  )
+
+knitr::kable(
+  context_bias_summary,
+  col.names = c(
+    "Condition",
+    "Mean inconclusive rate",
+    "Mean false positive rate",
+    "Mean false negative rate",
+    "Mean conclusive accuracy"
+  )
+)
+```
+
+The first plot shows how the inconclusive rate shifts upward when examiners know they are being tested. This is the pattern reported by Scurich et al. (2025) and built into the simulation.
+
+```{r plot-context-inconclusive-rate}
+ggplot(context_bias_results, aes(x = condition, y = inconclusive_rate)) +
+  geom_boxplot() +
+  labs(
+    title = "Inconclusive rates under blind and known-test conditions",
+    x = "Testing condition",
+    y = "Inconclusive rate"
+  ) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  theme_minimal()
+```
+
+The next plot shows how the measured false positive and false negative rates change across the two conditions. As more difficult cases are diverted into the inconclusive category, the observed error rates can appear more favorable.
+
+```{r plot-context-error-rates}
+context_bias_results %>%
+  select(condition, false_positive_rate, false_negative_rate) %>%
+  pivot_longer(
+    cols = c(false_positive_rate, false_negative_rate),
+    names_to = "metric",
+    values_to = "value"
+  ) %>%
+  mutate(
+    metric = recode(
+      metric,
+      false_positive_rate = "False positive rate",
+      false_negative_rate = "False negative rate"
+    )
+  ) %>%
+  ggplot(aes(x = condition, y = value)) +
+  geom_boxplot() +
+  facet_wrap(~ metric) +
+  labs(
+    title = "Measured error rates under blind and known-test conditions",
+    x = "Testing condition",
+    y = "Rate"
+  ) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  theme_minimal()
+```
+
+#### Interpretation of contextual bias {#interpretation-of-contextual-bias}
+
+This simulation shows how non-representative testing conditions can bias the performance quantities reported by a validation study. Using the shift observed by Scurich et al. (2025), the known-test condition produces a substantially higher inconclusive rate than the blind condition. That shift matters because it changes which examiner-item pairs remain in the pool of conclusive decisions. When examiners can move more difficult decisions into the inconclusive category, the resulting false positive and false negative rates can look better than they would under genuinely blind, casework-like conditions. In that sense, non-blind testing environments do not merely alter examiner behavior in a superficial way; they can change the very quantities that the study is trying to estimate.
+
+### D. Inconclusive responses are treated as correct or ignored (AMANDA) {#inconclusives}
+
+### E. Invalid or nonexistent uncertainty measures for error rates (AMANDA) {#uncertainty-measures}
 
 Note: Look at Hicklin 2024 bootstrap sample (still invalid because non-representative sample, but we can use it to compare).
 
-F. Missing data MARIA
+### F. Missing data (MARIA) {#missing-data}
 
-A correctly done study
+#### Why missing data matters {#why-missing-data-matters}
+
+Missing data can bias reported error rates when the missing responses are not a random subset of the study. If difficult items, weak examiner-item pairings, or outright errors are more likely to be missing, then calculating error rates only from the observed responses will systematically understate the rate of error. In that setting, the problem is not just that the study has less information than intended. The observed data are selectively filtered in a way that changes the apparent performance of the examiners.
+
+#### Simulation design for missingness {#simulation-design-for-missingness}
+
+To illustrate that point, the next simulation starts with the complete simulated dataset and then imposes missingness. Missing responses are made more likely when the examiner-question pairing is difficult, when the response is incorrect, and when the response is inconclusive. This creates a simple missing-not-at-random mechanism in which the responses most likely to make performance look worse are also the most likely to disappear from the observed dataset.
+
+First, define a function that imposes missingness on a complete study.
+
+```{r define-missingness-model}
+impose_missingness <- function(study_data) {
+  study_data %>%
+    mutate(
+      is_error = (response == "identification" & ground_truth == 0) |
+        (response == "elimination" & ground_truth == 1),
+      missing_probability = plogis(
+        qlogis(0.05) +
+          0.8 * decision_challenge +
+          1.2 * is_error +
+          0.6 * (response == "inconclusive")
+      ),
+      is_missing = runif(n()) < missing_probability,
+      observed_response = if_else(is_missing, NA_character_, response)
+    )
+}
+```
+
+Now define a function that compares the true error rates from the complete data to the error rates calculated only from the observed responses.
+
+```{r define-missing-data-summary}
+summarize_missing_data_bias <- function(study_data) {
+  observed_data <- impose_missingness(study_data)
+
+  true_fpr <- sum(study_data$response == "identification" & study_data$ground_truth == 0) /
+    sum(study_data$ground_truth == 0)
+  true_fnr <- sum(study_data$response == "elimination" & study_data$ground_truth == 1) /
+    sum(study_data$ground_truth == 1)
+  true_inconclusive_rate <- mean(study_data$response == "inconclusive")
+
+  observed_fpr <- sum(observed_data$observed_response == "identification" & observed_data$ground_truth == 0, na.rm = TRUE) /
+    sum(observed_data$ground_truth == 0 & !is.na(observed_data$observed_response))
+  observed_fnr <- sum(observed_data$observed_response == "elimination" & observed_data$ground_truth == 1, na.rm = TRUE) /
+    sum(observed_data$ground_truth == 1 & !is.na(observed_data$observed_response))
+  observed_inconclusive_rate <- sum(observed_data$observed_response == "inconclusive", na.rm = TRUE) /
+    sum(!is.na(observed_data$observed_response))
+
+  tibble(
+    true_fpr = true_fpr,
+    observed_fpr = observed_fpr,
+    true_fnr = true_fnr,
+    observed_fnr = observed_fnr,
+    true_inconclusive_rate = true_inconclusive_rate,
+    observed_inconclusive_rate = observed_inconclusive_rate,
+    missing_rate = mean(observed_data$is_missing)
+  )
+}
+```
+
+Now repeat that comparison across many simulated studies so that the bias from missing data can be seen across replications rather than in a single example.
+
+```{r run-missing-data-simulations, cache=TRUE}
+set.seed(789)
+
+n_missing_data_replications <- 100
+
+missing_data_results <- purrr::map_dfr(
+  1:n_missing_data_replications,
+  function(replicate_id) {
+    simulate_study(
+      n_examiners = n_examiners,
+      n_comparisons = n_comparisons
+    ) %>%
+      summarize_missing_data_bias() %>%
+      mutate(replicate_id = replicate_id)
+  }
+)
+```
+
+#### Results for missing data {#results-for-missing-data}
+
+These summary statistics compare the complete-data error rates to the error rates that would be reported if the missing responses were simply ignored.
+
+```{r summarize-missing-data-results}
+missing_data_summary <- tibble(
+  quantity = c(
+    "Average true false positive rate",
+    "Average observed false positive rate",
+    "Average true false negative rate",
+    "Average observed false negative rate",
+    "Average true inconclusive rate",
+    "Average observed inconclusive rate",
+    "Average missing-data rate"
+  ),
+  value = c(
+    mean(missing_data_results$true_fpr),
+    mean(missing_data_results$observed_fpr),
+    mean(missing_data_results$true_fnr),
+    mean(missing_data_results$observed_fnr),
+    mean(missing_data_results$true_inconclusive_rate),
+    mean(missing_data_results$observed_inconclusive_rate),
+    mean(missing_data_results$missing_rate)
+  )
+) %>%
+  mutate(value = scales::percent(value, accuracy = 0.1))
+
+knitr::kable(missing_data_summary, col.names = c("Quantity", "Value"))
+```
+
+##### Bias from ignoring missing responses {#bias-from-ignoring-missing-responses}
+
+The next plot compares the true and observed error rates across the repeated studies. If missing responses are ignored, the observed rates tend to look better than the truth.
+
+```{r plot-missing-data-bias}
+missing_data_results %>%
+  select(
+    replicate_id,
+    true_fpr,
+    observed_fpr,
+    true_fnr,
+    observed_fnr
+  ) %>%
+  pivot_longer(
+    cols = -replicate_id,
+    names_to = "metric",
+    values_to = "value"
+  ) %>%
+  mutate(
+    metric = recode(
+      metric,
+      true_fpr = "True false positive rate",
+      observed_fpr = "Observed false positive rate",
+      true_fnr = "True false negative rate",
+      observed_fnr = "Observed false negative rate"
+    )
+  ) %>%
+  ggplot(aes(x = metric, y = value)) +
+  geom_boxplot() +
+  labs(
+    title = "Bias from ignoring missing responses",
+    x = "",
+    y = "Rate"
+  ) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 20, hjust = 1))
+```
+
+##### How much data are missing? {#how-much-data-are-missing}
+
+This plot shows the distribution of the missing-data rate itself across the repeated studies.
+
+```{r plot-missingness-rate}
+ggplot(missing_data_results, aes(x = missing_rate)) +
+  geom_histogram(bins = 15) +
+  labs(
+    title = "Distribution of missing-data rates across repeated studies",
+    x = "Missing-data rate",
+    y = "Count"
+  ) +
+  scale_x_continuous(labels = scales::percent_format(accuracy = 1)) +
+  theme_minimal()
+```
+
+##### Sensitivity of the false positive rate {#sensitivity-of-the-false-positive-rate}
+
+This final plot shows a simple sensitivity analysis for the false positive rate. Starting from the observed false positive rate among the non-missing responses, it asks what the overall false positive rate would be if different fractions of the missing non-match responses were actually false positives. When the observed false positive rate is low, the estimated rate can still become much larger once plausible missing-data scenarios are taken into account.
+
+```{r plot-fpr-sensitivity-to-missingness}
+fpr_sensitivity <- missing_data_results %>%
+  transmute(
+    replicate_id,
+    observed_fpr,
+    missing_nonmatch_rate = pmax(missing_rate, 0)
+  ) %>%
+  crossing(assumed_missing_fp_rate = seq(0, 1, by = 0.1)) %>%
+  mutate(
+    adjusted_fpr = observed_fpr * (1 - missing_nonmatch_rate) +
+      assumed_missing_fp_rate * missing_nonmatch_rate
+  )
+
+ggplot(
+  fpr_sensitivity,
+  aes(
+    x = assumed_missing_fp_rate,
+    y = adjusted_fpr,
+    group = replicate_id
+  )
+) +
+  geom_line(alpha = 0.08) +
+  stat_summary(
+    aes(group = 1),
+    fun = median,
+    geom = "line",
+    linewidth = 1
+  ) +
+  labs(
+    title = "False positive rate under different missing-data assumptions",
+    subtitle = "Thin lines are simulated studies; thick line is the median across studies",
+    x = "Assumed false positive rate among missing non-match responses",
+    y = "Overall false positive rate"
+  ) +
+  scale_x_continuous(labels = scales::percent_format(accuracy = 1)) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  theme_minimal()
+```
+
+#### Interpretation of missing data {#interpretation-of-missing-data}
+
+These simulations show that missing data can bias reported error rates when the missing responses are systematically related to difficult items or poor performance. In that setting, simply dropping the missing responses does not recover the true error rates from the remaining observed data. Instead, it creates a more favorable picture of examiner performance by disproportionately removing the responses most likely to count as errors or inconclusives.
+
+# Discussion {#discussion}
+
+The simulations developed so far show that several of the flaws identified in Cuellar et al. (2024) change the meaning of the reported error rates, not just their precision. In the baseline simulation, performance varies across both examiners and items, which makes clear that any reported error rate is an average over a heterogeneous process. Once that heterogeneity is acknowledged, it becomes easier to see why poor study design can distort the results in systematic ways.
+
+Taken together, these results support a distinction between flaws that are mainly analytic and flaws that are built into study design and data collection. Some problems, such as omitted uncertainty intervals or alternative ways of tabulating existing responses, may be at least partly fixable after the fact if the raw data are available. By contrast, inadequate sample size, non-representative testing conditions, and missing data affect what is observed in the first place. Those flaws do not merely complicate interpretation; they can make the resulting estimates poor measures of the performance quantity that researchers, courts, and policymakers care about.
+
+## An example of a correctly done study {#correctly-done-study}
+
+
+

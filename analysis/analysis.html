@@ -74,10 +74,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 </head>
 
-<body class="fullcontent quarto-light">
+<body class="quarto-light">
 
 <div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
-
+<div id="quarto-margin-sidebar" class="sidebar margin-sidebar zindex-bottom">
+</div>
 <main class="content" id="quarto-document-content">
 
 <header id="title-block-header" class="quarto-title-block default">
@@ -98,7 +99,41 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 </header>
 
-
+<nav id="TOC" role="doc-toc">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#goal" id="toc-goal">Goal</a></li>
+  <li><a href="#data-generation" id="toc-data-generation">Data generation</a>
+  <ul>
+  <li><a href="#number-of-examiners-and-comparisons" id="toc-number-of-examiners-and-comparisons">Number of examiners and comparisons</a></li>
+  <li><a href="#question-difficulty" id="toc-question-difficulty">Question difficulty</a></li>
+  <li><a href="#examiner-performance" id="toc-examiner-performance">Examiner performance</a></li>
+  <li><a href="#assigning-questions-to-examiners" id="toc-assigning-questions-to-examiners">Assigning questions to examiners</a></li>
+  <li><a href="#simulated-responses" id="toc-simulated-responses">Simulated responses</a></li>
+  <li><a href="#what-the-simulated-data-look-like" id="toc-what-the-simulated-data-look-like">What the simulated data look like</a></li>
+  </ul></li>
+  <li><a href="#evaluation-of-performance" id="toc-evaluation-of-performance">Evaluation of performance</a>
+  <ul>
+  <li><a href="#item-level-outcomes" id="toc-item-level-outcomes">Item-level outcomes</a></li>
+  <li><a href="#performance-by-examiner" id="toc-performance-by-examiner">Performance by examiner</a></li>
+  <li><a href="#performance-across-examiners" id="toc-performance-across-examiners">Performance across examiners</a></li>
+  </ul></li>
+  <li><a href="#reviewing-the-flaws-from-cuellar-et-al-2024" id="toc-reviewing-the-flaws-from-cuellar-et-al-2024">Reviewing the flaws from Cuellar et al.&nbsp;(2024)</a>
+  <ul>
+  <li><a href="#inadequate-sample-size" id="toc-inadequate-sample-size">A. Inadequate sample size (MARIA)</a></li>
+  <li><a href="#nonrepresentative-sample" id="toc-nonrepresentative-sample">B. Non-representative sample (AMANDA)</a></li>
+  <li><a href="#contextual-bias" id="toc-contextual-bias">C. Non-representative testing conditions and environment/Contextual bias (MARIA)</a></li>
+  <li><a href="#inconclusives" id="toc-inconclusives">D. Inconclusive responses are treated as correct or ignored (AMANDA)</a></li>
+  <li><a href="#uncertainty-measures" id="toc-uncertainty-measures">E. Invalid or nonexistent uncertainty measures for error rates (AMANDA)</a></li>
+  <li><a href="#missing-data" id="toc-missing-data">F. Missing data (MARIA)</a></li>
+  </ul></li>
+  <li><a href="#discussion" id="toc-discussion">Discussion</a>
+  <ul>
+  <li><a href="#correctly-done-study" id="toc-correctly-done-study">An example of a correctly done study</a></li>
+  </ul></li>
+  </ul>
+</nav>
 <section id="goal" class="level2">
 <h2 class="anchored" data-anchor-id="goal">Goal</h2>
 <p>The purpose of this study is to simulate what could happen due to the flaws outlined in this article:</p>
@@ -278,7 +313,10 @@ Attaching package: 'dplyr'</code></pre>
 <span id="cb15-13"><a href="#cb15-13" aria-hidden="true" tabindex="-1"></a>    )</span>
 <span id="cb15-14"><a href="#cb15-14" aria-hidden="true" tabindex="-1"></a>  )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<p>Then inspect a small, readable slice of the simulated responses to check whether the generated data look sensible. The table below shows the first several rows from the first few examiners.</p>
+</section>
+<section id="what-the-simulated-data-look-like" class="level3">
+<h3 class="anchored" data-anchor-id="what-the-simulated-data-look-like">What the simulated data look like</h3>
+<p>Now inspect a small, readable slice of the simulated responses to check whether the generated data look sensible. The table below shows the first several rows from the first few examiners.</p>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>sim_data_preview <span class="ot">&lt;-</span> sim_data <span class="sc">%&gt;%</span></span>
 <span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(examiner_id <span class="sc">%in%</span> <span class="fu">paste0</span>(<span class="st">"E"</span>, <span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>)) <span class="sc">%&gt;%</span></span>
@@ -503,9 +541,6 @@ Attaching package: 'dplyr'</code></pre>
 </div>
 </div>
 <p>Each row in this table is one examiner-question pair. The columns identify the examiner, the question, the true status of the comparison, the latent difficulty of the question, the latent skill and inconclusive tendency of the examiner, the overall challenge of that pairing, and the simulated response that the examiner gave.</p>
-</section>
-<section id="what-the-simulated-data-look-like" class="level3">
-<h3 class="anchored" data-anchor-id="what-the-simulated-data-look-like">What the simulated data look like</h3>
 <p>These summary statistics describe the simulated dataset as a whole, including the number of rows, the number of unique examiners and questions, and the distribution of truth labels and responses.</p>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>sim_data_summary <span class="ot">&lt;-</span> <span class="fu">tibble</span>(</span>
@@ -579,7 +614,7 @@ Attaching package: 'dplyr'</code></pre>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="analysis_files/figure-html/unnamed-chunk-11-1.png" class="img-fluid figure-img" width="672"></p>
+<p><img src="analysis_files/figure-html/plot-examiner-skill-1.png" class="img-fluid figure-img" width="672"></p>
 </figure>
 </div>
 </div>
@@ -596,7 +631,7 @@ Attaching package: 'dplyr'</code></pre>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="analysis_files/figure-html/unnamed-chunk-12-1.png" class="img-fluid figure-img" width="672"></p>
+<p><img src="analysis_files/figure-html/plot-question-difficulty-1.png" class="img-fluid figure-img" width="672"></p>
 </figure>
 </div>
 </div>
@@ -615,7 +650,7 @@ Attaching package: 'dplyr'</code></pre>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="analysis_files/figure-html/unnamed-chunk-13-1.png" class="img-fluid figure-img" width="672"></p>
+<p><img src="analysis_files/figure-html/plot-response-distribution-1.png" class="img-fluid figure-img" width="672"></p>
 </figure>
 </div>
 </div>
@@ -624,6 +659,8 @@ Attaching package: 'dplyr'</code></pre>
 </section>
 <section id="evaluation-of-performance" class="level2">
 <h2 class="anchored" data-anchor-id="evaluation-of-performance">Evaluation of performance</h2>
+<section id="item-level-outcomes" class="level3">
+<h3 class="anchored" data-anchor-id="item-level-outcomes">Item-level outcomes</h3>
 <p>Now convert the raw responses into performance indicators at the comparison level, including whether the response was correct, false positive, false negative, true positive, true negative, or inconclusive.</p>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>question_level_metrics <span class="ot">&lt;-</span> sim_data <span class="sc">%&gt;%</span></span>
@@ -659,6 +696,7 @@ Attaching package: 'dplyr'</code></pre>
 #   is_inconclusive &lt;lgl&gt;, is_fp &lt;lgl&gt;, is_fn &lt;lgl&gt;, is_tp &lt;lgl&gt;, is_tn &lt;lgl&gt;</code></pre>
 </div>
 </div>
+</section>
 <section id="performance-by-examiner" class="level3">
 <h3 class="anchored" data-anchor-id="performance-by-examiner">Performance by examiner</h3>
 <p>Next, summarize those comparison-level outcomes for each examiner so you can compare performance across the panel.</p>
@@ -724,15 +762,19 @@ Attaching package: 'dplyr'</code></pre>
 </div>
 </section>
 </section>
-<section id="consequences-of-having-flaws-a-f-from-cuellar-et-al.-2024" class="level1">
-<h1>Consequences of having flaws A-F from Cuellar et al.&nbsp;2024</h1>
-</section>
-<section id="a.-inadequate-sample-size" class="level1">
-<h1>A. Inadequate sample size</h1>
+<section id="reviewing-the-flaws-from-cuellar-et-al-2024" class="level2">
+<h2 class="anchored" data-anchor-id="reviewing-the-flaws-from-cuellar-et-al-2024">Reviewing the flaws from Cuellar et al.&nbsp;(2024)</h2>
+<p>The sections that follow return to the flaws identified in Cuellar et al.&nbsp;(2024) and consider how each one affects the interpretation of reported error rates. Some flaws primarily affect how the data are summarized and can therefore be addressed, at least in part, through reanalysis. Other flaws arise at the level of study design and data collection. Those flaws are more serious because they determine what information is present in the dataset in the first place.</p>
+<p>The first flaw considered here is inadequate sample size. Even when the study design is otherwise well structured, too few examiners or too few comparisons can produce error-rate estimates that are unstable, overly reassuring, and far more sensitive to chance than they appear.</p>
+<section id="inadequate-sample-size" class="level3">
+<h3 class="anchored" data-anchor-id="inadequate-sample-size">A. Inadequate sample size (MARIA)</h3>
+<section id="why-sample-size-matters" class="level4">
+<h4 class="anchored" data-anchor-id="why-sample-size-matters">Why sample size matters</h4>
 <p>Small sample size matters because it does not merely make error-rate estimates less precise. It can also make them look more reassuring than the design justifies. With too few examiners or too few comparisons, a study can easily observe very few errors, or even no errors at all, simply by chance.</p>
 <p>To illustrate that problem, the next analysis repeats the entire study many times at three different sizes. For each simulated study, it calculates pooled false positive and false negative rates, approximate confidence interval widths, and whether the study observed zero false positives. The point is not to recover one correct estimate, but to show how unstable the reported estimates are when the study is too small.</p>
-<section id="repeated-simulated-studies-at-different-sample-sizes" class="level3">
-<h3 class="anchored" data-anchor-id="repeated-simulated-studies-at-different-sample-sizes">Repeated simulated studies at different sample sizes</h3>
+</section>
+<section id="simulation-design" class="level4">
+<h4 class="anchored" data-anchor-id="simulation-design">Simulation design</h4>
 <p>First, define a function that simulates one complete study at a given number of examiners and comparisons, using the same data-generating process introduced above.</p>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a>simulate_study <span class="ot">&lt;-</span> <span class="cf">function</span>(n_examiners, n_comparisons) {</span>
@@ -755,123 +797,147 @@ Attaching package: 'dplyr'</code></pre>
 <span id="cb28-18"><a href="#cb28-18" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb28-19"><a href="#cb28-19" aria-hidden="true" tabindex="-1"></a>  sim_test <span class="sc">%&gt;%</span></span>
 <span id="cb28-20"><a href="#cb28-20" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(</span>
-<span id="cb28-21"><a href="#cb28-21" aria-hidden="true" tabindex="-1"></a>      <span class="at">response =</span> purrr<span class="sc">::</span><span class="fu">pmap_chr</span>(</span>
-<span id="cb28-22"><a href="#cb28-22" aria-hidden="true" tabindex="-1"></a>        <span class="fu">list</span>(</span>
-<span id="cb28-23"><a href="#cb28-23" aria-hidden="true" tabindex="-1"></a>          <span class="at">ground_truth =</span> ground_truth,</span>
-<span id="cb28-24"><a href="#cb28-24" aria-hidden="true" tabindex="-1"></a>          <span class="at">decision_challenge =</span> decision_challenge,</span>
-<span id="cb28-25"><a href="#cb28-25" aria-hidden="true" tabindex="-1"></a>          <span class="at">examiner_inconclusive_tendency =</span> examiner_inconclusive_tendency</span>
-<span id="cb28-26"><a href="#cb28-26" aria-hidden="true" tabindex="-1"></a>        ),</span>
-<span id="cb28-27"><a href="#cb28-27" aria-hidden="true" tabindex="-1"></a>        simulate_response,</span>
-<span id="cb28-28"><a href="#cb28-28" aria-hidden="true" tabindex="-1"></a>        <span class="at">false_positive_rate =</span> false_positive_rate,</span>
-<span id="cb28-29"><a href="#cb28-29" aria-hidden="true" tabindex="-1"></a>        <span class="at">false_negative_rate =</span> false_negative_rate,</span>
-<span id="cb28-30"><a href="#cb28-30" aria-hidden="true" tabindex="-1"></a>        <span class="at">inconclusive_rate =</span> inconclusive_rate</span>
-<span id="cb28-31"><a href="#cb28-31" aria-hidden="true" tabindex="-1"></a>      )</span>
-<span id="cb28-32"><a href="#cb28-32" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb28-33"><a href="#cb28-33" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb28-21"><a href="#cb28-21" aria-hidden="true" tabindex="-1"></a>      <span class="at">error_probability =</span> <span class="fu">if_else</span>(</span>
+<span id="cb28-22"><a href="#cb28-22" aria-hidden="true" tabindex="-1"></a>        ground_truth <span class="sc">==</span> <span class="dv">1</span>,</span>
+<span id="cb28-23"><a href="#cb28-23" aria-hidden="true" tabindex="-1"></a>        <span class="fu">plogis</span>(<span class="fu">qlogis</span>(false_negative_rate) <span class="sc">+</span> decision_challenge),</span>
+<span id="cb28-24"><a href="#cb28-24" aria-hidden="true" tabindex="-1"></a>        <span class="fu">plogis</span>(<span class="fu">qlogis</span>(false_positive_rate) <span class="sc">+</span> decision_challenge)</span>
+<span id="cb28-25"><a href="#cb28-25" aria-hidden="true" tabindex="-1"></a>      ),</span>
+<span id="cb28-26"><a href="#cb28-26" aria-hidden="true" tabindex="-1"></a>      <span class="at">inconclusive_probability =</span> <span class="fu">plogis</span>(</span>
+<span id="cb28-27"><a href="#cb28-27" aria-hidden="true" tabindex="-1"></a>        <span class="fu">qlogis</span>(inconclusive_rate) <span class="sc">+</span></span>
+<span id="cb28-28"><a href="#cb28-28" aria-hidden="true" tabindex="-1"></a>          <span class="fl">0.5</span> <span class="sc">*</span> decision_challenge <span class="sc">+</span></span>
+<span id="cb28-29"><a href="#cb28-29" aria-hidden="true" tabindex="-1"></a>          examiner_inconclusive_tendency</span>
+<span id="cb28-30"><a href="#cb28-30" aria-hidden="true" tabindex="-1"></a>      ),</span>
+<span id="cb28-31"><a href="#cb28-31" aria-hidden="true" tabindex="-1"></a>      <span class="at">total_probability =</span> error_probability <span class="sc">+</span> inconclusive_probability,</span>
+<span id="cb28-32"><a href="#cb28-32" aria-hidden="true" tabindex="-1"></a>      <span class="at">scaling_factor =</span> <span class="fu">if_else</span>(total_probability <span class="sc">&gt;=</span> <span class="fl">0.95</span>, <span class="fl">0.95</span> <span class="sc">/</span> total_probability, <span class="dv">1</span>),</span>
+<span id="cb28-33"><a href="#cb28-33" aria-hidden="true" tabindex="-1"></a>      <span class="at">error_probability =</span> error_probability <span class="sc">*</span> scaling_factor,</span>
+<span id="cb28-34"><a href="#cb28-34" aria-hidden="true" tabindex="-1"></a>      <span class="at">inconclusive_probability =</span> inconclusive_probability <span class="sc">*</span> scaling_factor,</span>
+<span id="cb28-35"><a href="#cb28-35" aria-hidden="true" tabindex="-1"></a>      <span class="at">draw =</span> <span class="fu">runif</span>(<span class="fu">n</span>()),</span>
+<span id="cb28-36"><a href="#cb28-36" aria-hidden="true" tabindex="-1"></a>      <span class="at">response =</span> <span class="fu">case_when</span>(</span>
+<span id="cb28-37"><a href="#cb28-37" aria-hidden="true" tabindex="-1"></a>        ground_truth <span class="sc">==</span> <span class="dv">1</span> <span class="sc">&amp;</span> draw <span class="sc">&lt;</span> error_probability <span class="sc">~</span> <span class="st">"elimination"</span>,</span>
+<span id="cb28-38"><a href="#cb28-38" aria-hidden="true" tabindex="-1"></a>        ground_truth <span class="sc">==</span> <span class="dv">1</span> <span class="sc">&amp;</span> draw <span class="sc">&lt;</span> error_probability <span class="sc">+</span> inconclusive_probability <span class="sc">~</span> <span class="st">"inconclusive"</span>,</span>
+<span id="cb28-39"><a href="#cb28-39" aria-hidden="true" tabindex="-1"></a>        ground_truth <span class="sc">==</span> <span class="dv">1</span> <span class="sc">~</span> <span class="st">"identification"</span>,</span>
+<span id="cb28-40"><a href="#cb28-40" aria-hidden="true" tabindex="-1"></a>        ground_truth <span class="sc">==</span> <span class="dv">0</span> <span class="sc">&amp;</span> draw <span class="sc">&lt;</span> error_probability <span class="sc">~</span> <span class="st">"identification"</span>,</span>
+<span id="cb28-41"><a href="#cb28-41" aria-hidden="true" tabindex="-1"></a>        ground_truth <span class="sc">==</span> <span class="dv">0</span> <span class="sc">&amp;</span> draw <span class="sc">&lt;</span> error_probability <span class="sc">+</span> inconclusive_probability <span class="sc">~</span> <span class="st">"inconclusive"</span>,</span>
+<span id="cb28-42"><a href="#cb28-42" aria-hidden="true" tabindex="-1"></a>        <span class="cn">TRUE</span> <span class="sc">~</span> <span class="st">"elimination"</span></span>
+<span id="cb28-43"><a href="#cb28-43" aria-hidden="true" tabindex="-1"></a>      )</span>
+<span id="cb28-44"><a href="#cb28-44" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">%&gt;%</span></span>
+<span id="cb28-45"><a href="#cb28-45" aria-hidden="true" tabindex="-1"></a>    <span class="fu">select</span>(<span class="sc">-</span>error_probability, <span class="sc">-</span>inconclusive_probability, <span class="sc">-</span>total_probability, <span class="sc">-</span>scaling_factor, <span class="sc">-</span>draw)</span>
+<span id="cb28-46"><a href="#cb28-46" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>Now define a lightweight helper that computes an approximate 95% confidence interval width for a proportion. This is faster than calling <code>prop.test()</code> in every replication and is sufficient for illustrating how uncertainty changes with sample size.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb29"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a>approx_ci_width <span class="ot">&lt;-</span> <span class="cf">function</span>(successes, total) {</span>
+<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (total <span class="sc">==</span> <span class="dv">0</span>) {</span>
+<span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">return</span>(<span class="cn">NA_real_</span>)</span>
+<span id="cb29-4"><a href="#cb29-4" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb29-5"><a href="#cb29-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-6"><a href="#cb29-6" aria-hidden="true" tabindex="-1"></a>  p_hat <span class="ot">&lt;-</span> successes <span class="sc">/</span> total</span>
+<span id="cb29-7"><a href="#cb29-7" aria-hidden="true" tabindex="-1"></a>  <span class="dv">2</span> <span class="sc">*</span> <span class="fl">1.96</span> <span class="sc">*</span> <span class="fu">sqrt</span>(p_hat <span class="sc">*</span> (<span class="dv">1</span> <span class="sc">-</span> p_hat) <span class="sc">/</span> total)</span>
+<span id="cb29-8"><a href="#cb29-8" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Now define a function that summarizes one simulated study. Here the false positive and false negative rates are calculated with the appropriate denominators: non-matches for the false positive rate and matches for the false negative rate.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb29"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a>summarize_study <span class="ot">&lt;-</span> <span class="cf">function</span>(study_data) {</span>
-<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a>  nonmatch_total <span class="ot">&lt;-</span> <span class="fu">sum</span>(study_data<span class="sc">$</span>ground_truth <span class="sc">==</span> <span class="dv">0</span>)</span>
-<span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a>  match_total <span class="ot">&lt;-</span> <span class="fu">sum</span>(study_data<span class="sc">$</span>ground_truth <span class="sc">==</span> <span class="dv">1</span>)</span>
-<span id="cb29-4"><a href="#cb29-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-5"><a href="#cb29-5" aria-hidden="true" tabindex="-1"></a>  false_positives <span class="ot">&lt;-</span> <span class="fu">sum</span>(study_data<span class="sc">$</span>response <span class="sc">==</span> <span class="st">"identification"</span> <span class="sc">&amp;</span> study_data<span class="sc">$</span>ground_truth <span class="sc">==</span> <span class="dv">0</span>)</span>
-<span id="cb29-6"><a href="#cb29-6" aria-hidden="true" tabindex="-1"></a>  false_negatives <span class="ot">&lt;-</span> <span class="fu">sum</span>(study_data<span class="sc">$</span>response <span class="sc">==</span> <span class="st">"elimination"</span> <span class="sc">&amp;</span> study_data<span class="sc">$</span>ground_truth <span class="sc">==</span> <span class="dv">1</span>)</span>
-<span id="cb29-7"><a href="#cb29-7" aria-hidden="true" tabindex="-1"></a>  inconclusives <span class="ot">&lt;-</span> <span class="fu">sum</span>(study_data<span class="sc">$</span>response <span class="sc">==</span> <span class="st">"inconclusive"</span>)</span>
-<span id="cb29-8"><a href="#cb29-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-9"><a href="#cb29-9" aria-hidden="true" tabindex="-1"></a>  fpr <span class="ot">&lt;-</span> false_positives <span class="sc">/</span> nonmatch_total</span>
-<span id="cb29-10"><a href="#cb29-10" aria-hidden="true" tabindex="-1"></a>  fnr <span class="ot">&lt;-</span> false_negatives <span class="sc">/</span> match_total</span>
-<span id="cb29-11"><a href="#cb29-11" aria-hidden="true" tabindex="-1"></a>  inconclusive_rate_study <span class="ot">&lt;-</span> inconclusives <span class="sc">/</span> <span class="fu">nrow</span>(study_data)</span>
-<span id="cb29-12"><a href="#cb29-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-13"><a href="#cb29-13" aria-hidden="true" tabindex="-1"></a>  fpr_ci <span class="ot">&lt;-</span> <span class="fu">prop.test</span>(false_positives, nonmatch_total)<span class="sc">$</span>conf.int</span>
-<span id="cb29-14"><a href="#cb29-14" aria-hidden="true" tabindex="-1"></a>  fnr_ci <span class="ot">&lt;-</span> <span class="fu">prop.test</span>(false_negatives, match_total)<span class="sc">$</span>conf.int</span>
-<span id="cb29-15"><a href="#cb29-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-16"><a href="#cb29-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tibble</span>(</span>
-<span id="cb29-17"><a href="#cb29-17" aria-hidden="true" tabindex="-1"></a>    <span class="at">fpr =</span> fpr,</span>
-<span id="cb29-18"><a href="#cb29-18" aria-hidden="true" tabindex="-1"></a>    <span class="at">fnr =</span> fnr,</span>
-<span id="cb29-19"><a href="#cb29-19" aria-hidden="true" tabindex="-1"></a>    <span class="at">inconclusive_rate =</span> inconclusive_rate_study,</span>
-<span id="cb29-20"><a href="#cb29-20" aria-hidden="true" tabindex="-1"></a>    <span class="at">fpr_ci_width =</span> <span class="fu">diff</span>(fpr_ci),</span>
-<span id="cb29-21"><a href="#cb29-21" aria-hidden="true" tabindex="-1"></a>    <span class="at">fnr_ci_width =</span> <span class="fu">diff</span>(fnr_ci),</span>
-<span id="cb29-22"><a href="#cb29-22" aria-hidden="true" tabindex="-1"></a>    <span class="at">zero_false_positives =</span> false_positives <span class="sc">==</span> <span class="dv">0</span>,</span>
-<span id="cb29-23"><a href="#cb29-23" aria-hidden="true" tabindex="-1"></a>    <span class="at">nonmatch_total =</span> nonmatch_total,</span>
-<span id="cb29-24"><a href="#cb29-24" aria-hidden="true" tabindex="-1"></a>    <span class="at">match_total =</span> match_total</span>
-<span id="cb29-25"><a href="#cb29-25" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb29-26"><a href="#cb29-26" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb30"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a>summarize_study <span class="ot">&lt;-</span> <span class="cf">function</span>(study_data) {</span>
+<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a>  nonmatch_total <span class="ot">&lt;-</span> <span class="fu">sum</span>(study_data<span class="sc">$</span>ground_truth <span class="sc">==</span> <span class="dv">0</span>)</span>
+<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a>  match_total <span class="ot">&lt;-</span> <span class="fu">sum</span>(study_data<span class="sc">$</span>ground_truth <span class="sc">==</span> <span class="dv">1</span>)</span>
+<span id="cb30-4"><a href="#cb30-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-5"><a href="#cb30-5" aria-hidden="true" tabindex="-1"></a>  false_positives <span class="ot">&lt;-</span> <span class="fu">sum</span>(study_data<span class="sc">$</span>response <span class="sc">==</span> <span class="st">"identification"</span> <span class="sc">&amp;</span> study_data<span class="sc">$</span>ground_truth <span class="sc">==</span> <span class="dv">0</span>)</span>
+<span id="cb30-6"><a href="#cb30-6" aria-hidden="true" tabindex="-1"></a>  false_negatives <span class="ot">&lt;-</span> <span class="fu">sum</span>(study_data<span class="sc">$</span>response <span class="sc">==</span> <span class="st">"elimination"</span> <span class="sc">&amp;</span> study_data<span class="sc">$</span>ground_truth <span class="sc">==</span> <span class="dv">1</span>)</span>
+<span id="cb30-7"><a href="#cb30-7" aria-hidden="true" tabindex="-1"></a>  inconclusives <span class="ot">&lt;-</span> <span class="fu">sum</span>(study_data<span class="sc">$</span>response <span class="sc">==</span> <span class="st">"inconclusive"</span>)</span>
+<span id="cb30-8"><a href="#cb30-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-9"><a href="#cb30-9" aria-hidden="true" tabindex="-1"></a>  fpr <span class="ot">&lt;-</span> false_positives <span class="sc">/</span> nonmatch_total</span>
+<span id="cb30-10"><a href="#cb30-10" aria-hidden="true" tabindex="-1"></a>  fnr <span class="ot">&lt;-</span> false_negatives <span class="sc">/</span> match_total</span>
+<span id="cb30-11"><a href="#cb30-11" aria-hidden="true" tabindex="-1"></a>  inconclusive_rate_study <span class="ot">&lt;-</span> inconclusives <span class="sc">/</span> <span class="fu">nrow</span>(study_data)</span>
+<span id="cb30-12"><a href="#cb30-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-13"><a href="#cb30-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tibble</span>(</span>
+<span id="cb30-14"><a href="#cb30-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">fpr =</span> fpr,</span>
+<span id="cb30-15"><a href="#cb30-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">fnr =</span> fnr,</span>
+<span id="cb30-16"><a href="#cb30-16" aria-hidden="true" tabindex="-1"></a>    <span class="at">inconclusive_rate =</span> inconclusive_rate_study,</span>
+<span id="cb30-17"><a href="#cb30-17" aria-hidden="true" tabindex="-1"></a>    <span class="at">fpr_ci_width =</span> <span class="fu">approx_ci_width</span>(false_positives, nonmatch_total),</span>
+<span id="cb30-18"><a href="#cb30-18" aria-hidden="true" tabindex="-1"></a>    <span class="at">fnr_ci_width =</span> <span class="fu">approx_ci_width</span>(false_negatives, match_total),</span>
+<span id="cb30-19"><a href="#cb30-19" aria-hidden="true" tabindex="-1"></a>    <span class="at">zero_false_positives =</span> false_positives <span class="sc">==</span> <span class="dv">0</span>,</span>
+<span id="cb30-20"><a href="#cb30-20" aria-hidden="true" tabindex="-1"></a>    <span class="at">nonmatch_total =</span> nonmatch_total,</span>
+<span id="cb30-21"><a href="#cb30-21" aria-hidden="true" tabindex="-1"></a>    <span class="at">match_total =</span> match_total</span>
+<span id="cb30-22"><a href="#cb30-22" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb30-23"><a href="#cb30-23" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Now specify three study sizes. The small study has few examiners and few comparisons, the medium study is larger but still limited, and the large study is closer to the baseline design used above.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb30"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a>sample_size_scenarios <span class="ot">&lt;-</span> <span class="fu">tribble</span>(</span>
-<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a>  <span class="sc">~</span>scenario, <span class="sc">~</span>n_examiners, <span class="sc">~</span>n_comparisons,</span>
-<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Small"</span>, <span class="dv">10</span>, <span class="dv">20</span>,</span>
-<span id="cb30-4"><a href="#cb30-4" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Medium"</span>, <span class="dv">25</span>, <span class="dv">50</span>,</span>
-<span id="cb30-5"><a href="#cb30-5" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Large"</span>, <span class="dv">50</span>, <span class="dv">100</span></span>
-<span id="cb30-6"><a href="#cb30-6" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb31"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a>sample_size_scenarios <span class="ot">&lt;-</span> <span class="fu">tribble</span>(</span>
+<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a>  <span class="sc">~</span>scenario, <span class="sc">~</span>n_examiners, <span class="sc">~</span>n_comparisons,</span>
+<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Small"</span>, <span class="dv">10</span>, <span class="dv">20</span>,</span>
+<span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Medium"</span>, <span class="dv">25</span>, <span class="dv">50</span>,</span>
+<span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Large"</span>, <span class="dv">50</span>, <span class="dv">100</span></span>
+<span id="cb31-6"><a href="#cb31-6" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Now simulate many studies under each scenario. Repeating the study many times shows the range of error-rate estimates that one could easily obtain from the same underlying process.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb31"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">456</span>)</span>
-<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a>n_replications <span class="ot">&lt;-</span> <span class="dv">200</span></span>
-<span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a>sample_size_results <span class="ot">&lt;-</span> sample_size_scenarios <span class="sc">%&gt;%</span></span>
-<span id="cb31-6"><a href="#cb31-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
-<span id="cb31-7"><a href="#cb31-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">results =</span> purrr<span class="sc">::</span><span class="fu">map2</span>(</span>
-<span id="cb31-8"><a href="#cb31-8" aria-hidden="true" tabindex="-1"></a>      n_examiners,</span>
-<span id="cb31-9"><a href="#cb31-9" aria-hidden="true" tabindex="-1"></a>      n_comparisons,</span>
-<span id="cb31-10"><a href="#cb31-10" aria-hidden="true" tabindex="-1"></a>      <span class="cf">function</span>(n_examiners, n_comparisons) {</span>
-<span id="cb31-11"><a href="#cb31-11" aria-hidden="true" tabindex="-1"></a>        purrr<span class="sc">::</span><span class="fu">map_dfr</span>(</span>
-<span id="cb31-12"><a href="#cb31-12" aria-hidden="true" tabindex="-1"></a>          <span class="dv">1</span><span class="sc">:</span>n_replications,</span>
-<span id="cb31-13"><a href="#cb31-13" aria-hidden="true" tabindex="-1"></a>          <span class="cf">function</span>(replicate_id) {</span>
-<span id="cb31-14"><a href="#cb31-14" aria-hidden="true" tabindex="-1"></a>            <span class="fu">simulate_study</span>(n_examiners, n_comparisons) <span class="sc">%&gt;%</span></span>
-<span id="cb31-15"><a href="#cb31-15" aria-hidden="true" tabindex="-1"></a>              <span class="fu">summarize_study</span>() <span class="sc">%&gt;%</span></span>
-<span id="cb31-16"><a href="#cb31-16" aria-hidden="true" tabindex="-1"></a>              <span class="fu">mutate</span>(<span class="at">replicate_id =</span> replicate_id)</span>
-<span id="cb31-17"><a href="#cb31-17" aria-hidden="true" tabindex="-1"></a>          }</span>
-<span id="cb31-18"><a href="#cb31-18" aria-hidden="true" tabindex="-1"></a>        )</span>
-<span id="cb31-19"><a href="#cb31-19" aria-hidden="true" tabindex="-1"></a>      }</span>
-<span id="cb31-20"><a href="#cb31-20" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb31-21"><a href="#cb31-21" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
-<span id="cb31-22"><a href="#cb31-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(scenario, n_examiners, n_comparisons, results) <span class="sc">%&gt;%</span></span>
-<span id="cb31-23"><a href="#cb31-23" aria-hidden="true" tabindex="-1"></a>  tidyr<span class="sc">::</span><span class="fu">unnest</span>(results)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb32"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">456</span>)</span>
+<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a>n_replications <span class="ot">&lt;-</span> <span class="dv">100</span></span>
+<span id="cb32-4"><a href="#cb32-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-5"><a href="#cb32-5" aria-hidden="true" tabindex="-1"></a>sample_size_results <span class="ot">&lt;-</span> sample_size_scenarios <span class="sc">%&gt;%</span></span>
+<span id="cb32-6"><a href="#cb32-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb32-7"><a href="#cb32-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">results =</span> purrr<span class="sc">::</span><span class="fu">map2</span>(</span>
+<span id="cb32-8"><a href="#cb32-8" aria-hidden="true" tabindex="-1"></a>      n_examiners,</span>
+<span id="cb32-9"><a href="#cb32-9" aria-hidden="true" tabindex="-1"></a>      n_comparisons,</span>
+<span id="cb32-10"><a href="#cb32-10" aria-hidden="true" tabindex="-1"></a>      <span class="cf">function</span>(n_examiners, n_comparisons) {</span>
+<span id="cb32-11"><a href="#cb32-11" aria-hidden="true" tabindex="-1"></a>        purrr<span class="sc">::</span><span class="fu">map_dfr</span>(</span>
+<span id="cb32-12"><a href="#cb32-12" aria-hidden="true" tabindex="-1"></a>          <span class="dv">1</span><span class="sc">:</span>n_replications,</span>
+<span id="cb32-13"><a href="#cb32-13" aria-hidden="true" tabindex="-1"></a>          <span class="cf">function</span>(replicate_id) {</span>
+<span id="cb32-14"><a href="#cb32-14" aria-hidden="true" tabindex="-1"></a>            <span class="fu">simulate_study</span>(n_examiners, n_comparisons) <span class="sc">%&gt;%</span></span>
+<span id="cb32-15"><a href="#cb32-15" aria-hidden="true" tabindex="-1"></a>              <span class="fu">summarize_study</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb32-16"><a href="#cb32-16" aria-hidden="true" tabindex="-1"></a>              <span class="fu">mutate</span>(<span class="at">replicate_id =</span> replicate_id)</span>
+<span id="cb32-17"><a href="#cb32-17" aria-hidden="true" tabindex="-1"></a>          }</span>
+<span id="cb32-18"><a href="#cb32-18" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb32-19"><a href="#cb32-19" aria-hidden="true" tabindex="-1"></a>      }</span>
+<span id="cb32-20"><a href="#cb32-20" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb32-21"><a href="#cb32-21" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb32-22"><a href="#cb32-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(scenario, n_examiners, n_comparisons, results) <span class="sc">%&gt;%</span></span>
+<span id="cb32-23"><a href="#cb32-23" aria-hidden="true" tabindex="-1"></a>  tidyr<span class="sc">::</span><span class="fu">unnest</span>(results)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>These summary statistics show how the estimated error rates and uncertainty behave across repeated studies at each sample size.</p>
+</section>
+<section id="results" class="level4">
+<h4 class="anchored" data-anchor-id="results">Results</h4>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb32"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a>sample_size_summary <span class="ot">&lt;-</span> sample_size_results <span class="sc">%&gt;%</span></span>
-<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(scenario, n_examiners, n_comparisons) <span class="sc">%&gt;%</span></span>
-<span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
-<span id="cb32-4"><a href="#cb32-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">mean_fpr =</span> <span class="fu">mean</span>(fpr),</span>
-<span id="cb32-5"><a href="#cb32-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">sd_fpr =</span> <span class="fu">sd</span>(fpr),</span>
-<span id="cb32-6"><a href="#cb32-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">mean_fnr =</span> <span class="fu">mean</span>(fnr),</span>
-<span id="cb32-7"><a href="#cb32-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">sd_fnr =</span> <span class="fu">sd</span>(fnr),</span>
-<span id="cb32-8"><a href="#cb32-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">mean_fpr_ci_width =</span> <span class="fu">mean</span>(fpr_ci_width),</span>
-<span id="cb32-9"><a href="#cb32-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">mean_fnr_ci_width =</span> <span class="fu">mean</span>(fnr_ci_width),</span>
-<span id="cb32-10"><a href="#cb32-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">proportion_zero_false_positives =</span> <span class="fu">mean</span>(zero_false_positives),</span>
-<span id="cb32-11"><a href="#cb32-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">.groups =</span> <span class="st">"drop"</span></span>
-<span id="cb32-12"><a href="#cb32-12" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
-<span id="cb32-13"><a href="#cb32-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
-<span id="cb32-14"><a href="#cb32-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">mean_fpr =</span> scales<span class="sc">::</span><span class="fu">percent</span>(mean_fpr, <span class="at">accuracy =</span> <span class="fl">0.1</span>),</span>
-<span id="cb32-15"><a href="#cb32-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">sd_fpr =</span> scales<span class="sc">::</span><span class="fu">percent</span>(sd_fpr, <span class="at">accuracy =</span> <span class="fl">0.1</span>),</span>
-<span id="cb32-16"><a href="#cb32-16" aria-hidden="true" tabindex="-1"></a>    <span class="at">mean_fnr =</span> scales<span class="sc">::</span><span class="fu">percent</span>(mean_fnr, <span class="at">accuracy =</span> <span class="fl">0.1</span>),</span>
-<span id="cb32-17"><a href="#cb32-17" aria-hidden="true" tabindex="-1"></a>    <span class="at">sd_fnr =</span> scales<span class="sc">::</span><span class="fu">percent</span>(sd_fnr, <span class="at">accuracy =</span> <span class="fl">0.1</span>),</span>
-<span id="cb32-18"><a href="#cb32-18" aria-hidden="true" tabindex="-1"></a>    <span class="at">mean_fpr_ci_width =</span> scales<span class="sc">::</span><span class="fu">percent</span>(mean_fpr_ci_width, <span class="at">accuracy =</span> <span class="fl">0.1</span>),</span>
-<span id="cb32-19"><a href="#cb32-19" aria-hidden="true" tabindex="-1"></a>    <span class="at">mean_fnr_ci_width =</span> scales<span class="sc">::</span><span class="fu">percent</span>(mean_fnr_ci_width, <span class="at">accuracy =</span> <span class="fl">0.1</span>),</span>
-<span id="cb32-20"><a href="#cb32-20" aria-hidden="true" tabindex="-1"></a>    <span class="at">proportion_zero_false_positives =</span> scales<span class="sc">::</span><span class="fu">percent</span>(proportion_zero_false_positives, <span class="at">accuracy =</span> <span class="fl">0.1</span>)</span>
-<span id="cb32-21"><a href="#cb32-21" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb32-22"><a href="#cb32-22" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-23"><a href="#cb32-23" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(</span>
-<span id="cb32-24"><a href="#cb32-24" aria-hidden="true" tabindex="-1"></a>  sample_size_summary,</span>
-<span id="cb32-25"><a href="#cb32-25" aria-hidden="true" tabindex="-1"></a>  <span class="at">col.names =</span> <span class="fu">c</span>(</span>
-<span id="cb32-26"><a href="#cb32-26" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Scenario"</span>,</span>
-<span id="cb32-27"><a href="#cb32-27" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Examiners"</span>,</span>
-<span id="cb32-28"><a href="#cb32-28" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Comparisons"</span>,</span>
-<span id="cb32-29"><a href="#cb32-29" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Mean FPR"</span>,</span>
-<span id="cb32-30"><a href="#cb32-30" aria-hidden="true" tabindex="-1"></a>    <span class="st">"SD of FPR"</span>,</span>
-<span id="cb32-31"><a href="#cb32-31" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Mean FNR"</span>,</span>
-<span id="cb32-32"><a href="#cb32-32" aria-hidden="true" tabindex="-1"></a>    <span class="st">"SD of FNR"</span>,</span>
-<span id="cb32-33"><a href="#cb32-33" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Mean FPR CI width"</span>,</span>
-<span id="cb32-34"><a href="#cb32-34" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Mean FNR CI width"</span>,</span>
-<span id="cb32-35"><a href="#cb32-35" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Studies with zero observed false positives"</span></span>
-<span id="cb32-36"><a href="#cb32-36" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb32-37"><a href="#cb32-37" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb33"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a>sample_size_summary <span class="ot">&lt;-</span> sample_size_results <span class="sc">%&gt;%</span></span>
+<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(scenario, n_examiners, n_comparisons) <span class="sc">%&gt;%</span></span>
+<span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
+<span id="cb33-4"><a href="#cb33-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">mean_fpr =</span> <span class="fu">mean</span>(fpr),</span>
+<span id="cb33-5"><a href="#cb33-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">sd_fpr =</span> <span class="fu">sd</span>(fpr),</span>
+<span id="cb33-6"><a href="#cb33-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">mean_fnr =</span> <span class="fu">mean</span>(fnr),</span>
+<span id="cb33-7"><a href="#cb33-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">sd_fnr =</span> <span class="fu">sd</span>(fnr),</span>
+<span id="cb33-8"><a href="#cb33-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">mean_fpr_ci_width =</span> <span class="fu">mean</span>(fpr_ci_width),</span>
+<span id="cb33-9"><a href="#cb33-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">mean_fnr_ci_width =</span> <span class="fu">mean</span>(fnr_ci_width),</span>
+<span id="cb33-10"><a href="#cb33-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">proportion_zero_false_positives =</span> <span class="fu">mean</span>(zero_false_positives),</span>
+<span id="cb33-11"><a href="#cb33-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">.groups =</span> <span class="st">"drop"</span></span>
+<span id="cb33-12"><a href="#cb33-12" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb33-13"><a href="#cb33-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb33-14"><a href="#cb33-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">mean_fpr =</span> scales<span class="sc">::</span><span class="fu">percent</span>(mean_fpr, <span class="at">accuracy =</span> <span class="fl">0.1</span>),</span>
+<span id="cb33-15"><a href="#cb33-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">sd_fpr =</span> scales<span class="sc">::</span><span class="fu">percent</span>(sd_fpr, <span class="at">accuracy =</span> <span class="fl">0.1</span>),</span>
+<span id="cb33-16"><a href="#cb33-16" aria-hidden="true" tabindex="-1"></a>    <span class="at">mean_fnr =</span> scales<span class="sc">::</span><span class="fu">percent</span>(mean_fnr, <span class="at">accuracy =</span> <span class="fl">0.1</span>),</span>
+<span id="cb33-17"><a href="#cb33-17" aria-hidden="true" tabindex="-1"></a>    <span class="at">sd_fnr =</span> scales<span class="sc">::</span><span class="fu">percent</span>(sd_fnr, <span class="at">accuracy =</span> <span class="fl">0.1</span>),</span>
+<span id="cb33-18"><a href="#cb33-18" aria-hidden="true" tabindex="-1"></a>    <span class="at">mean_fpr_ci_width =</span> scales<span class="sc">::</span><span class="fu">percent</span>(mean_fpr_ci_width, <span class="at">accuracy =</span> <span class="fl">0.1</span>),</span>
+<span id="cb33-19"><a href="#cb33-19" aria-hidden="true" tabindex="-1"></a>    <span class="at">mean_fnr_ci_width =</span> scales<span class="sc">::</span><span class="fu">percent</span>(mean_fnr_ci_width, <span class="at">accuracy =</span> <span class="fl">0.1</span>),</span>
+<span id="cb33-20"><a href="#cb33-20" aria-hidden="true" tabindex="-1"></a>    <span class="at">proportion_zero_false_positives =</span> scales<span class="sc">::</span><span class="fu">percent</span>(proportion_zero_false_positives, <span class="at">accuracy =</span> <span class="fl">0.1</span>)</span>
+<span id="cb33-21"><a href="#cb33-21" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb33-22"><a href="#cb33-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-23"><a href="#cb33-23" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(</span>
+<span id="cb33-24"><a href="#cb33-24" aria-hidden="true" tabindex="-1"></a>  sample_size_summary,</span>
+<span id="cb33-25"><a href="#cb33-25" aria-hidden="true" tabindex="-1"></a>  <span class="at">col.names =</span> <span class="fu">c</span>(</span>
+<span id="cb33-26"><a href="#cb33-26" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Scenario"</span>,</span>
+<span id="cb33-27"><a href="#cb33-27" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Examiners"</span>,</span>
+<span id="cb33-28"><a href="#cb33-28" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Comparisons"</span>,</span>
+<span id="cb33-29"><a href="#cb33-29" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Mean FPR"</span>,</span>
+<span id="cb33-30"><a href="#cb33-30" aria-hidden="true" tabindex="-1"></a>    <span class="st">"SD of FPR"</span>,</span>
+<span id="cb33-31"><a href="#cb33-31" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Mean FNR"</span>,</span>
+<span id="cb33-32"><a href="#cb33-32" aria-hidden="true" tabindex="-1"></a>    <span class="st">"SD of FNR"</span>,</span>
+<span id="cb33-33"><a href="#cb33-33" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Mean FPR CI width"</span>,</span>
+<span id="cb33-34"><a href="#cb33-34" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Mean FNR CI width"</span>,</span>
+<span id="cb33-35"><a href="#cb33-35" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Studies with zero observed false positives"</span></span>
+<span id="cb33-36"><a href="#cb33-36" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb33-37"><a href="#cb33-37" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <table class="caption-top table table-sm table-striped small">
 <colgroup>
@@ -908,7 +974,7 @@ Attaching package: 'dplyr'</code></pre>
 <td style="text-align: left;">3.2%</td>
 <td style="text-align: left;">0.6%</td>
 <td style="text-align: left;">7.7%</td>
-<td style="text-align: left;">1.0%</td>
+<td style="text-align: left;">1.2%</td>
 <td style="text-align: left;">1.4%</td>
 <td style="text-align: left;">2.1%</td>
 <td style="text-align: left;">0.0%</td>
@@ -917,12 +983,12 @@ Attaching package: 'dplyr'</code></pre>
 <td style="text-align: left;">Medium</td>
 <td style="text-align: right;">25</td>
 <td style="text-align: right;">50</td>
-<td style="text-align: left;">3.4%</td>
+<td style="text-align: left;">3.3%</td>
 <td style="text-align: left;">1.0%</td>
-<td style="text-align: left;">7.6%</td>
-<td style="text-align: left;">1.9%</td>
-<td style="text-align: left;">3.0%</td>
-<td style="text-align: left;">4.3%</td>
+<td style="text-align: left;">7.4%</td>
+<td style="text-align: left;">1.7%</td>
+<td style="text-align: left;">2.8%</td>
+<td style="text-align: left;">4.1%</td>
 <td style="text-align: left;">0.0%</td>
 </tr>
 <tr class="odd">
@@ -930,12 +996,12 @@ Attaching package: 'dplyr'</code></pre>
 <td style="text-align: right;">10</td>
 <td style="text-align: right;">20</td>
 <td style="text-align: left;">3.7%</td>
-<td style="text-align: left;">2.3%</td>
-<td style="text-align: left;">7.3%</td>
-<td style="text-align: left;">3.5%</td>
-<td style="text-align: left;">9.0%</td>
-<td style="text-align: left;">11.5%</td>
-<td style="text-align: left;">2.5%</td>
+<td style="text-align: left;">2.6%</td>
+<td style="text-align: left;">7.1%</td>
+<td style="text-align: left;">3.3%</td>
+<td style="text-align: left;">7.2%</td>
+<td style="text-align: left;">9.8%</td>
+<td style="text-align: left;">4.0%</td>
 </tr>
 </tbody>
 </table>
@@ -943,85 +1009,648 @@ Attaching package: 'dplyr'</code></pre>
 </div>
 <p>The next plot shows the distribution of false positive rate estimates across the repeated studies. Small studies produce much more variable estimates, including many studies that report no false positives at all.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb33"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(sample_size_results, <span class="fu">aes</span>(<span class="at">x =</span> scenario, <span class="at">y =</span> fpr)) <span class="sc">+</span></span>
-<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_boxplot</span>() <span class="sc">+</span></span>
-<span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
-<span id="cb33-4"><a href="#cb33-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="st">"Estimated false positive rates across repeated studies"</span>,</span>
-<span id="cb33-5"><a href="#cb33-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> <span class="st">"Study size scenario"</span>,</span>
-<span id="cb33-6"><a href="#cb33-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">y =</span> <span class="st">"Estimated false positive rate"</span></span>
-<span id="cb33-7"><a href="#cb33-7" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
-<span id="cb33-8"><a href="#cb33-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="at">labels =</span> scales<span class="sc">::</span><span class="fu">percent_format</span>(<span class="at">accuracy =</span> <span class="dv">1</span>)) <span class="sc">+</span></span>
-<span id="cb33-9"><a href="#cb33-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output-display">
-<div>
-<figure class="figure">
-<p><img src="analysis_files/figure-html/unnamed-chunk-22-1.png" class="img-fluid figure-img" width="672"></p>
-</figure>
-</div>
-</div>
-</div>
-<p>This plot shows the same pattern for false negative rates. Again, the smallest studies produce the most unstable estimates.</p>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb34"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(sample_size_results, <span class="fu">aes</span>(<span class="at">x =</span> scenario, <span class="at">y =</span> fnr)) <span class="sc">+</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb34"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(sample_size_results, <span class="fu">aes</span>(<span class="at">x =</span> scenario, <span class="at">y =</span> fpr)) <span class="sc">+</span></span>
 <span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_boxplot</span>() <span class="sc">+</span></span>
 <span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
-<span id="cb34-4"><a href="#cb34-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="st">"Estimated false negative rates across repeated studies"</span>,</span>
+<span id="cb34-4"><a href="#cb34-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="st">"Estimated false positive rates across repeated studies"</span>,</span>
 <span id="cb34-5"><a href="#cb34-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> <span class="st">"Study size scenario"</span>,</span>
-<span id="cb34-6"><a href="#cb34-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">y =</span> <span class="st">"Estimated false negative rate"</span></span>
+<span id="cb34-6"><a href="#cb34-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">y =</span> <span class="st">"Estimated false positive rate"</span></span>
 <span id="cb34-7"><a href="#cb34-7" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
 <span id="cb34-8"><a href="#cb34-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="at">labels =</span> scales<span class="sc">::</span><span class="fu">percent_format</span>(<span class="at">accuracy =</span> <span class="dv">1</span>)) <span class="sc">+</span></span>
 <span id="cb34-9"><a href="#cb34-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="analysis_files/figure-html/unnamed-chunk-23-1.png" class="img-fluid figure-img" width="672"></p>
+<p><img src="analysis_files/figure-html/plot-fpr-by-sample-size-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>This plot shows the same pattern for false negative rates. Again, the smallest studies produce the most unstable estimates.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb35"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(sample_size_results, <span class="fu">aes</span>(<span class="at">x =</span> scenario, <span class="at">y =</span> fnr)) <span class="sc">+</span></span>
+<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_boxplot</span>() <span class="sc">+</span></span>
+<span id="cb35-3"><a href="#cb35-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
+<span id="cb35-4"><a href="#cb35-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="st">"Estimated false negative rates across repeated studies"</span>,</span>
+<span id="cb35-5"><a href="#cb35-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> <span class="st">"Study size scenario"</span>,</span>
+<span id="cb35-6"><a href="#cb35-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">y =</span> <span class="st">"Estimated false negative rate"</span></span>
+<span id="cb35-7"><a href="#cb35-7" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb35-8"><a href="#cb35-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="at">labels =</span> scales<span class="sc">::</span><span class="fu">percent_format</span>(<span class="at">accuracy =</span> <span class="dv">1</span>)) <span class="sc">+</span></span>
+<span id="cb35-9"><a href="#cb35-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="analysis_files/figure-html/plot-fnr-by-sample-size-1.png" class="img-fluid figure-img" width="672"></p>
 </figure>
 </div>
 </div>
 </div>
 <p>This final plot shows how the average width of the confidence intervals shrinks as the study gets larger. Small studies do not simply have noisier estimates; they also carry much greater uncertainty.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb35"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a>sample_size_results <span class="sc">%&gt;%</span></span>
-<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(scenario, fpr_ci_width, fnr_ci_width) <span class="sc">%&gt;%</span></span>
-<span id="cb35-3"><a href="#cb35-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(</span>
-<span id="cb35-4"><a href="#cb35-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">cols =</span> <span class="fu">c</span>(fpr_ci_width, fnr_ci_width),</span>
-<span id="cb35-5"><a href="#cb35-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">names_to =</span> <span class="st">"metric"</span>,</span>
-<span id="cb35-6"><a href="#cb35-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">values_to =</span> <span class="st">"ci_width"</span></span>
-<span id="cb35-7"><a href="#cb35-7" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
-<span id="cb35-8"><a href="#cb35-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
-<span id="cb35-9"><a href="#cb35-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">metric =</span> <span class="fu">recode</span>(</span>
-<span id="cb35-10"><a href="#cb35-10" aria-hidden="true" tabindex="-1"></a>      metric,</span>
-<span id="cb35-11"><a href="#cb35-11" aria-hidden="true" tabindex="-1"></a>      <span class="at">fpr_ci_width =</span> <span class="st">"False positive rate"</span>,</span>
-<span id="cb35-12"><a href="#cb35-12" aria-hidden="true" tabindex="-1"></a>      <span class="at">fnr_ci_width =</span> <span class="st">"False negative rate"</span></span>
-<span id="cb35-13"><a href="#cb35-13" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb35-14"><a href="#cb35-14" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
-<span id="cb35-15"><a href="#cb35-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> scenario, <span class="at">y =</span> ci_width)) <span class="sc">+</span></span>
-<span id="cb35-16"><a href="#cb35-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_boxplot</span>() <span class="sc">+</span></span>
-<span id="cb35-17"><a href="#cb35-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span> metric) <span class="sc">+</span></span>
-<span id="cb35-18"><a href="#cb35-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
-<span id="cb35-19"><a href="#cb35-19" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="st">"Confidence interval widths across repeated studies"</span>,</span>
-<span id="cb35-20"><a href="#cb35-20" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> <span class="st">"Study size scenario"</span>,</span>
-<span id="cb35-21"><a href="#cb35-21" aria-hidden="true" tabindex="-1"></a>    <span class="at">y =</span> <span class="st">"Confidence interval width"</span></span>
-<span id="cb35-22"><a href="#cb35-22" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
-<span id="cb35-23"><a href="#cb35-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="at">labels =</span> scales<span class="sc">::</span><span class="fu">percent_format</span>(<span class="at">accuracy =</span> <span class="dv">1</span>)) <span class="sc">+</span></span>
-<span id="cb35-24"><a href="#cb35-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb36"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a>sample_size_results <span class="sc">%&gt;%</span></span>
+<span id="cb36-2"><a href="#cb36-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(scenario, fpr_ci_width, fnr_ci_width) <span class="sc">%&gt;%</span></span>
+<span id="cb36-3"><a href="#cb36-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(</span>
+<span id="cb36-4"><a href="#cb36-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">cols =</span> <span class="fu">c</span>(fpr_ci_width, fnr_ci_width),</span>
+<span id="cb36-5"><a href="#cb36-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">names_to =</span> <span class="st">"metric"</span>,</span>
+<span id="cb36-6"><a href="#cb36-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">values_to =</span> <span class="st">"ci_width"</span></span>
+<span id="cb36-7"><a href="#cb36-7" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb36-8"><a href="#cb36-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb36-9"><a href="#cb36-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">metric =</span> <span class="fu">recode</span>(</span>
+<span id="cb36-10"><a href="#cb36-10" aria-hidden="true" tabindex="-1"></a>      metric,</span>
+<span id="cb36-11"><a href="#cb36-11" aria-hidden="true" tabindex="-1"></a>      <span class="at">fpr_ci_width =</span> <span class="st">"False positive rate"</span>,</span>
+<span id="cb36-12"><a href="#cb36-12" aria-hidden="true" tabindex="-1"></a>      <span class="at">fnr_ci_width =</span> <span class="st">"False negative rate"</span></span>
+<span id="cb36-13"><a href="#cb36-13" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb36-14"><a href="#cb36-14" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb36-15"><a href="#cb36-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> scenario, <span class="at">y =</span> ci_width)) <span class="sc">+</span></span>
+<span id="cb36-16"><a href="#cb36-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_boxplot</span>() <span class="sc">+</span></span>
+<span id="cb36-17"><a href="#cb36-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span> metric) <span class="sc">+</span></span>
+<span id="cb36-18"><a href="#cb36-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
+<span id="cb36-19"><a href="#cb36-19" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="st">"Confidence interval widths across repeated studies"</span>,</span>
+<span id="cb36-20"><a href="#cb36-20" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> <span class="st">"Study size scenario"</span>,</span>
+<span id="cb36-21"><a href="#cb36-21" aria-hidden="true" tabindex="-1"></a>    <span class="at">y =</span> <span class="st">"Confidence interval width"</span></span>
+<span id="cb36-22"><a href="#cb36-22" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb36-23"><a href="#cb36-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="at">labels =</span> scales<span class="sc">::</span><span class="fu">percent_format</span>(<span class="at">accuracy =</span> <span class="dv">1</span>)) <span class="sc">+</span></span>
+<span id="cb36-24"><a href="#cb36-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="analysis_files/figure-html/unnamed-chunk-24-1.png" class="img-fluid figure-img" width="672"></p>
+<p><img src="analysis_files/figure-html/plot-ci-width-by-sample-size-1.png" class="img-fluid figure-img" width="672"></p>
 </figure>
 </div>
 </div>
 </div>
+</section>
+<section id="stability-of-the-false-positive-rate" class="level4">
+<h4 class="anchored" data-anchor-id="stability-of-the-false-positive-rate">Stability of the false positive rate</h4>
+<p>This next plot shows the stability of the estimated false positive rate across study sizes. The horizontal dashed line marks the true false positive rate used in the simulation, while the solid line and ribbon show the median and central 90% of the simulated estimates. Small studies produce a much wider range of apparent false positive rates, including estimates near zero.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb37"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a>sample_size_stability <span class="ot">&lt;-</span> sample_size_results <span class="sc">%&gt;%</span></span>
+<span id="cb37-2"><a href="#cb37-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(scenario, n_examiners, n_comparisons) <span class="sc">%&gt;%</span></span>
+<span id="cb37-3"><a href="#cb37-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
+<span id="cb37-4"><a href="#cb37-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">median_fpr =</span> <span class="fu">median</span>(fpr),</span>
+<span id="cb37-5"><a href="#cb37-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">lower_fpr =</span> <span class="fu">quantile</span>(fpr, <span class="fl">0.05</span>),</span>
+<span id="cb37-6"><a href="#cb37-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">upper_fpr =</span> <span class="fu">quantile</span>(fpr, <span class="fl">0.95</span>),</span>
+<span id="cb37-7"><a href="#cb37-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">.groups =</span> <span class="st">"drop"</span></span>
+<span id="cb37-8"><a href="#cb37-8" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb37-9"><a href="#cb37-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb37-10"><a href="#cb37-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">total_responses =</span> n_examiners <span class="sc">*</span> n_comparisons</span>
+<span id="cb37-11"><a href="#cb37-11" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb37-12"><a href="#cb37-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb37-13"><a href="#cb37-13" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(sample_size_stability, <span class="fu">aes</span>(<span class="at">x =</span> total_responses, <span class="at">y =</span> median_fpr)) <span class="sc">+</span></span>
+<span id="cb37-14"><a href="#cb37-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_ribbon</span>(<span class="fu">aes</span>(<span class="at">ymin =</span> lower_fpr, <span class="at">ymax =</span> upper_fpr), <span class="at">alpha =</span> <span class="fl">0.2</span>) <span class="sc">+</span></span>
+<span id="cb37-15"><a href="#cb37-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">linewidth =</span> <span class="dv">1</span>) <span class="sc">+</span></span>
+<span id="cb37-16"><a href="#cb37-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">size =</span> <span class="dv">2</span>) <span class="sc">+</span></span>
+<span id="cb37-17"><a href="#cb37-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_hline</span>(</span>
+<span id="cb37-18"><a href="#cb37-18" aria-hidden="true" tabindex="-1"></a>    <span class="at">yintercept =</span> false_positive_rate,</span>
+<span id="cb37-19"><a href="#cb37-19" aria-hidden="true" tabindex="-1"></a>    <span class="at">linetype =</span> <span class="st">"dashed"</span></span>
+<span id="cb37-20"><a href="#cb37-20" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb37-21"><a href="#cb37-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_continuous</span>(</span>
+<span id="cb37-22"><a href="#cb37-22" aria-hidden="true" tabindex="-1"></a>    <span class="at">breaks =</span> sample_size_stability<span class="sc">$</span>total_responses</span>
+<span id="cb37-23"><a href="#cb37-23" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb37-24"><a href="#cb37-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="at">labels =</span> scales<span class="sc">::</span><span class="fu">percent_format</span>(<span class="at">accuracy =</span> <span class="dv">1</span>)) <span class="sc">+</span></span>
+<span id="cb37-25"><a href="#cb37-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
+<span id="cb37-26"><a href="#cb37-26" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="st">"Stability of the estimated false positive rate by study size"</span>,</span>
+<span id="cb37-27"><a href="#cb37-27" aria-hidden="true" tabindex="-1"></a>    <span class="at">subtitle =</span> <span class="st">"Ribbon shows the central 90% of simulated estimates; dashed line shows the true rate"</span>,</span>
+<span id="cb37-28"><a href="#cb37-28" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> <span class="st">"Total examiner-comparison responses in the study"</span>,</span>
+<span id="cb37-29"><a href="#cb37-29" aria-hidden="true" tabindex="-1"></a>    <span class="at">y =</span> <span class="st">"Estimated false positive rate"</span></span>
+<span id="cb37-30"><a href="#cb37-30" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb37-31"><a href="#cb37-31" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="analysis_files/figure-html/plot-fpr-stability-by-sample-size-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="interpretation" class="level4">
+<h4 class="anchored" data-anchor-id="interpretation">Interpretation</h4>
 <p>Taken together, these simulations show that inadequate sample size can produce error-rate estimates that appear reassuring simply because the study is too small to reveal the underlying variability. A small study may report very low observed error rates, or even zero observed false positives, without providing strong evidence that the true error rate is comparably low.</p>
-<p>B. Non-representative sample AMANDA</p>
-<p>C. Non-representative testing conditions and environment (Contextual bias) MARIA</p>
-<p>Use Scurich and Dror’s numbers to show bias here.</p>
-<p>D. Inconclusive responses are treated as correct or ignored e.g., If you treat them as correct the FPR is 0.1%, if you treat them as incorrec it’s 90% etc.</p>
-<p>E. Invalid or nonexistent uncertainty measures for error rates This is just a statistical requirement. No need for a simulation.</p>
+</section>
+</section>
+<section id="nonrepresentative-sample" class="level3">
+<h3 class="anchored" data-anchor-id="nonrepresentative-sample">B. Non-representative sample (AMANDA)</h3>
+</section>
+<section id="contextual-bias" class="level3">
+<h3 class="anchored" data-anchor-id="contextual-bias">C. Non-representative testing conditions and environment/Contextual bias (MARIA)</h3>
+<section id="why-testing-conditions-matter" class="level4">
+<h4 class="anchored" data-anchor-id="why-testing-conditions-matter">Why testing conditions matter</h4>
+<p>Testing conditions matter because examiner behavior can change when examiners know they are being tested. Scurich et al.&nbsp;(2025) report that the inconclusive rate for discovered test items at the Houston Forensic Science Center was 56.4%, compared with 39.3% for undiscovered blind test items. That is, the inconclusive rate was 43.5% higher when examiners recognized that the item was part of a test. The same pattern appeared for bullet comparisons (83% vs.&nbsp;59%) and cartridge case comparisons (29% vs.&nbsp;20%). Those findings are consistent with the concern that non-blind studies do not reproduce ordinary casework conditions and may therefore distort the resulting performance estimates.</p>
+</section>
+<section id="simulation-design-for-contextual-bias" class="level4">
+<h4 class="anchored" data-anchor-id="simulation-design-for-contextual-bias">Simulation design for contextual bias</h4>
+<p>To illustrate that problem, the next simulation compares two settings: a blind condition, in which examiners behave as they do in routine casework, and a known-test condition, in which the probability of an inconclusive decision is increased using the shift reported by Scurich et al.&nbsp;(2025). The idea is simple: when examiners know they are being tested, they may protect themselves by moving difficult decisions into the inconclusive category. If that happens, the measured error rates among conclusive decisions can look better even though the underlying difficulty of the task has not changed.</p>
+<p>First, translate the Scurich et al.&nbsp;(2025) finding into a shift on the log-odds scale. This shift is based on the difference between the reported inconclusive rates for discovered and undiscovered items.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb38"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a>blind_inconclusive_rate <span class="ot">&lt;-</span> <span class="fl">0.393</span></span>
+<span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a>known_test_inconclusive_rate <span class="ot">&lt;-</span> <span class="fl">0.564</span></span>
+<span id="cb38-3"><a href="#cb38-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb38-4"><a href="#cb38-4" aria-hidden="true" tabindex="-1"></a>hawthorne_shift <span class="ot">&lt;-</span> <span class="fu">qlogis</span>(known_test_inconclusive_rate) <span class="sc">-</span> <span class="fu">qlogis</span>(blind_inconclusive_rate)</span>
+<span id="cb38-5"><a href="#cb38-5" aria-hidden="true" tabindex="-1"></a>hawthorne_shift</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 0.6921312</code></pre>
+</div>
+</div>
+<p>Now define a function that simulates one study under either blind or known-test conditions. The only difference between the two conditions is the added shift in the probability of an inconclusive response.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb40"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a>simulate_study_with_context <span class="ot">&lt;-</span> <span class="cf">function</span>(n_examiners, n_comparisons, <span class="at">known_test =</span> <span class="cn">FALSE</span>) {</span>
+<span id="cb40-2"><a href="#cb40-2" aria-hidden="true" tabindex="-1"></a>  context_shift <span class="ot">&lt;-</span> <span class="fu">ifelse</span>(known_test, hawthorne_shift, <span class="dv">0</span>)</span>
+<span id="cb40-3"><a href="#cb40-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-4"><a href="#cb40-4" aria-hidden="true" tabindex="-1"></a>  comparison_set <span class="ot">&lt;-</span> <span class="fu">tibble</span>(</span>
+<span id="cb40-5"><a href="#cb40-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">question_id =</span> <span class="dv">1</span><span class="sc">:</span>n_comparisons,</span>
+<span id="cb40-6"><a href="#cb40-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">ground_truth =</span> <span class="fu">rbinom</span>(n_comparisons, <span class="dv">1</span>, match_rate),</span>
+<span id="cb40-7"><a href="#cb40-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">question_difficulty =</span> <span class="fu">rnorm</span>(n_comparisons, <span class="at">mean =</span> <span class="dv">0</span>, <span class="at">sd =</span> question_sd)</span>
+<span id="cb40-8"><a href="#cb40-8" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb40-9"><a href="#cb40-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-10"><a href="#cb40-10" aria-hidden="true" tabindex="-1"></a>  examiner_panel <span class="ot">&lt;-</span> <span class="fu">tibble</span>(</span>
+<span id="cb40-11"><a href="#cb40-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">examiner_id =</span> <span class="fu">paste0</span>(<span class="st">"E"</span>, <span class="dv">1</span><span class="sc">:</span>n_examiners),</span>
+<span id="cb40-12"><a href="#cb40-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">examiner_skill =</span> <span class="fu">rnorm</span>(n_examiners, <span class="at">mean =</span> <span class="dv">0</span>, <span class="at">sd =</span> examiner_sd),</span>
+<span id="cb40-13"><a href="#cb40-13" aria-hidden="true" tabindex="-1"></a>    <span class="at">examiner_inconclusive_tendency =</span> <span class="fu">rnorm</span>(n_examiners, <span class="at">mean =</span> <span class="dv">0</span>, <span class="at">sd =</span> examiner_sd <span class="sc">/</span> <span class="dv">2</span>)</span>
+<span id="cb40-14"><a href="#cb40-14" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb40-15"><a href="#cb40-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-16"><a href="#cb40-16" aria-hidden="true" tabindex="-1"></a>  tidyr<span class="sc">::</span><span class="fu">crossing</span>(examiner_panel, comparison_set) <span class="sc">%&gt;%</span></span>
+<span id="cb40-17"><a href="#cb40-17" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(</span>
+<span id="cb40-18"><a href="#cb40-18" aria-hidden="true" tabindex="-1"></a>      <span class="at">decision_challenge =</span> question_difficulty <span class="sc">-</span> examiner_skill,</span>
+<span id="cb40-19"><a href="#cb40-19" aria-hidden="true" tabindex="-1"></a>      <span class="at">error_probability =</span> <span class="fu">if_else</span>(</span>
+<span id="cb40-20"><a href="#cb40-20" aria-hidden="true" tabindex="-1"></a>        ground_truth <span class="sc">==</span> <span class="dv">1</span>,</span>
+<span id="cb40-21"><a href="#cb40-21" aria-hidden="true" tabindex="-1"></a>        <span class="fu">plogis</span>(<span class="fu">qlogis</span>(false_negative_rate) <span class="sc">+</span> decision_challenge),</span>
+<span id="cb40-22"><a href="#cb40-22" aria-hidden="true" tabindex="-1"></a>        <span class="fu">plogis</span>(<span class="fu">qlogis</span>(false_positive_rate) <span class="sc">+</span> decision_challenge)</span>
+<span id="cb40-23"><a href="#cb40-23" aria-hidden="true" tabindex="-1"></a>      ),</span>
+<span id="cb40-24"><a href="#cb40-24" aria-hidden="true" tabindex="-1"></a>      <span class="at">inconclusive_probability =</span> <span class="fu">plogis</span>(</span>
+<span id="cb40-25"><a href="#cb40-25" aria-hidden="true" tabindex="-1"></a>        <span class="fu">qlogis</span>(inconclusive_rate) <span class="sc">+</span></span>
+<span id="cb40-26"><a href="#cb40-26" aria-hidden="true" tabindex="-1"></a>          <span class="fl">0.5</span> <span class="sc">*</span> decision_challenge <span class="sc">+</span></span>
+<span id="cb40-27"><a href="#cb40-27" aria-hidden="true" tabindex="-1"></a>          examiner_inconclusive_tendency <span class="sc">+</span></span>
+<span id="cb40-28"><a href="#cb40-28" aria-hidden="true" tabindex="-1"></a>          context_shift</span>
+<span id="cb40-29"><a href="#cb40-29" aria-hidden="true" tabindex="-1"></a>      ),</span>
+<span id="cb40-30"><a href="#cb40-30" aria-hidden="true" tabindex="-1"></a>      <span class="at">total_probability =</span> error_probability <span class="sc">+</span> inconclusive_probability,</span>
+<span id="cb40-31"><a href="#cb40-31" aria-hidden="true" tabindex="-1"></a>      <span class="at">scaling_factor =</span> <span class="fu">if_else</span>(total_probability <span class="sc">&gt;=</span> <span class="fl">0.95</span>, <span class="fl">0.95</span> <span class="sc">/</span> total_probability, <span class="dv">1</span>),</span>
+<span id="cb40-32"><a href="#cb40-32" aria-hidden="true" tabindex="-1"></a>      <span class="at">error_probability =</span> error_probability <span class="sc">*</span> scaling_factor,</span>
+<span id="cb40-33"><a href="#cb40-33" aria-hidden="true" tabindex="-1"></a>      <span class="at">inconclusive_probability =</span> inconclusive_probability <span class="sc">*</span> scaling_factor,</span>
+<span id="cb40-34"><a href="#cb40-34" aria-hidden="true" tabindex="-1"></a>      <span class="at">draw =</span> <span class="fu">runif</span>(<span class="fu">n</span>()),</span>
+<span id="cb40-35"><a href="#cb40-35" aria-hidden="true" tabindex="-1"></a>      <span class="at">response =</span> <span class="fu">case_when</span>(</span>
+<span id="cb40-36"><a href="#cb40-36" aria-hidden="true" tabindex="-1"></a>        ground_truth <span class="sc">==</span> <span class="dv">1</span> <span class="sc">&amp;</span> draw <span class="sc">&lt;</span> error_probability <span class="sc">~</span> <span class="st">"elimination"</span>,</span>
+<span id="cb40-37"><a href="#cb40-37" aria-hidden="true" tabindex="-1"></a>        ground_truth <span class="sc">==</span> <span class="dv">1</span> <span class="sc">&amp;</span> draw <span class="sc">&lt;</span> error_probability <span class="sc">+</span> inconclusive_probability <span class="sc">~</span> <span class="st">"inconclusive"</span>,</span>
+<span id="cb40-38"><a href="#cb40-38" aria-hidden="true" tabindex="-1"></a>        ground_truth <span class="sc">==</span> <span class="dv">1</span> <span class="sc">~</span> <span class="st">"identification"</span>,</span>
+<span id="cb40-39"><a href="#cb40-39" aria-hidden="true" tabindex="-1"></a>        ground_truth <span class="sc">==</span> <span class="dv">0</span> <span class="sc">&amp;</span> draw <span class="sc">&lt;</span> error_probability <span class="sc">~</span> <span class="st">"identification"</span>,</span>
+<span id="cb40-40"><a href="#cb40-40" aria-hidden="true" tabindex="-1"></a>        ground_truth <span class="sc">==</span> <span class="dv">0</span> <span class="sc">&amp;</span> draw <span class="sc">&lt;</span> error_probability <span class="sc">+</span> inconclusive_probability <span class="sc">~</span> <span class="st">"inconclusive"</span>,</span>
+<span id="cb40-41"><a href="#cb40-41" aria-hidden="true" tabindex="-1"></a>        <span class="cn">TRUE</span> <span class="sc">~</span> <span class="st">"elimination"</span></span>
+<span id="cb40-42"><a href="#cb40-42" aria-hidden="true" tabindex="-1"></a>      )</span>
+<span id="cb40-43"><a href="#cb40-43" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">%&gt;%</span></span>
+<span id="cb40-44"><a href="#cb40-44" aria-hidden="true" tabindex="-1"></a>    <span class="fu">select</span>(<span class="sc">-</span>error_probability, <span class="sc">-</span>inconclusive_probability, <span class="sc">-</span>total_probability, <span class="sc">-</span>scaling_factor, <span class="sc">-</span>draw)</span>
+<span id="cb40-45"><a href="#cb40-45" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>Now define a summary function that compares the resulting inconclusive, false positive, and false negative rates under the two testing conditions.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb41"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a>summarize_context_bias <span class="ot">&lt;-</span> <span class="cf">function</span>(study_data) {</span>
+<span id="cb41-2"><a href="#cb41-2" aria-hidden="true" tabindex="-1"></a>  conclusive_data <span class="ot">&lt;-</span> study_data <span class="sc">%&gt;%</span></span>
+<span id="cb41-3"><a href="#cb41-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(response <span class="sc">!=</span> <span class="st">"inconclusive"</span>)</span>
+<span id="cb41-4"><a href="#cb41-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb41-5"><a href="#cb41-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tibble</span>(</span>
+<span id="cb41-6"><a href="#cb41-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">inconclusive_rate =</span> <span class="fu">mean</span>(study_data<span class="sc">$</span>response <span class="sc">==</span> <span class="st">"inconclusive"</span>),</span>
+<span id="cb41-7"><a href="#cb41-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">false_positive_rate =</span> <span class="fu">sum</span>(study_data<span class="sc">$</span>response <span class="sc">==</span> <span class="st">"identification"</span> <span class="sc">&amp;</span> study_data<span class="sc">$</span>ground_truth <span class="sc">==</span> <span class="dv">0</span>) <span class="sc">/</span></span>
+<span id="cb41-8"><a href="#cb41-8" aria-hidden="true" tabindex="-1"></a>      <span class="fu">sum</span>(study_data<span class="sc">$</span>ground_truth <span class="sc">==</span> <span class="dv">0</span>),</span>
+<span id="cb41-9"><a href="#cb41-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">false_negative_rate =</span> <span class="fu">sum</span>(study_data<span class="sc">$</span>response <span class="sc">==</span> <span class="st">"elimination"</span> <span class="sc">&amp;</span> study_data<span class="sc">$</span>ground_truth <span class="sc">==</span> <span class="dv">1</span>) <span class="sc">/</span></span>
+<span id="cb41-10"><a href="#cb41-10" aria-hidden="true" tabindex="-1"></a>      <span class="fu">sum</span>(study_data<span class="sc">$</span>ground_truth <span class="sc">==</span> <span class="dv">1</span>),</span>
+<span id="cb41-11"><a href="#cb41-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">conclusive_accuracy =</span> <span class="fu">mean</span>(</span>
+<span id="cb41-12"><a href="#cb41-12" aria-hidden="true" tabindex="-1"></a>      (conclusive_data<span class="sc">$</span>ground_truth <span class="sc">==</span> <span class="dv">1</span> <span class="sc">&amp;</span> conclusive_data<span class="sc">$</span>response <span class="sc">==</span> <span class="st">"identification"</span>) <span class="sc">|</span></span>
+<span id="cb41-13"><a href="#cb41-13" aria-hidden="true" tabindex="-1"></a>        (conclusive_data<span class="sc">$</span>ground_truth <span class="sc">==</span> <span class="dv">0</span> <span class="sc">&amp;</span> conclusive_data<span class="sc">$</span>response <span class="sc">==</span> <span class="st">"elimination"</span>)</span>
+<span id="cb41-14"><a href="#cb41-14" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb41-15"><a href="#cb41-15" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb41-16"><a href="#cb41-16" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>Finally, repeat the simulation many times under both conditions.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb42"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb42-1"><a href="#cb42-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">987</span>)</span>
+<span id="cb42-2"><a href="#cb42-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-3"><a href="#cb42-3" aria-hidden="true" tabindex="-1"></a>n_context_replications <span class="ot">&lt;-</span> <span class="dv">100</span></span>
+<span id="cb42-4"><a href="#cb42-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-5"><a href="#cb42-5" aria-hidden="true" tabindex="-1"></a>context_bias_results <span class="ot">&lt;-</span> <span class="fu">expand_grid</span>(</span>
+<span id="cb42-6"><a href="#cb42-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">condition =</span> <span class="fu">c</span>(<span class="st">"Blind"</span>, <span class="st">"Known test"</span>),</span>
+<span id="cb42-7"><a href="#cb42-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">replicate_id =</span> <span class="dv">1</span><span class="sc">:</span>n_context_replications</span>
+<span id="cb42-8"><a href="#cb42-8" aria-hidden="true" tabindex="-1"></a>) <span class="sc">%&gt;%</span></span>
+<span id="cb42-9"><a href="#cb42-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb42-10"><a href="#cb42-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">results =</span> purrr<span class="sc">::</span><span class="fu">map2</span>(</span>
+<span id="cb42-11"><a href="#cb42-11" aria-hidden="true" tabindex="-1"></a>      condition,</span>
+<span id="cb42-12"><a href="#cb42-12" aria-hidden="true" tabindex="-1"></a>      replicate_id,</span>
+<span id="cb42-13"><a href="#cb42-13" aria-hidden="true" tabindex="-1"></a>      <span class="cf">function</span>(condition, replicate_id) {</span>
+<span id="cb42-14"><a href="#cb42-14" aria-hidden="true" tabindex="-1"></a>        <span class="fu">simulate_study_with_context</span>(</span>
+<span id="cb42-15"><a href="#cb42-15" aria-hidden="true" tabindex="-1"></a>          <span class="at">n_examiners =</span> n_examiners,</span>
+<span id="cb42-16"><a href="#cb42-16" aria-hidden="true" tabindex="-1"></a>          <span class="at">n_comparisons =</span> n_comparisons,</span>
+<span id="cb42-17"><a href="#cb42-17" aria-hidden="true" tabindex="-1"></a>          <span class="at">known_test =</span> condition <span class="sc">==</span> <span class="st">"Known test"</span></span>
+<span id="cb42-18"><a href="#cb42-18" aria-hidden="true" tabindex="-1"></a>        ) <span class="sc">%&gt;%</span></span>
+<span id="cb42-19"><a href="#cb42-19" aria-hidden="true" tabindex="-1"></a>          <span class="fu">summarize_context_bias</span>()</span>
+<span id="cb42-20"><a href="#cb42-20" aria-hidden="true" tabindex="-1"></a>      }</span>
+<span id="cb42-21"><a href="#cb42-21" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb42-22"><a href="#cb42-22" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb42-23"><a href="#cb42-23" aria-hidden="true" tabindex="-1"></a>  tidyr<span class="sc">::</span><span class="fu">unnest</span>(results)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="results-for-contextual-bias" class="level4">
+<h4 class="anchored" data-anchor-id="results-for-contextual-bias">Results for contextual bias</h4>
+<p>These summary statistics compare the blind and known-test conditions across the repeated studies.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb43"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb43-1"><a href="#cb43-1" aria-hidden="true" tabindex="-1"></a>context_bias_summary <span class="ot">&lt;-</span> context_bias_results <span class="sc">%&gt;%</span></span>
+<span id="cb43-2"><a href="#cb43-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(condition) <span class="sc">%&gt;%</span></span>
+<span id="cb43-3"><a href="#cb43-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
+<span id="cb43-4"><a href="#cb43-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">mean_inconclusive_rate =</span> <span class="fu">mean</span>(inconclusive_rate),</span>
+<span id="cb43-5"><a href="#cb43-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">mean_false_positive_rate =</span> <span class="fu">mean</span>(false_positive_rate),</span>
+<span id="cb43-6"><a href="#cb43-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">mean_false_negative_rate =</span> <span class="fu">mean</span>(false_negative_rate),</span>
+<span id="cb43-7"><a href="#cb43-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">mean_conclusive_accuracy =</span> <span class="fu">mean</span>(conclusive_accuracy),</span>
+<span id="cb43-8"><a href="#cb43-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">.groups =</span> <span class="st">"drop"</span></span>
+<span id="cb43-9"><a href="#cb43-9" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb43-10"><a href="#cb43-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb43-11"><a href="#cb43-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">mean_inconclusive_rate =</span> scales<span class="sc">::</span><span class="fu">percent</span>(mean_inconclusive_rate, <span class="at">accuracy =</span> <span class="fl">0.1</span>),</span>
+<span id="cb43-12"><a href="#cb43-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">mean_false_positive_rate =</span> scales<span class="sc">::</span><span class="fu">percent</span>(mean_false_positive_rate, <span class="at">accuracy =</span> <span class="fl">0.1</span>),</span>
+<span id="cb43-13"><a href="#cb43-13" aria-hidden="true" tabindex="-1"></a>    <span class="at">mean_false_negative_rate =</span> scales<span class="sc">::</span><span class="fu">percent</span>(mean_false_negative_rate, <span class="at">accuracy =</span> <span class="fl">0.1</span>),</span>
+<span id="cb43-14"><a href="#cb43-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">mean_conclusive_accuracy =</span> scales<span class="sc">::</span><span class="fu">percent</span>(mean_conclusive_accuracy, <span class="at">accuracy =</span> <span class="fl">0.1</span>)</span>
+<span id="cb43-15"><a href="#cb43-15" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb43-16"><a href="#cb43-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb43-17"><a href="#cb43-17" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(</span>
+<span id="cb43-18"><a href="#cb43-18" aria-hidden="true" tabindex="-1"></a>  context_bias_summary,</span>
+<span id="cb43-19"><a href="#cb43-19" aria-hidden="true" tabindex="-1"></a>  <span class="at">col.names =</span> <span class="fu">c</span>(</span>
+<span id="cb43-20"><a href="#cb43-20" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Condition"</span>,</span>
+<span id="cb43-21"><a href="#cb43-21" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Mean inconclusive rate"</span>,</span>
+<span id="cb43-22"><a href="#cb43-22" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Mean false positive rate"</span>,</span>
+<span id="cb43-23"><a href="#cb43-23" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Mean false negative rate"</span>,</span>
+<span id="cb43-24"><a href="#cb43-24" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Mean conclusive accuracy"</span></span>
+<span id="cb43-25"><a href="#cb43-25" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb43-26"><a href="#cb43-26" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<colgroup>
+<col style="width: 10%">
+<col style="width: 21%">
+<col style="width: 22%">
+<col style="width: 22%">
+<col style="width: 22%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Condition</th>
+<th style="text-align: left;">Mean inconclusive rate</th>
+<th style="text-align: left;">Mean false positive rate</th>
+<th style="text-align: left;">Mean false negative rate</th>
+<th style="text-align: left;">Mean conclusive accuracy</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Blind</td>
+<td style="text-align: left;">11.4%</td>
+<td style="text-align: left;">3.3%</td>
+<td style="text-align: left;">7.6%</td>
+<td style="text-align: left;">93.9%</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Known test</td>
+<td style="text-align: left;">20.0%</td>
+<td style="text-align: left;">3.3%</td>
+<td style="text-align: left;">7.6%</td>
+<td style="text-align: left;">93.2%</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>The first plot shows how the inconclusive rate shifts upward when examiners know they are being tested. This is the pattern reported by Scurich et al.&nbsp;(2025) and built into the simulation.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb44"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb44-1"><a href="#cb44-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(context_bias_results, <span class="fu">aes</span>(<span class="at">x =</span> condition, <span class="at">y =</span> inconclusive_rate)) <span class="sc">+</span></span>
+<span id="cb44-2"><a href="#cb44-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_boxplot</span>() <span class="sc">+</span></span>
+<span id="cb44-3"><a href="#cb44-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
+<span id="cb44-4"><a href="#cb44-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="st">"Inconclusive rates under blind and known-test conditions"</span>,</span>
+<span id="cb44-5"><a href="#cb44-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> <span class="st">"Testing condition"</span>,</span>
+<span id="cb44-6"><a href="#cb44-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">y =</span> <span class="st">"Inconclusive rate"</span></span>
+<span id="cb44-7"><a href="#cb44-7" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb44-8"><a href="#cb44-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="at">labels =</span> scales<span class="sc">::</span><span class="fu">percent_format</span>(<span class="at">accuracy =</span> <span class="dv">1</span>)) <span class="sc">+</span></span>
+<span id="cb44-9"><a href="#cb44-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="analysis_files/figure-html/plot-context-inconclusive-rate-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>The next plot shows how the measured false positive and false negative rates change across the two conditions. As more difficult cases are diverted into the inconclusive category, the observed error rates can appear more favorable.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb45"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb45-1"><a href="#cb45-1" aria-hidden="true" tabindex="-1"></a>context_bias_results <span class="sc">%&gt;%</span></span>
+<span id="cb45-2"><a href="#cb45-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(condition, false_positive_rate, false_negative_rate) <span class="sc">%&gt;%</span></span>
+<span id="cb45-3"><a href="#cb45-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(</span>
+<span id="cb45-4"><a href="#cb45-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">cols =</span> <span class="fu">c</span>(false_positive_rate, false_negative_rate),</span>
+<span id="cb45-5"><a href="#cb45-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">names_to =</span> <span class="st">"metric"</span>,</span>
+<span id="cb45-6"><a href="#cb45-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">values_to =</span> <span class="st">"value"</span></span>
+<span id="cb45-7"><a href="#cb45-7" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb45-8"><a href="#cb45-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb45-9"><a href="#cb45-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">metric =</span> <span class="fu">recode</span>(</span>
+<span id="cb45-10"><a href="#cb45-10" aria-hidden="true" tabindex="-1"></a>      metric,</span>
+<span id="cb45-11"><a href="#cb45-11" aria-hidden="true" tabindex="-1"></a>      <span class="at">false_positive_rate =</span> <span class="st">"False positive rate"</span>,</span>
+<span id="cb45-12"><a href="#cb45-12" aria-hidden="true" tabindex="-1"></a>      <span class="at">false_negative_rate =</span> <span class="st">"False negative rate"</span></span>
+<span id="cb45-13"><a href="#cb45-13" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb45-14"><a href="#cb45-14" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb45-15"><a href="#cb45-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> condition, <span class="at">y =</span> value)) <span class="sc">+</span></span>
+<span id="cb45-16"><a href="#cb45-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_boxplot</span>() <span class="sc">+</span></span>
+<span id="cb45-17"><a href="#cb45-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span> metric) <span class="sc">+</span></span>
+<span id="cb45-18"><a href="#cb45-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
+<span id="cb45-19"><a href="#cb45-19" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="st">"Measured error rates under blind and known-test conditions"</span>,</span>
+<span id="cb45-20"><a href="#cb45-20" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> <span class="st">"Testing condition"</span>,</span>
+<span id="cb45-21"><a href="#cb45-21" aria-hidden="true" tabindex="-1"></a>    <span class="at">y =</span> <span class="st">"Rate"</span></span>
+<span id="cb45-22"><a href="#cb45-22" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb45-23"><a href="#cb45-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="at">labels =</span> scales<span class="sc">::</span><span class="fu">percent_format</span>(<span class="at">accuracy =</span> <span class="dv">1</span>)) <span class="sc">+</span></span>
+<span id="cb45-24"><a href="#cb45-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="analysis_files/figure-html/plot-context-error-rates-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="interpretation-of-contextual-bias" class="level4">
+<h4 class="anchored" data-anchor-id="interpretation-of-contextual-bias">Interpretation of contextual bias</h4>
+<p>This simulation shows how non-representative testing conditions can bias the performance quantities reported by a validation study. Using the shift observed by Scurich et al.&nbsp;(2025), the known-test condition produces a substantially higher inconclusive rate than the blind condition. That shift matters because it changes which examiner-item pairs remain in the pool of conclusive decisions. When examiners can move more difficult decisions into the inconclusive category, the resulting false positive and false negative rates can look better than they would under genuinely blind, casework-like conditions. In that sense, non-blind testing environments do not merely alter examiner behavior in a superficial way; they can change the very quantities that the study is trying to estimate.</p>
+</section>
+</section>
+<section id="inconclusives" class="level3">
+<h3 class="anchored" data-anchor-id="inconclusives">D. Inconclusive responses are treated as correct or ignored (AMANDA)</h3>
+</section>
+<section id="uncertainty-measures" class="level3">
+<h3 class="anchored" data-anchor-id="uncertainty-measures">E. Invalid or nonexistent uncertainty measures for error rates (AMANDA)</h3>
 <p>Note: Look at Hicklin 2024 bootstrap sample (still invalid because non-representative sample, but we can use it to compare).</p>
-<p>F. Missing data MARIA</p>
-<p>A correctly done study</p>
+</section>
+<section id="missing-data" class="level3">
+<h3 class="anchored" data-anchor-id="missing-data">F. Missing data (MARIA)</h3>
+<section id="why-missing-data-matters" class="level4">
+<h4 class="anchored" data-anchor-id="why-missing-data-matters">Why missing data matters</h4>
+<p>Missing data can bias reported error rates when the missing responses are not a random subset of the study. If difficult items, weak examiner-item pairings, or outright errors are more likely to be missing, then calculating error rates only from the observed responses will systematically understate the rate of error. In that setting, the problem is not just that the study has less information than intended. The observed data are selectively filtered in a way that changes the apparent performance of the examiners.</p>
+</section>
+<section id="simulation-design-for-missingness" class="level4">
+<h4 class="anchored" data-anchor-id="simulation-design-for-missingness">Simulation design for missingness</h4>
+<p>To illustrate that point, the next simulation starts with the complete simulated dataset and then imposes missingness. Missing responses are made more likely when the examiner-question pairing is difficult, when the response is incorrect, and when the response is inconclusive. This creates a simple missing-not-at-random mechanism in which the responses most likely to make performance look worse are also the most likely to disappear from the observed dataset.</p>
+<p>First, define a function that imposes missingness on a complete study.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb46"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb46-1"><a href="#cb46-1" aria-hidden="true" tabindex="-1"></a>impose_missingness <span class="ot">&lt;-</span> <span class="cf">function</span>(study_data) {</span>
+<span id="cb46-2"><a href="#cb46-2" aria-hidden="true" tabindex="-1"></a>  study_data <span class="sc">%&gt;%</span></span>
+<span id="cb46-3"><a href="#cb46-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(</span>
+<span id="cb46-4"><a href="#cb46-4" aria-hidden="true" tabindex="-1"></a>      <span class="at">is_error =</span> (response <span class="sc">==</span> <span class="st">"identification"</span> <span class="sc">&amp;</span> ground_truth <span class="sc">==</span> <span class="dv">0</span>) <span class="sc">|</span></span>
+<span id="cb46-5"><a href="#cb46-5" aria-hidden="true" tabindex="-1"></a>        (response <span class="sc">==</span> <span class="st">"elimination"</span> <span class="sc">&amp;</span> ground_truth <span class="sc">==</span> <span class="dv">1</span>),</span>
+<span id="cb46-6"><a href="#cb46-6" aria-hidden="true" tabindex="-1"></a>      <span class="at">missing_probability =</span> <span class="fu">plogis</span>(</span>
+<span id="cb46-7"><a href="#cb46-7" aria-hidden="true" tabindex="-1"></a>        <span class="fu">qlogis</span>(<span class="fl">0.05</span>) <span class="sc">+</span></span>
+<span id="cb46-8"><a href="#cb46-8" aria-hidden="true" tabindex="-1"></a>          <span class="fl">0.8</span> <span class="sc">*</span> decision_challenge <span class="sc">+</span></span>
+<span id="cb46-9"><a href="#cb46-9" aria-hidden="true" tabindex="-1"></a>          <span class="fl">1.2</span> <span class="sc">*</span> is_error <span class="sc">+</span></span>
+<span id="cb46-10"><a href="#cb46-10" aria-hidden="true" tabindex="-1"></a>          <span class="fl">0.6</span> <span class="sc">*</span> (response <span class="sc">==</span> <span class="st">"inconclusive"</span>)</span>
+<span id="cb46-11"><a href="#cb46-11" aria-hidden="true" tabindex="-1"></a>      ),</span>
+<span id="cb46-12"><a href="#cb46-12" aria-hidden="true" tabindex="-1"></a>      <span class="at">is_missing =</span> <span class="fu">runif</span>(<span class="fu">n</span>()) <span class="sc">&lt;</span> missing_probability,</span>
+<span id="cb46-13"><a href="#cb46-13" aria-hidden="true" tabindex="-1"></a>      <span class="at">observed_response =</span> <span class="fu">if_else</span>(is_missing, <span class="cn">NA_character_</span>, response)</span>
+<span id="cb46-14"><a href="#cb46-14" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb46-15"><a href="#cb46-15" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>Now define a function that compares the true error rates from the complete data to the error rates calculated only from the observed responses.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb47"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb47-1"><a href="#cb47-1" aria-hidden="true" tabindex="-1"></a>summarize_missing_data_bias <span class="ot">&lt;-</span> <span class="cf">function</span>(study_data) {</span>
+<span id="cb47-2"><a href="#cb47-2" aria-hidden="true" tabindex="-1"></a>  observed_data <span class="ot">&lt;-</span> <span class="fu">impose_missingness</span>(study_data)</span>
+<span id="cb47-3"><a href="#cb47-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb47-4"><a href="#cb47-4" aria-hidden="true" tabindex="-1"></a>  true_fpr <span class="ot">&lt;-</span> <span class="fu">sum</span>(study_data<span class="sc">$</span>response <span class="sc">==</span> <span class="st">"identification"</span> <span class="sc">&amp;</span> study_data<span class="sc">$</span>ground_truth <span class="sc">==</span> <span class="dv">0</span>) <span class="sc">/</span></span>
+<span id="cb47-5"><a href="#cb47-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">sum</span>(study_data<span class="sc">$</span>ground_truth <span class="sc">==</span> <span class="dv">0</span>)</span>
+<span id="cb47-6"><a href="#cb47-6" aria-hidden="true" tabindex="-1"></a>  true_fnr <span class="ot">&lt;-</span> <span class="fu">sum</span>(study_data<span class="sc">$</span>response <span class="sc">==</span> <span class="st">"elimination"</span> <span class="sc">&amp;</span> study_data<span class="sc">$</span>ground_truth <span class="sc">==</span> <span class="dv">1</span>) <span class="sc">/</span></span>
+<span id="cb47-7"><a href="#cb47-7" aria-hidden="true" tabindex="-1"></a>    <span class="fu">sum</span>(study_data<span class="sc">$</span>ground_truth <span class="sc">==</span> <span class="dv">1</span>)</span>
+<span id="cb47-8"><a href="#cb47-8" aria-hidden="true" tabindex="-1"></a>  true_inconclusive_rate <span class="ot">&lt;-</span> <span class="fu">mean</span>(study_data<span class="sc">$</span>response <span class="sc">==</span> <span class="st">"inconclusive"</span>)</span>
+<span id="cb47-9"><a href="#cb47-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb47-10"><a href="#cb47-10" aria-hidden="true" tabindex="-1"></a>  observed_fpr <span class="ot">&lt;-</span> <span class="fu">sum</span>(observed_data<span class="sc">$</span>observed_response <span class="sc">==</span> <span class="st">"identification"</span> <span class="sc">&amp;</span> observed_data<span class="sc">$</span>ground_truth <span class="sc">==</span> <span class="dv">0</span>, <span class="at">na.rm =</span> <span class="cn">TRUE</span>) <span class="sc">/</span></span>
+<span id="cb47-11"><a href="#cb47-11" aria-hidden="true" tabindex="-1"></a>    <span class="fu">sum</span>(observed_data<span class="sc">$</span>ground_truth <span class="sc">==</span> <span class="dv">0</span> <span class="sc">&amp;</span> <span class="sc">!</span><span class="fu">is.na</span>(observed_data<span class="sc">$</span>observed_response))</span>
+<span id="cb47-12"><a href="#cb47-12" aria-hidden="true" tabindex="-1"></a>  observed_fnr <span class="ot">&lt;-</span> <span class="fu">sum</span>(observed_data<span class="sc">$</span>observed_response <span class="sc">==</span> <span class="st">"elimination"</span> <span class="sc">&amp;</span> observed_data<span class="sc">$</span>ground_truth <span class="sc">==</span> <span class="dv">1</span>, <span class="at">na.rm =</span> <span class="cn">TRUE</span>) <span class="sc">/</span></span>
+<span id="cb47-13"><a href="#cb47-13" aria-hidden="true" tabindex="-1"></a>    <span class="fu">sum</span>(observed_data<span class="sc">$</span>ground_truth <span class="sc">==</span> <span class="dv">1</span> <span class="sc">&amp;</span> <span class="sc">!</span><span class="fu">is.na</span>(observed_data<span class="sc">$</span>observed_response))</span>
+<span id="cb47-14"><a href="#cb47-14" aria-hidden="true" tabindex="-1"></a>  observed_inconclusive_rate <span class="ot">&lt;-</span> <span class="fu">sum</span>(observed_data<span class="sc">$</span>observed_response <span class="sc">==</span> <span class="st">"inconclusive"</span>, <span class="at">na.rm =</span> <span class="cn">TRUE</span>) <span class="sc">/</span></span>
+<span id="cb47-15"><a href="#cb47-15" aria-hidden="true" tabindex="-1"></a>    <span class="fu">sum</span>(<span class="sc">!</span><span class="fu">is.na</span>(observed_data<span class="sc">$</span>observed_response))</span>
+<span id="cb47-16"><a href="#cb47-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb47-17"><a href="#cb47-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tibble</span>(</span>
+<span id="cb47-18"><a href="#cb47-18" aria-hidden="true" tabindex="-1"></a>    <span class="at">true_fpr =</span> true_fpr,</span>
+<span id="cb47-19"><a href="#cb47-19" aria-hidden="true" tabindex="-1"></a>    <span class="at">observed_fpr =</span> observed_fpr,</span>
+<span id="cb47-20"><a href="#cb47-20" aria-hidden="true" tabindex="-1"></a>    <span class="at">true_fnr =</span> true_fnr,</span>
+<span id="cb47-21"><a href="#cb47-21" aria-hidden="true" tabindex="-1"></a>    <span class="at">observed_fnr =</span> observed_fnr,</span>
+<span id="cb47-22"><a href="#cb47-22" aria-hidden="true" tabindex="-1"></a>    <span class="at">true_inconclusive_rate =</span> true_inconclusive_rate,</span>
+<span id="cb47-23"><a href="#cb47-23" aria-hidden="true" tabindex="-1"></a>    <span class="at">observed_inconclusive_rate =</span> observed_inconclusive_rate,</span>
+<span id="cb47-24"><a href="#cb47-24" aria-hidden="true" tabindex="-1"></a>    <span class="at">missing_rate =</span> <span class="fu">mean</span>(observed_data<span class="sc">$</span>is_missing)</span>
+<span id="cb47-25"><a href="#cb47-25" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb47-26"><a href="#cb47-26" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>Now repeat that comparison across many simulated studies so that the bias from missing data can be seen across replications rather than in a single example.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb48"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb48-1"><a href="#cb48-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">789</span>)</span>
+<span id="cb48-2"><a href="#cb48-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb48-3"><a href="#cb48-3" aria-hidden="true" tabindex="-1"></a>n_missing_data_replications <span class="ot">&lt;-</span> <span class="dv">100</span></span>
+<span id="cb48-4"><a href="#cb48-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb48-5"><a href="#cb48-5" aria-hidden="true" tabindex="-1"></a>missing_data_results <span class="ot">&lt;-</span> purrr<span class="sc">::</span><span class="fu">map_dfr</span>(</span>
+<span id="cb48-6"><a href="#cb48-6" aria-hidden="true" tabindex="-1"></a>  <span class="dv">1</span><span class="sc">:</span>n_missing_data_replications,</span>
+<span id="cb48-7"><a href="#cb48-7" aria-hidden="true" tabindex="-1"></a>  <span class="cf">function</span>(replicate_id) {</span>
+<span id="cb48-8"><a href="#cb48-8" aria-hidden="true" tabindex="-1"></a>    <span class="fu">simulate_study</span>(</span>
+<span id="cb48-9"><a href="#cb48-9" aria-hidden="true" tabindex="-1"></a>      <span class="at">n_examiners =</span> n_examiners,</span>
+<span id="cb48-10"><a href="#cb48-10" aria-hidden="true" tabindex="-1"></a>      <span class="at">n_comparisons =</span> n_comparisons</span>
+<span id="cb48-11"><a href="#cb48-11" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">%&gt;%</span></span>
+<span id="cb48-12"><a href="#cb48-12" aria-hidden="true" tabindex="-1"></a>      <span class="fu">summarize_missing_data_bias</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb48-13"><a href="#cb48-13" aria-hidden="true" tabindex="-1"></a>      <span class="fu">mutate</span>(<span class="at">replicate_id =</span> replicate_id)</span>
+<span id="cb48-14"><a href="#cb48-14" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb48-15"><a href="#cb48-15" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="results-for-missing-data" class="level4">
+<h4 class="anchored" data-anchor-id="results-for-missing-data">Results for missing data</h4>
+<p>These summary statistics compare the complete-data error rates to the error rates that would be reported if the missing responses were simply ignored.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb49"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb49-1"><a href="#cb49-1" aria-hidden="true" tabindex="-1"></a>missing_data_summary <span class="ot">&lt;-</span> <span class="fu">tibble</span>(</span>
+<span id="cb49-2"><a href="#cb49-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">quantity =</span> <span class="fu">c</span>(</span>
+<span id="cb49-3"><a href="#cb49-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Average true false positive rate"</span>,</span>
+<span id="cb49-4"><a href="#cb49-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Average observed false positive rate"</span>,</span>
+<span id="cb49-5"><a href="#cb49-5" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Average true false negative rate"</span>,</span>
+<span id="cb49-6"><a href="#cb49-6" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Average observed false negative rate"</span>,</span>
+<span id="cb49-7"><a href="#cb49-7" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Average true inconclusive rate"</span>,</span>
+<span id="cb49-8"><a href="#cb49-8" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Average observed inconclusive rate"</span>,</span>
+<span id="cb49-9"><a href="#cb49-9" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Average missing-data rate"</span></span>
+<span id="cb49-10"><a href="#cb49-10" aria-hidden="true" tabindex="-1"></a>  ),</span>
+<span id="cb49-11"><a href="#cb49-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">value =</span> <span class="fu">c</span>(</span>
+<span id="cb49-12"><a href="#cb49-12" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mean</span>(missing_data_results<span class="sc">$</span>true_fpr),</span>
+<span id="cb49-13"><a href="#cb49-13" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mean</span>(missing_data_results<span class="sc">$</span>observed_fpr),</span>
+<span id="cb49-14"><a href="#cb49-14" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mean</span>(missing_data_results<span class="sc">$</span>true_fnr),</span>
+<span id="cb49-15"><a href="#cb49-15" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mean</span>(missing_data_results<span class="sc">$</span>observed_fnr),</span>
+<span id="cb49-16"><a href="#cb49-16" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mean</span>(missing_data_results<span class="sc">$</span>true_inconclusive_rate),</span>
+<span id="cb49-17"><a href="#cb49-17" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mean</span>(missing_data_results<span class="sc">$</span>observed_inconclusive_rate),</span>
+<span id="cb49-18"><a href="#cb49-18" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mean</span>(missing_data_results<span class="sc">$</span>missing_rate)</span>
+<span id="cb49-19"><a href="#cb49-19" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb49-20"><a href="#cb49-20" aria-hidden="true" tabindex="-1"></a>) <span class="sc">%&gt;%</span></span>
+<span id="cb49-21"><a href="#cb49-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">value =</span> scales<span class="sc">::</span><span class="fu">percent</span>(value, <span class="at">accuracy =</span> <span class="fl">0.1</span>))</span>
+<span id="cb49-22"><a href="#cb49-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb49-23"><a href="#cb49-23" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(missing_data_summary, <span class="at">col.names =</span> <span class="fu">c</span>(<span class="st">"Quantity"</span>, <span class="st">"Value"</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<thead>
+<tr class="header">
+<th style="text-align: left;">Quantity</th>
+<th style="text-align: left;">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Average true false positive rate</td>
+<td style="text-align: left;">3.2%</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Average observed false positive rate</td>
+<td style="text-align: left;">2.4%</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Average true false negative rate</td>
+<td style="text-align: left;">7.5%</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Average observed false negative rate</td>
+<td style="text-align: left;">5.8%</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Average true inconclusive rate</td>
+<td style="text-align: left;">11.4%</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Average observed inconclusive rate</td>
+<td style="text-align: left;">10.6%</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Average missing-data rate</td>
+<td style="text-align: left;">8.2%</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<section id="bias-from-ignoring-missing-responses" class="level5">
+<h5 class="anchored" data-anchor-id="bias-from-ignoring-missing-responses">Bias from ignoring missing responses</h5>
+<p>The next plot compares the true and observed error rates across the repeated studies. If missing responses are ignored, the observed rates tend to look better than the truth.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb50"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb50-1"><a href="#cb50-1" aria-hidden="true" tabindex="-1"></a>missing_data_results <span class="sc">%&gt;%</span></span>
+<span id="cb50-2"><a href="#cb50-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(</span>
+<span id="cb50-3"><a href="#cb50-3" aria-hidden="true" tabindex="-1"></a>    replicate_id,</span>
+<span id="cb50-4"><a href="#cb50-4" aria-hidden="true" tabindex="-1"></a>    true_fpr,</span>
+<span id="cb50-5"><a href="#cb50-5" aria-hidden="true" tabindex="-1"></a>    observed_fpr,</span>
+<span id="cb50-6"><a href="#cb50-6" aria-hidden="true" tabindex="-1"></a>    true_fnr,</span>
+<span id="cb50-7"><a href="#cb50-7" aria-hidden="true" tabindex="-1"></a>    observed_fnr</span>
+<span id="cb50-8"><a href="#cb50-8" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb50-9"><a href="#cb50-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(</span>
+<span id="cb50-10"><a href="#cb50-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">cols =</span> <span class="sc">-</span>replicate_id,</span>
+<span id="cb50-11"><a href="#cb50-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">names_to =</span> <span class="st">"metric"</span>,</span>
+<span id="cb50-12"><a href="#cb50-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">values_to =</span> <span class="st">"value"</span></span>
+<span id="cb50-13"><a href="#cb50-13" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb50-14"><a href="#cb50-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb50-15"><a href="#cb50-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">metric =</span> <span class="fu">recode</span>(</span>
+<span id="cb50-16"><a href="#cb50-16" aria-hidden="true" tabindex="-1"></a>      metric,</span>
+<span id="cb50-17"><a href="#cb50-17" aria-hidden="true" tabindex="-1"></a>      <span class="at">true_fpr =</span> <span class="st">"True false positive rate"</span>,</span>
+<span id="cb50-18"><a href="#cb50-18" aria-hidden="true" tabindex="-1"></a>      <span class="at">observed_fpr =</span> <span class="st">"Observed false positive rate"</span>,</span>
+<span id="cb50-19"><a href="#cb50-19" aria-hidden="true" tabindex="-1"></a>      <span class="at">true_fnr =</span> <span class="st">"True false negative rate"</span>,</span>
+<span id="cb50-20"><a href="#cb50-20" aria-hidden="true" tabindex="-1"></a>      <span class="at">observed_fnr =</span> <span class="st">"Observed false negative rate"</span></span>
+<span id="cb50-21"><a href="#cb50-21" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb50-22"><a href="#cb50-22" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb50-23"><a href="#cb50-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> metric, <span class="at">y =</span> value)) <span class="sc">+</span></span>
+<span id="cb50-24"><a href="#cb50-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_boxplot</span>() <span class="sc">+</span></span>
+<span id="cb50-25"><a href="#cb50-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
+<span id="cb50-26"><a href="#cb50-26" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="st">"Bias from ignoring missing responses"</span>,</span>
+<span id="cb50-27"><a href="#cb50-27" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> <span class="st">""</span>,</span>
+<span id="cb50-28"><a href="#cb50-28" aria-hidden="true" tabindex="-1"></a>    <span class="at">y =</span> <span class="st">"Rate"</span></span>
+<span id="cb50-29"><a href="#cb50-29" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb50-30"><a href="#cb50-30" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="at">labels =</span> scales<span class="sc">::</span><span class="fu">percent_format</span>(<span class="at">accuracy =</span> <span class="dv">1</span>)) <span class="sc">+</span></span>
+<span id="cb50-31"><a href="#cb50-31" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
+<span id="cb50-32"><a href="#cb50-32" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">axis.text.x =</span> <span class="fu">element_text</span>(<span class="at">angle =</span> <span class="dv">20</span>, <span class="at">hjust =</span> <span class="dv">1</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="analysis_files/figure-html/plot-missing-data-bias-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="how-much-data-are-missing" class="level5">
+<h5 class="anchored" data-anchor-id="how-much-data-are-missing">How much data are missing?</h5>
+<p>This plot shows the distribution of the missing-data rate itself across the repeated studies.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb51"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb51-1"><a href="#cb51-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(missing_data_results, <span class="fu">aes</span>(<span class="at">x =</span> missing_rate)) <span class="sc">+</span></span>
+<span id="cb51-2"><a href="#cb51-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_histogram</span>(<span class="at">bins =</span> <span class="dv">15</span>) <span class="sc">+</span></span>
+<span id="cb51-3"><a href="#cb51-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
+<span id="cb51-4"><a href="#cb51-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="st">"Distribution of missing-data rates across repeated studies"</span>,</span>
+<span id="cb51-5"><a href="#cb51-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> <span class="st">"Missing-data rate"</span>,</span>
+<span id="cb51-6"><a href="#cb51-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">y =</span> <span class="st">"Count"</span></span>
+<span id="cb51-7"><a href="#cb51-7" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb51-8"><a href="#cb51-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_continuous</span>(<span class="at">labels =</span> scales<span class="sc">::</span><span class="fu">percent_format</span>(<span class="at">accuracy =</span> <span class="dv">1</span>)) <span class="sc">+</span></span>
+<span id="cb51-9"><a href="#cb51-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="analysis_files/figure-html/plot-missingness-rate-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="sensitivity-of-the-false-positive-rate" class="level5">
+<h5 class="anchored" data-anchor-id="sensitivity-of-the-false-positive-rate">Sensitivity of the false positive rate</h5>
+<p>This final plot shows a simple sensitivity analysis for the false positive rate. Starting from the observed false positive rate among the non-missing responses, it asks what the overall false positive rate would be if different fractions of the missing non-match responses were actually false positives. When the observed false positive rate is low, the estimated rate can still become much larger once plausible missing-data scenarios are taken into account.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb52"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb52-1"><a href="#cb52-1" aria-hidden="true" tabindex="-1"></a>fpr_sensitivity <span class="ot">&lt;-</span> missing_data_results <span class="sc">%&gt;%</span></span>
+<span id="cb52-2"><a href="#cb52-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">transmute</span>(</span>
+<span id="cb52-3"><a href="#cb52-3" aria-hidden="true" tabindex="-1"></a>    replicate_id,</span>
+<span id="cb52-4"><a href="#cb52-4" aria-hidden="true" tabindex="-1"></a>    observed_fpr,</span>
+<span id="cb52-5"><a href="#cb52-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">missing_nonmatch_rate =</span> <span class="fu">pmax</span>(missing_rate, <span class="dv">0</span>)</span>
+<span id="cb52-6"><a href="#cb52-6" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb52-7"><a href="#cb52-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">crossing</span>(<span class="at">assumed_missing_fp_rate =</span> <span class="fu">seq</span>(<span class="dv">0</span>, <span class="dv">1</span>, <span class="at">by =</span> <span class="fl">0.1</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb52-8"><a href="#cb52-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb52-9"><a href="#cb52-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">adjusted_fpr =</span> observed_fpr <span class="sc">*</span> (<span class="dv">1</span> <span class="sc">-</span> missing_nonmatch_rate) <span class="sc">+</span></span>
+<span id="cb52-10"><a href="#cb52-10" aria-hidden="true" tabindex="-1"></a>      assumed_missing_fp_rate <span class="sc">*</span> missing_nonmatch_rate</span>
+<span id="cb52-11"><a href="#cb52-11" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb52-12"><a href="#cb52-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb52-13"><a href="#cb52-13" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(</span>
+<span id="cb52-14"><a href="#cb52-14" aria-hidden="true" tabindex="-1"></a>  fpr_sensitivity,</span>
+<span id="cb52-15"><a href="#cb52-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">aes</span>(</span>
+<span id="cb52-16"><a href="#cb52-16" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> assumed_missing_fp_rate,</span>
+<span id="cb52-17"><a href="#cb52-17" aria-hidden="true" tabindex="-1"></a>    <span class="at">y =</span> adjusted_fpr,</span>
+<span id="cb52-18"><a href="#cb52-18" aria-hidden="true" tabindex="-1"></a>    <span class="at">group =</span> replicate_id</span>
+<span id="cb52-19"><a href="#cb52-19" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb52-20"><a href="#cb52-20" aria-hidden="true" tabindex="-1"></a>) <span class="sc">+</span></span>
+<span id="cb52-21"><a href="#cb52-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">alpha =</span> <span class="fl">0.08</span>) <span class="sc">+</span></span>
+<span id="cb52-22"><a href="#cb52-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">stat_summary</span>(</span>
+<span id="cb52-23"><a href="#cb52-23" aria-hidden="true" tabindex="-1"></a>    <span class="fu">aes</span>(<span class="at">group =</span> <span class="dv">1</span>),</span>
+<span id="cb52-24"><a href="#cb52-24" aria-hidden="true" tabindex="-1"></a>    <span class="at">fun =</span> median,</span>
+<span id="cb52-25"><a href="#cb52-25" aria-hidden="true" tabindex="-1"></a>    <span class="at">geom =</span> <span class="st">"line"</span>,</span>
+<span id="cb52-26"><a href="#cb52-26" aria-hidden="true" tabindex="-1"></a>    <span class="at">linewidth =</span> <span class="dv">1</span></span>
+<span id="cb52-27"><a href="#cb52-27" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb52-28"><a href="#cb52-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
+<span id="cb52-29"><a href="#cb52-29" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="st">"False positive rate under different missing-data assumptions"</span>,</span>
+<span id="cb52-30"><a href="#cb52-30" aria-hidden="true" tabindex="-1"></a>    <span class="at">subtitle =</span> <span class="st">"Thin lines are simulated studies; thick line is the median across studies"</span>,</span>
+<span id="cb52-31"><a href="#cb52-31" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> <span class="st">"Assumed false positive rate among missing non-match responses"</span>,</span>
+<span id="cb52-32"><a href="#cb52-32" aria-hidden="true" tabindex="-1"></a>    <span class="at">y =</span> <span class="st">"Overall false positive rate"</span></span>
+<span id="cb52-33"><a href="#cb52-33" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb52-34"><a href="#cb52-34" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_continuous</span>(<span class="at">labels =</span> scales<span class="sc">::</span><span class="fu">percent_format</span>(<span class="at">accuracy =</span> <span class="dv">1</span>)) <span class="sc">+</span></span>
+<span id="cb52-35"><a href="#cb52-35" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="at">labels =</span> scales<span class="sc">::</span><span class="fu">percent_format</span>(<span class="at">accuracy =</span> <span class="dv">1</span>)) <span class="sc">+</span></span>
+<span id="cb52-36"><a href="#cb52-36" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="analysis_files/figure-html/plot-fpr-sensitivity-to-missingness-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="interpretation-of-missing-data" class="level4">
+<h4 class="anchored" data-anchor-id="interpretation-of-missing-data">Interpretation of missing data</h4>
+<p>These simulations show that missing data can bias reported error rates when the missing responses are systematically related to difficult items or poor performance. In that setting, simply dropping the missing responses does not recover the true error rates from the remaining observed data. Instead, it creates a more favorable picture of examiner performance by disproportionately removing the responses most likely to count as errors or inconclusives.</p>
+</section>
+</section>
+</section>
+<section id="discussion" class="level1">
+<h1>Discussion</h1>
+<p>The simulations developed so far show that several of the flaws identified in Cuellar et al.&nbsp;(2024) change the meaning of the reported error rates, not just their precision. In the baseline simulation, performance varies across both examiners and items, which makes clear that any reported error rate is an average over a heterogeneous process. Once that heterogeneity is acknowledged, it becomes easier to see why poor study design can distort the results in systematic ways.</p>
+<p>Taken together, these results support a distinction between flaws that are mainly analytic and flaws that are built into study design and data collection. Some problems, such as omitted uncertainty intervals or alternative ways of tabulating existing responses, may be at least partly fixable after the fact if the raw data are available. By contrast, inadequate sample size, non-representative testing conditions, and missing data affect what is observed in the first place. Those flaws do not merely complicate interpretation; they can make the resulting estimates poor measures of the performance quantity that researchers, courts, and policymakers care about.</p>
+<section id="correctly-done-study" class="level2">
+<h2 class="anchored" data-anchor-id="correctly-done-study">An example of a correctly done study</h2>
 </section>
 </section>
 
