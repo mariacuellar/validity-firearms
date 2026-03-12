@@ -1244,3 +1244,12 @@ overall_summary <- examiner_performance %>%
 # Preview the overall summary
 overall_summary
 ```
+
+
+
+## Interactions between errors
+
+What happens when two errors coincide? 
+
+
+
