@@ -17,6 +17,9 @@ The goal of this study is to use simulation to show how methodological flaws in 
 
 # Data generation {#data-generation}
 
+We generate a simulated validity-study dataset by first creating a fixed set of comparison items, each with a true source status and a latent difficulty level, and then assigning that same set of items to a panel of examiners. Each examiner is given a latent skill level and a tendency to respond inconclusive, and responses are generated probabilistically from baseline false positive, false negative, and inconclusive rates that are shifted according to the combination of item difficulty and examiner skill. This produces a dataset in which both examiners and items vary, so the observed responses reflect heterogeneity in performance rather than a single uniform error process.
+
+
 ## Number of examiners and comparisons
 
 First, install the packages used in the analysis if they are not already available on the machine.

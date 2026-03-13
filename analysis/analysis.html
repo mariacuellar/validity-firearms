@@ -129,6 +129,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <ul>
   <li><a href="#correctly-done-study" id="toc-correctly-done-study">An example of a correctly done study</a></li>
   <li><a href="#evaluation-of-performance" id="toc-evaluation-of-performance">Evaluation of performance</a></li>
+  <li><a href="#interactions-between-errors" id="toc-interactions-between-errors">Interactions between errors</a></li>
   </ul></li>
   </ul>
 </nav>
@@ -138,6 +139,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="data-generation" class="level1">
 <h1>Data generation</h1>
+<p>We generate a simulated validity-study dataset by first creating a fixed set of comparison items, each with a true source status and a latent difficulty level, and then assigning that same set of items to a panel of examiners. Each examiner is given a latent skill level and a tendency to respond inconclusive, and responses are generated probabilistically from baseline false positive, false negative, and inconclusive rates that are shifted according to the combination of item difficulty and examiner skill. This produces a dataset in which both examiners and items vary, so the observed responses reflect heterogeneity in performance rather than a single uniform error process.</p>
 <section id="number-of-examiners-and-comparisons" class="level2">
 <h2 class="anchored" data-anchor-id="number-of-examiners-and-comparisons">Number of examiners and comparisons</h2>
 <p>First, install the packages used in the analysis if they are not already available on the machine.</p>
@@ -1917,6 +1919,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 </section>
+</section>
+<section id="interactions-between-errors" class="level2">
+<h2 class="anchored" data-anchor-id="interactions-between-errors">Interactions between errors</h2>
+<p>What happens when two errors coincide?</p>
 </section>
 </section>
 
