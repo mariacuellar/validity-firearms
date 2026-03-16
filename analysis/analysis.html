@@ -104,6 +104,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
    
   <ul>
   <li><a href="#goal" id="toc-goal">Goal</a></li>
+  <li><a href="#introduction" id="toc-introduction">Introduction</a></li>
   <li><a href="#data-generation" id="toc-data-generation">Data generation</a>
   <ul>
   <li><a href="#number-of-examiners-and-comparisons" id="toc-number-of-examiners-and-comparisons">Number of examiners and comparisons</a></li>
@@ -136,6 +137,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="goal" class="level1">
 <h1>Goal</h1>
 <p>The goal of this study is to use simulation to show how methodological flaws in forensic firearm validity studies can distort the error rates those studies report. Rather than trying to estimate a single true firearm error rate, the analysis examines how different flaws discussed in Cuellar, M., Vanderplas, S., Luby, A., &amp; Rosenblum, M. (2024) affect whether the reported false positive, false negative, and inconclusive rates are stable, interpretable, and valid measures of real-world examiner performance.</p>
+</section>
+<section id="introduction" class="level1">
+<h1>Introduction</h1>
+<p>This project uses simulated data to study how forensic firearm validity studies can produce misleading conclusions when important design flaws are present. The analysis begins with a baseline simulation that assumes a fixed set of comparison items, a fixed panel of examiners, roughly equal numbers of same-source and different-source items, and latent variation in both examiner skill and item difficulty. It also assumes baseline false positive, false negative, and inconclusive rates, with harder items and weaker examiners increasing the probability of error or an inconclusive decision. That baseline framework is then used to examine how specific flaws, such as inadequate sample size, non-representative testing conditions, and missing data, can change the error rates that a study appears to report. The broader aim is to help readers distinguish between flaws that mainly affect how existing data are summarized and flaws that undermine the ability of the study to estimate real-world examiner performance in the first place.</p>
 </section>
 <section id="data-generation" class="level1">
 <h1>Data generation</h1>
