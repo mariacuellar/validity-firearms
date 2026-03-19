@@ -13,6 +13,47 @@ format:
 
 The goal of this study is to use simulation to show how methodological flaws in forensic firearm validity studies can distort the error rates those studies report. Rather than trying to estimate a single true firearm error rate, the analysis examines how different flaws discussed in Cuellar, M., Vanderplas, S., Luby, A., & Rosenblum, M. (2024) affect whether the reported false positive, false negative, and inconclusive rates are stable, interpretable, and valid measures of real-world examiner performance.
 
+# A first simulation of flaw severity
+
+The next step in the project is to distinguish between flaws that damage the data themselves and flaws that mainly affect how otherwise valid data are summarized. The working idea is that flaws such as inadequate sample size, non-representative sampling, and non-representative testing conditions are more serious because they change what the study is actually able to observe. By contrast, flaws such as how inconclusives are counted, whether uncertainty is reported, or how the final summaries are tabulated may still be serious, but they can often be revisited if the underlying data are otherwise sound. The simulation below begins by making that distinction explicit so later sections can compare the consequences of these two types of flaws more directly.
+
+```{r define-flaw-severity-framework}
+flaw_severity_framework <- data.frame(
+  flaw = c("A", "B", "C", "D", "E", "F"),
+  label = c(
+    "Inadequate sample size",
+    "Non-representative sample",
+    "Non-representative testing conditions and environment",
+    "Inconclusive responses are treated as correct or ignored",
+    "Invalid or nonexistent uncertainty measures",
+    "Missing data"
+  ),
+  flaw_type = c(
+    "Damages the data",
+    "Damages the data",
+    "Damages the data",
+    "Potentially fixable if raw data are available",
+    "Potentially fixable if raw data are available",
+    "Potentially fixable if raw data are available"
+  ),
+  implication = c(
+    "Too little information is collected to estimate performance reliably.",
+    "The sampled examiners or items do not represent the target population.",
+    "The testing environment changes examiner behavior relative to casework.",
+    "Alternative summaries can often be recalculated from the same responses.",
+    "Uncertainty can often be added later if the underlying responses are available.",
+    "Bias may be addressed only if the missingness can be characterized from the existing data."
+  ),
+  stringsAsFactors = FALSE
+)
+
+knitr::kable(
+  flaw_severity_framework,
+  col.names = c("Flaw", "Description", "Type of problem", "Why it matters"),
+  align = c("l", "l", "l", "l")
+)
+```
+
 # Introduction
 
 This project uses simulated data to study how forensic firearm validity studies can produce misleading conclusions when important design flaws are present. The analysis begins with a baseline simulation that assumes a fixed set of comparison items, a fixed panel of examiners, roughly equal numbers of same-source and different-source items, and latent variation in both examiner skill and item difficulty. It also assumes baseline false positive, false negative, and inconclusive rates, with harder items and weaker examiners increasing the probability of error or an inconclusive decision. That baseline framework is then used to examine how specific flaws, such as inadequate sample size, non-representative testing conditions, and missing data, can change the error rates that a study appears to report. The broader aim is to help readers distinguish between flaws that mainly affect how existing data are summarized and flaws that undermine the ability of the study to estimate real-world examiner performance in the first place.
@@ -1257,4 +1298,3 @@ overall_summary
 ## Interactions between errors
 
 What happens when two errors coincide? 
-
