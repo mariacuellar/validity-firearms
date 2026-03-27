@@ -71,7 +71,7 @@ First, install the packages used in the analysis if they are not already availab
 
 ```{r load-packages}
 # Preamble
-list.of.packages <- c("tidyverse", "ggthemes", "gridExtra")
+list.of.packages <- c("tidyverse", "ggthemes", "gridExtra", "here")
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages)
 
@@ -80,12 +80,13 @@ suppressPackageStartupMessages(library(tidyr))
 suppressPackageStartupMessages(library(purrr))
 suppressPackageStartupMessages(library(ggplot2))
 suppressPackageStartupMessages(library(gridExtra))
+suppressPackageStartupMessages(library(here))
 ```
 
 Now define the output folder for exported figures.
 
 ```{r define-figure-output-folder}
-figure_output_dir <- "/Users/mariacuellar/Github/validity-firearms/results/figures"
+figure_output_dir <- here(here(), "results/figures")
 dir.create(figure_output_dir, recursive = TRUE, showWarnings = FALSE)
 ```
 
@@ -128,8 +129,8 @@ Now generate the examiner panel. Each examiner gets a latent skill value and a s
 ```{r generate-examiner-panel}
 examiner_panel <- tibble(
   examiner_id = paste0("E", 1:n_examiners),
-  examiner_skill = rnorm(n_examiners, mean = 0, sd = examiner_sd),
-  examiner_inconclusive_tendency = rnorm(n_examiners, mean = 0, sd = examiner_sd / 2)
+  examiner_skill = rnorm(n_examiners, mean = 0, sd = examiner_sd / 2), # AL: flipped these SDs so there's more heterogeneity in inconclusives than skill
+  examiner_inconclusive_tendency = rnorm(n_examiners, mean = 0, sd = examiner_sd )
 )
 ```
 
@@ -173,7 +174,7 @@ simulate_response <- function(ground_truth,
 
   inconclusive_probability <- plogis(
     qlogis(inconclusive_rate) +
-      0.5 * decision_challenge +
+      0.5 * decision_challenge + # AL: why 0.5??
       examiner_inconclusive_tendency
   )
 
@@ -231,7 +232,7 @@ Now save the simulated dataset to the project data folder so it can be reused ou
 ```{r save-simulated-data}
 save(
   sim_data,
-  file = "/Users/mariacuellar/Github/validity-firearms/data/sim_data.rda"
+  file = here(here(), "data/sim_data.rda")
 )
 ```
 
@@ -395,7 +396,7 @@ response_distribution_plot
 The simulation rests on the following assumptions:
 
 - There is a fixed number of examiners and comparison items.
-- Each examiner evaluates the same set of items.
+- Each examiner evaluates the same set of items. (*AL:* I think we should adjust this so that each examiner answers a max of 30 questions (following Ames II?) or maybe this could be another option to set?)
 - About half of the items are same-source and half are different-source.
 - Each item has a latent difficulty level.
 - Each examiner has a latent skill level.
