@@ -1,0 +1,556 @@
+---
+title: "Remediable and Non-Remediable Flaws in Firearms Validity Studies"
+subtitle: "A response to Chin et al. (2026)"
+author:
+  - name: "Amanda Luby"
+  - name: "Maria Cuellar"
+date: last-modified
+bibliography: ../output/paper/references.bib
+format:
+  revealjs:
+    theme: simple
+    slide-number: true
+    width: 1280
+    height: 720
+    transition: slide
+    incremental: false
+    footer: "ICFIS 2026"
+    # TODO: swap in institution logo 
+---
+
+<!--
+TIMING BUDGET — talk is 30 minutes, excluding Q&A. Keep this comment for
+rehearsal; delete before final export if desired.
+
+  0:00–0:01  Title / hook
+  0:01–0:06  1. Flaws + literature back-and-forth      (~5 min)
+  0:06–0:10  2. Flowchart: remediable vs. non-remediable (~4 min)
+  0:10–0:16  3. Data-generating process / study design  (~6 min)
+  0:16–0:22  4. Case study 1: remediable flaw           (~6 min)
+  0:22–0:28  5. Case study 2: non-remediable flaw        (~6 min)
+  0:28–0:30  Recommendations / takeaways                 (~2 min)
+  ------------------------------------------------------------
+  Total: 30:00
+
+RESOLVED: Case study 1 uses inconclusive handling (Flaw D), not CI coverage
+(Flaw E) -- built and verified in icfis/case_study_inconclusive.qmd, which
+sources the shared DGP in icfis/R/simulate_dgp.R (canonical, already-retuned
+defaults; see icfis/analysis.qmd for how those were derived). CI coverage
+would need a nested firearm random effect the DGP doesn't have yet (see the
+"Appendix: planned firearm-clustering extension" backup slide) -- revisit
+only if there's time for a second remediable-flaw example.
+
+NOTE ON THE MATH BELOW: the repo currently has an inconsistency between
+analysis.qmd's baseline preview code (skill SD = examiner_sd/2, inconclusive-
+tendency SD = examiner_sd) and simulate_study(), used by all three flaw
+simulations (skill SD = examiner_sd, inconclusive-tendency SD =
+examiner_sd/2). The equations below follow the simulate_study() convention
+since that's the one actually driving results. Reconcile the preview code
+before the talk so a curious audience member can't catch the mismatch.
+-->
+
+# Motivation
+
+## Why this talk {.smaller}
+
+- NAS (2009) and PCAST (2016): scientific validity of firearms examination has not been established
+- @cuellar2024methodological: literature search of 28 black-box validation studies
+  - Found six flaws (A–F) present, with minor exceptions, in **every** study
+  - Concluded: none of the existing studies can establish scientific validity
+- @chin2026towards responded: a flaw in one study doesn't doom the whole evidence base
+  - Draws on evidence-based medicine / systematic-review practice
+  - Argues for a **cumulative** forensic science: openness, registration, meta-analysis
+
+::: {.notes}
+~1 min. Set up the stakes: these error-rate studies are cited in criminal trials.
+Don't relitigate all 28 studies — just enough to motivate the disagreement.
+:::
+
+## The six flaws {.smaller}
+
+| Flaw | Description | Cuellar et al. framing |
+|---|---|---|
+| A | Inadequate sample size | Exacerbates the other flaws |
+| B | Non-representative sample (examiners, firearms, ammunition) | Damages the data |
+| C | Non-representative testing conditions (contextual bias, known-test effects) | Damages the data |
+| D | Inconclusives treated as correct or ignored | Fixable if raw responses available |
+| E | Invalid or nonexistent uncertainty measures | Fixable if raw responses available |
+| F | Missing data handled inappropriately | Fixable if missingness can be characterized |
+
+::: {.notes}
+~1.5 min. This table *is* the paper's Table 1 — don't read it verbatim,
+point at rows B and D/E specifically since those anchor the two case studies.
+:::
+
+## Where we agree with Chin et al.
+
+- Not every flaw has the same consequences
+- Analytic shortcomings (D, E) may be **repairable after the fact** — if the raw
+  responses were recorded
+- Imperfect studies can still inform the design of *future* studies
+- We should not discourage data collection just because a study can't stand alone
+
+::: {.notes}
+~1 min. This concession slide matters rhetorically — it shows the talk isn't
+just restating the 2024 paper, it's sharpening it in response to real pushback.
+:::
+
+## Where we push back
+
+> "The problem is not simply that the wrong quantity was reported... The
+> problem is that the data needed to estimate the relevant quantity were
+> never collected in the first place." — response to @chin2026towards
+
+- Some flaws (B, C) operate on **study design and sampling**, not analysis
+- No amount of reanalysis recovers information that was never observed
+- **Claim of this talk:** the six flaws split into two qualitatively different
+  buckets — remediable (fixable via reanalysis) and non-remediable (fixable
+  only with new data)
+
+::: {.notes}
+~1.5 min. This is the thesis statement — say it out loud, slowly. Everything
+after this slide is in service of defending this one claim.
+:::
+
+# The Remediable / Non-Remediable Distinction
+
+## What "remediable" means here
+
+Fix a target quantity (the **estimand**):
+
+> the population-average examiner error rate (FPR / FNR), under casework-representative
+> firearms, ammunition, examiners, and testing conditions
+
+- **Remediable**: given the raw examiner-by-item responses, the estimand can
+  still be validly estimated (possibly with extra assumptions / new analysis)
+- **Non-remediable**: the sampled data cannot support the estimand, *regardless*
+  of what analysis is applied to them
+
+::: {.notes}
+~1 min. Naming the estimand explicitly is what makes the rest of the flowchart
+legible — don't skip this slide even though it feels abstract.
+:::
+
+## Flowchart: sorting the six flaws
+
+<!-- TODO: replace with a designed figure (e.g., built in the design skill or
+     as a standalone SVG/graphviz diagram). Placeholder logic below. -->
+
+```{mermaid}
+flowchart TD
+    A[Flaw] --> B{Operates on data<br/>collection or analysis?}
+    B -->|Analysis / reporting| C{Raw responses<br/>available?}
+    C -->|Yes| D[Remediable<br/>— recompute]
+    D1["D: inconclusive handling"] --> D
+    D2["E: uncertainty measures"] --> D
+    B -->|Collection / design| E{Population distribution +<br/>covariates captured?}
+    E -->|No, in practice| F[Non-remediable<br/>without new data]
+    F1["B: non-representative sample"] --> F
+    F2["C: non-representative conditions"] --> F
+    B -->|Sample size| G[Remediable<br/>by pooling / more data]
+    G1["A: inadequate sample size"] --> G
+    E -->|Yes, with assumptions| H[Gray zone:<br/>remediable w/ sensitivity analysis]
+    H1["F: missing data"] --> H
+```
+
+::: {.notes}
+~2.5 min. This is the centerpiece slide — go slowly. Walk the tree left to
+right: A is variance-only (more data fixes it); D/E are pure reanalysis;
+F needs an assumption but is at least partially recoverable; B/C are the
+hard cases because the studies never characterized the population they'd
+need to correct for.
+:::
+
+## Reading the tree
+
+- **A (sample size)** — noise, not bias. More examiners / comparisons fixes it.
+- **D, E (inconclusives, uncertainty)** — pure reanalysis of existing responses.
+- **F (missing data)** — recoverable only under a stated missingness assumption;
+  the honest "gray zone."
+- **B, C (sample, conditions)** — the estimate is biased for a population that
+  was never characterized. Reweighting would require information the studies
+  don't have.
+
+::: {.notes}
+~0.5–1 min transition slide into "now let's show this, not just assert it."
+:::
+
+# Data-Generating Process
+
+## Why simulate?
+
+- The 28 studies can't be un-run — we can't observe the "true" error rate they missed
+- A simulation with a **known ground truth** lets us show, precisely, what each
+  flaw does to a study's conclusions
+- Same generative model powers both case studies — only the lever we pull differs
+
+::: {.notes}
+~0.5 min.
+:::
+
+## Notation {.smaller}
+
+Complete crossed design: every examiner evaluates every item.
+
+- Items $i = 1, \dots, I$; examiners $j = 1, \dots, J$; $n = IJ$ total responses
+- $\operatorname{expit}(x) = 1/(1+e^{-x})$, the inverse logit link
+- Baseline rates (hyperparameters): $p_{FP}, p_{FN}, p_{IC} \in (0,1)$
+- Heterogeneity (hyperparameters): $\sigma_Q$ (item difficulty), $\sigma_S$
+  (examiner skill), $\sigma_T$ (examiner inconclusive tendency)
+
+::: {.notes}
+~0.5 min. Just orient the audience to the indices before the equations land.
+:::
+
+## Item and examiner models {.smaller}
+
+$$
+G_i \overset{\text{iid}}{\sim} \text{Bernoulli}(\rho), \qquad
+d_i \overset{\text{iid}}{\sim} N(0, \sigma_Q^2), \qquad i = 1,\dots,I
+$$
+
+$$
+s_j \overset{\text{iid}}{\sim} N(0, \sigma_S^2), \qquad
+\tau_j \overset{\text{iid}}{\sim} N(0, \sigma_T^2), \qquad j = 1,\dots,J
+$$
+
+with $G_i, d_i, s_j, \tau_j$ mutually independent across $i,j$.
+
+**Decision challenge** for pair $(i,j)$:
+$$
+c_{ij} = d_i - s_j
+$$
+
+Harder item ($d_i$ large) or weaker examiner ($s_j$ small) $\Rightarrow$ larger $c_{ij}$.
+
+::: {.notes}
+~1.5 min. $G_i$ = ground truth (1 = same-source). $\rho$ = match_rate.
+:::
+
+## Response probabilities {.smaller}
+
+$$
+\pi^{err}_{ij} = \operatorname{expit}\Big[\operatorname{logit}(p_{FN})\,\mathbb{1}\{G_i=1\} + \operatorname{logit}(p_{FP})\,\mathbb{1}\{G_i=0\} + c_{ij}\Big]
+$$
+
+$$
+\pi^{inc}_{ij} = \operatorname{expit}\Big[\operatorname{logit}(p_{IC}) + 0.5\,c_{ij} + \tau_j\Big]
+$$
+
+If $\pi^{err}_{ij} + \pi^{inc}_{ij} \ge 0.95$, rescale both by
+$\kappa_{ij} = 0.95 / (\pi^{err}_{ij}+\pi^{inc}_{ij})$ so response
+probabilities stay valid.
+
+::: {.notes}
+~1.5 min. The 0.5 weight on $c_{ij}$ in the inconclusive term and the 0.95
+cap are both ad hoc constants in the current code — flag as a limitation if
+asked, and put a sensitivity analysis on the to-do list.
+:::
+
+## The response, formally {.smaller}
+
+Let $e(G) = $ "elimination" if $G=1$, "identification" if $G=0$ (the *error* label),
+and $c(G) = $ "identification" if $G=1$, "elimination" if $G=0$ (the *correct* label).
+
+$$
+R_{ij} \mid G_i, c_{ij}, \tau_j \;\sim\; \text{Categorical}
+\begin{cases}
+e(G_i) & \text{w.p. } \pi^{err}_{ij} \\
+\text{"inconclusive"} & \text{w.p. } \pi^{inc}_{ij} \\
+c(G_i) & \text{w.p. } 1 - \pi^{err}_{ij} - \pi^{inc}_{ij}
+\end{cases}
+$$
+
+independently across $(i,j)$ given the latent variables above.
+
+<!-- TODO: add a firearm-level random effect (firearms nested within
+     make/model) here — currently items are exchangeable, which is fine for
+     both case studies as built (inconclusive handling and non-representative
+     sampling), but would be needed if CI coverage (Flaw E) is added later as
+     a second remediable-flaw example. See backup slide "Appendix: firearm
+     clustering" for the planned extension. -->
+
+::: {.notes}
+~1.5 min. This slide is the payoff of the notation build-up — say the plain-
+English version too: "an error, an inconclusive, or a correct call, with
+probabilities that shift based on how hard the item is and how skilled the
+examiner is." Don't let the audience get lost in the categorical notation.
+:::
+
+## Calibrating to real studies
+
+- Baseline rates and heterogeneity currently loosely set; next step is
+  anchoring to published summary statistics, e.g.:
+  - Ames II: proportion of "hard" cartridge-case comparisons per individual
+    Beretta pistol ranges **0%–62%** across otherwise-identical firearms
+    [@cuellar2024methodological]
+  - Scurich et al. (2025): inconclusive rate 39.3% (blind) vs. 56.4%
+    (known test) at the Houston Forensic Science Center
+- Goal: every number on later slides should be traceable to either the
+  simulation or a cited empirical estimate — not an arbitrary constant
+
+::: {.notes}
+~1.5 min. This slide doubles as a credibility signal — show the audience
+you're not hand-waving the parameters.
+:::
+
+## One dataset, two designs
+
+- **Case study 1** perturbs the *analysis* of a properly-sampled dataset
+  (adds firearm-level clustering; compares CI methods)
+- **Case study 2** perturbs the *sampling* itself (draws a non-representative
+  subset of firearm types / examiners from the same population)
+- Same DGP, same code base — the only thing that changes is which flaw is
+  "switched on"
+
+::: {.notes}
+~1 min. Bridge slide into the two case studies.
+:::
+
+# Case Study 1: A Remediable Flaw
+
+## Setup: inconclusive handling (Flaw D)
+
+- Black-box studies handle inconclusive responses inconsistently — excluded,
+  folded into "correct," or otherwise treated as if they don't affect the
+  error rate
+- @cuellar2024methodological recommend a bounding procedure instead: recode
+  every inconclusive as an identification, then as an elimination, and
+  report **both** recomputed error rates as a range
+- Sharper point from working through the algebra: for how Monson, Smith, and
+  Bajic (2023a) define these rates, the number a study **reports** already
+  equals one of the two bounds — it is not a neutral middle ground
+- Claim: this is *remediable* — both numbers come from the same raw
+  responses, recomputed after the fact
+
+::: {.notes}
+~1 min. The "reported = one of the bounds" point is the hook — it means the
+commonly-cited error rate was never a best estimate, it was already the
+optimistic end of a range nobody reported the other end of.
+:::
+
+## Simulation design
+
+- Same DGP as the rest of the talk, at the retuned defaults, under the
+  study's actual incomplete design (50 examiners, 30 of 300 items each)
+- For each simulated study, compute both numbers from the same raw
+  responses:
+  - **Reported**: identifications / all different-source cases (and the
+    same-source analog for the false negative rate)
+  - **Worst case**: recode every inconclusive as the error-favoring label,
+    recompute
+- Repeat across 100 replicate studies to check the gap is a stable pattern,
+  not a fluke of one random draw
+
+::: {.notes}
+~1.5 min.
+:::
+
+## Results
+
+- One example study: FPR **1.3% → 42.1%**, FNR **3.0% → 38.9%** — same raw
+  responses, same study, wildly different numbers depending on a reporting
+  choice made after data collection
+- Across 100 replicate studies (means): FPR **1.6% → 38.7%**, FNR
+  **3.3% → 40.4%** — the gap holds up, it's not one unlucky draw
+- [FIGURE: boxplots of reported vs. worst-case FPR/FNR across 100 studies,
+  faceted by rate — see icfis/case_study_inconclusive.qmd]
+
+::: {.notes}
+~2 min. Lead with the one-study numbers (concrete, easy to say out loud),
+then the 100-study means as the "this isn't a fluke" follow-up. The boxplot
+figure should show both distributions barely overlapping.
+:::
+
+## Why this counts as remediable
+
+- The fix required **no new data collection** — the same raw examiner-by-item
+  responses already support both numbers; only how they're summarized
+  changed
+- This is exactly the kind of flaw Chin et al. are right about: a study with
+  this flaw alone can still contribute to a cumulative evidence base, *once
+  reanalyzed*
+- Contrast with what's next: no reanalysis of these same responses can fix a
+  non-representative sample
+
+::: {.notes}
+~0.5 min. Land the point before moving to the harder case.
+:::
+
+# Case Study 2: A Non-Remediable Flaw
+
+## Setup: non-representative sampling (Flaw B)
+
+- Precondition for validity: firearms, ammunition, and examiners must
+  represent the **full spectrum of real casework** [@cuellar2024methodological]
+- None of the 28 studies demonstrate this
+- Chin et al.'s response: non-representative samples can still contribute to
+  a cumulative literature if combined with other studies / moderator analysis
+
+::: {.notes}
+~1 min.
+:::
+
+## Simulation design: three beats
+
+1. **Biased estimate.** Draw a convenience sample of firearm types (e.g.,
+   oversampling easier-to-classify makes/models) from a heterogeneous
+   population; show the naive error-rate estimate is biased for the
+   population-average estimand.
+2. **The fix that could work.** *If* the population distribution of firearm
+   types and their difficulty were known, and each study recorded firearm
+   make/model, post-stratification / reweighting would recover an unbiased
+   estimate — this is Chin et al.'s "moderator" / big-team-science suggestion.
+3. **The fix that doesn't exist.** The actual studies neither characterize
+   the target population of firearms in casework nor consistently record the
+   covariates needed to reweight. The correction in (2) is not available in
+   practice.
+
+::: {.notes}
+~2 min. This is the slide to get right — beat 2 is what keeps this honest
+(we're not claiming reweighting is impossible in principle), beat 3 is what
+makes it non-remediable *for the existing studies*.
+:::
+
+## Results [placeholder]
+
+- [FIGURE: naive estimate vs. true population FPR, across degrees of
+  sampling bias]
+- [FIGURE: same comparison, with and without the (unavailable) reweighting
+  correction]
+- Expected story: bias grows with the degree of non-representativeness;
+  reweighting closes the gap only when population + covariate information
+  exists, which it doesn't for any of the 28 studies
+
+::: {.notes}
+~2 min.
+:::
+
+## Why this counts as non-remediable
+
+- No statistical procedure applied to *this* dataset can recover the
+  population-average estimand
+- Fixing it requires **new data** collected under a design that characterizes
+  the target population — not a different analysis of the same responses
+- This is the sharpest version of the paper's disagreement with Chin et al.
+
+::: {.notes}
+~1 min.
+:::
+
+# Conclusion
+
+## Takeaways
+
+- Not all six flaws are alike — sorting them by *remediable vs. non-remediable*
+  clarifies exactly where Chin et al.'s cumulative-science argument applies
+- **Remediable** (A, D, E, and F with assumptions): reanalysis of existing
+  data can recover a valid estimate — Chin et al. are right here
+- **Non-remediable** (B, C): the target quantity was never within reach of
+  the sampled data — no reanalysis fixes this
+
+::: {.notes}
+~1 min.
+:::
+
+## Recommendations
+
+- Report raw, examiner-by-item responses (not just summary error rates) —
+  enables post-hoc correction of remediable flaws
+- Pre-register sampling frames and characterize the target population of
+  firearms / examiners *before* data collection
+- Use cluster-aware / MRMC statistical methods designed for the dependence
+  structure of validation studies
+- Distinguish, explicitly, between flaws a study can outgrow and flaws that
+  require a new study
+
+::: {.notes}
+~1.5 min.
+:::
+
+## Thank you
+
+- Amanda Luby — lubyamanda@gmail.com
+- Maria Cuellar
+- Code and simulations: `github.com/mariacuellar/validity-firearms`
+
+<!-- TODO: confirm repo URL / visibility before the talk -->
+
+::: {.notes}
+~0.5 min. Leave this slide up through Q&A.
+:::
+
+## References {.smaller}
+
+::: {#refs}
+:::
+
+# Backup Slides
+
+<!-- Not in the 30-minute budget — pull these up only if asked. -->
+
+## Appendix: contextual-bias extension (Flaw C) {.smaller}
+
+Hawthorne shift, calibrated to Scurich et al. (2025) blind vs. known-test
+inconclusive rates at the Houston Forensic Science Center:
+
+$$
+\delta_H = \operatorname{logit}(0.564) - \operatorname{logit}(0.393)
+$$
+
+Under the "known test" condition, the inconclusive-probability equation
+gains one term (error probability is unaffected):
+
+$$
+\pi^{inc}_{ij}(\text{condition}) = \operatorname{expit}\Big[\operatorname{logit}(p_{IC}) + 0.5\,c_{ij} + \tau_j + \delta_H \cdot \mathbb{1}\{\text{condition} = \text{"known test"}\}\Big]
+$$
+
+::: {.notes}
+Backup only. Use if asked why the FPR/FNR barely moved between conditions
+in the case-study-2 exploratory run — the shift is currently uniform across
+easy and hard items, which is exactly why it doesn't move conclusive-only
+error rates much. That's a modeling choice worth revisiting, not a result.
+:::
+
+## Appendix: missingness extension (Flaw F) {.smaller}
+
+$$
+\text{is\_error}_{ij} = \mathbb{1}\{R_{ij} = e(G_i)\}
+$$
+
+$$
+\pi^{miss}_{ij} = \operatorname{expit}\Big[\operatorname{logit}(0.05) + 0.8\,c_{ij} + 1.2\cdot\text{is\_error}_{ij} + 0.6\cdot\mathbb{1}\{R_{ij}=\text{"inconclusive"}\}\Big]
+$$
+
+$$
+M_{ij} \sim \text{Bernoulli}(\pi^{miss}_{ij}), \qquad
+R^{obs}_{ij} = \begin{cases} R_{ij} & M_{ij} = 0 \\ \texttt{NA} & M_{ij} = 1 \end{cases}
+$$
+
+A missing-not-at-random mechanism: harder pairs, errors, and inconclusives
+are all more likely to drop out, which is what biases naive (listwise-
+deletion) error rates downward.
+
+::: {.notes}
+Backup only.
+:::
+
+## Appendix: planned firearm-clustering extension {.smaller}
+
+Needed only if CI coverage (Flaw E) is added as a second remediable-flaw
+example. Not needed for either case study as currently built (inconclusive
+handling and non-representative sampling). Not yet implemented.
+
+- Introduce firearms $k = 1, \dots, K$, each with a latent firearm effect
+  $f_k \sim N(0, \sigma_F^2)$ (e.g., make/model differences in how easy they
+  are to classify — cf. the 0%–62% "hard" range across individual Beretta
+  pistols in Ames II)
+- Items are nested within firearms rather than exchangeable: $d_i \to d_{i(k)} = f_k + d_i$
+- Responses for items sharing a firearm are then **dependent** given $f_k$,
+  which is exactly the structure a naive Clopper–Pearson interval ignores
+  and a cluster-robust / MRMC interval accounts for
+
+::: {.notes}
+Backup only — this is the concrete build item to report progress on if
+asked "what's left to do."
+:::

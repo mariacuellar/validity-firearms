@@ -1,0 +1,251 @@
+---
+title: "Case Study: A Remediable Flaw (Inconclusive Handling)"
+subtitle: "Flaw D -- recomputing error rates from the same raw responses"
+bibliography: ../output/paper/references.bib
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-location: body
+    number-sections: false
+    code-fold: true
+---
+
+# Goal
+
+This is a first pass at the talk's "remediable flaw" case study, using
+Flaw D (inconclusive responses treated as correct or ignored) rather than
+Flaw E (invalid uncertainty measures / CI coverage), since Flaw D needs no
+new simulation machinery — it's a pure reanalysis of the same raw
+responses `icfis/analysis.qmd` already validated. If CI coverage (Flaw E)
+gets built out later, this document either becomes a second case study or
+stays as backup material.
+
+The claim to demonstrate: **how a validation study handles inconclusive
+responses is a reporting choice, not a design choice** — it can be redone
+after the fact from the same raw data, unlike Flaw B (non-representative
+sampling), which is baked into what was collected.
+
+```{r setup}
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(ggplot2)
+library(scales)
+
+source("R/simulate_dgp.R")
+```
+
+# The two ways error rates get reported
+
+@cuellar2024methodological point out that most black-box studies handle
+inconclusive responses by either excluding them or folding them into the
+"correct" category — both of which understate the true error rate. They
+recommend a bounding procedure instead: recompute the error rate twice,
+once with every inconclusive response recoded as an identification, and
+once with every inconclusive response recoded as an elimination. That
+gives a defensible range instead of one falsely precise number.
+
+Working through the algebra (see `icfis/analysis.qmd`'s benchmark
+reconstruction) shows something sharper: for false positive and false
+negative rates defined the way Monson, Smith, and Bajic (2023a) define
+them — identifications divided by *all* different-source test cases,
+inconclusives included in the denominator — the commonly **reported**
+point estimate already equals one of the two bounds. It is not a neutral
+middle ground.
+
+- **False positive rate** (different-source pairs):
+  - *Reported* $= \dfrac{\text{identifications}}{\text{identifications} + \text{inconclusives} + \text{eliminations}}$
+    — identical to recoding every inconclusive as an *elimination*.
+  - *Worst case* $= \dfrac{\text{identifications} + \text{inconclusives}}{\text{identifications} + \text{inconclusives} + \text{eliminations}}$
+    — recoding every inconclusive as an *identification*.
+- **False negative rate** (same-source pairs):
+  - *Reported* $= \dfrac{\text{eliminations}}{\text{identifications} + \text{inconclusives} + \text{eliminations}}$
+    — identical to recoding every inconclusive as an *identification*.
+  - *Worst case* $= \dfrac{\text{eliminations} + \text{inconclusives}}{\text{identifications} + \text{inconclusives} + \text{eliminations}}$
+    — recoding every inconclusive as an *elimination*.
+
+Both numbers come from the same raw responses. Nothing about the study
+needs to change to compute both — which is exactly what makes this flaw
+remediable.
+
+```{r define-rate-functions}
+compute_reported_and_worst_case <- function(sim_data) {
+  diff_data <- sim_data %>% filter(ground_truth_label == "different-source")
+  same_data <- sim_data %>% filter(ground_truth_label == "same-source")
+
+  diff_id <- sum(diff_data$response == "identification")
+  diff_inc <- sum(diff_data$response == "inconclusive")
+  diff_total <- nrow(diff_data)
+
+  same_elim <- sum(same_data$response == "elimination")
+  same_inc <- sum(same_data$response == "inconclusive")
+  same_total <- nrow(same_data)
+
+  tibble(
+    rate = c("False positive rate", "False positive rate", "False negative rate", "False negative rate"),
+    method = c("Reported", "Worst case", "Reported", "Worst case"),
+    value = c(
+      diff_id / diff_total,
+      (diff_id + diff_inc) / diff_total,
+      same_elim / same_total,
+      (same_elim + same_inc) / same_total
+    )
+  )
+}
+```
+
+# One example study
+
+A single simulated study under the study's actual design (incomplete
+assignment: 50 examiners, 30 of 300 items each) and the retuned defaults
+from `icfis/analysis.qmd`.
+
+```{r one-study}
+example_study <- generate_sim_data_incomplete(
+  seed = 1,
+  n_examiners = incomplete_defaults$n_examiners,
+  n_comparisons = incomplete_defaults$n_comparisons,
+  items_per_examiner = incomplete_defaults$items_per_examiner,
+  match_rate = incomplete_defaults$match_rate,
+  false_positive_rate = incomplete_defaults$false_positive_rate,
+  false_negative_rate = incomplete_defaults$false_negative_rate,
+  inconclusive_rate = incomplete_defaults$inconclusive_rate,
+  examiner_skill_sd = incomplete_defaults$examiner_skill_sd,
+  examiner_inconclusive_sd = incomplete_defaults$examiner_inconclusive_sd,
+  question_sd = incomplete_defaults$question_sd
+)
+
+knitr::kable(
+  study_crosstab(example_study) %>%
+    select(-replicate_id) %>%
+    mutate(proportion = percent(proportion, accuracy = 0.1)),
+  col.names = c("Ground truth", "Decision", "Count", "Proportion")
+)
+```
+
+From this one study's raw responses, here are both ways of reporting the
+error rate:
+
+```{r one-study-rates}
+example_rates <- compute_reported_and_worst_case(example_study) %>%
+  mutate(rate = factor(rate, levels = c("False positive rate", "False negative rate")))
+
+knitr::kable(
+  example_rates %>% mutate(value = percent(value, accuracy = 0.1)),
+  col.names = c("Rate", "Method", "Value")
+)
+```
+
+Same raw data, same study, and the "worst case" number is dramatically
+larger than what a study would typically report.
+
+# Across 100 studies: is this a stable finding?
+
+One study's numbers could be a fluke of that particular random draw.
+Repeating the same comparison across 100 independent replicate studies
+checks whether the gap between "reported" and "worst case" holds up.
+
+```{r simulate-100-studies}
+n_replications <- 100
+set.seed(3031)
+replicate_seeds <- sample.int(1e6, n_replications)
+
+case_study_results <- purrr::map_dfr(seq_len(n_replications), function(r) {
+  study_data <- generate_sim_data_incomplete(
+    seed = replicate_seeds[r],
+    n_examiners = incomplete_defaults$n_examiners,
+    n_comparisons = incomplete_defaults$n_comparisons,
+    items_per_examiner = incomplete_defaults$items_per_examiner,
+    match_rate = incomplete_defaults$match_rate,
+    false_positive_rate = incomplete_defaults$false_positive_rate,
+    false_negative_rate = incomplete_defaults$false_negative_rate,
+    inconclusive_rate = incomplete_defaults$inconclusive_rate,
+    examiner_skill_sd = incomplete_defaults$examiner_skill_sd,
+    examiner_inconclusive_sd = incomplete_defaults$examiner_inconclusive_sd,
+    question_sd = incomplete_defaults$question_sd
+  )
+
+  compute_reported_and_worst_case(study_data) %>%
+    mutate(replicate_id = r)
+})
+```
+
+```{r summarize-100-studies}
+case_study_summary <- case_study_results %>%
+  group_by(rate, method) %>%
+  summarise(
+    mean_value = mean(value),
+    sd_value = sd(value),
+    .groups = "drop"
+  ) %>%
+  mutate(rate = factor(rate, levels = c("False positive rate", "False negative rate")))
+
+knitr::kable(
+  case_study_summary %>%
+    mutate(
+      mean_value = percent(mean_value, accuracy = 0.1),
+      sd_value = percent(sd_value, accuracy = 0.1)
+    ),
+  col.names = c("Rate", "Method", "Mean across 100 studies", "SD across 100 studies")
+)
+```
+
+```{r plot-100-studies, fig.width=8, fig.height=5}
+case_study_plot_data <- case_study_results %>%
+  mutate(
+    rate = factor(rate, levels = c("False positive rate", "False negative rate")),
+    method = factor(method, levels = c("Reported", "Worst case"))
+  )
+
+ggplot(case_study_plot_data, aes(x = method, y = value)) +
+  geom_boxplot(outlier.size = 0.5) +
+  facet_wrap(~ rate) +
+  scale_y_continuous(labels = percent_format(accuracy = 1)) +
+  labs(
+    title = "Reported vs. worst-case error rates across 100 simulated studies",
+    subtitle = "Same underlying responses each time -- only how inconclusives are handled changes",
+    x = NULL,
+    y = "Rate"
+  ) +
+  theme_minimal()
+```
+
+The gap between "reported" and "worst case" is consistent across
+replications, not an artifact of one unlucky draw — it's a structural
+consequence of how large a share of responses are inconclusive at these
+(retuned) defaults (roughly 37% either way; see `icfis/analysis.qmd`).
+
+# Why this is remediable
+
+Nothing above required a new study. The same 1,500 raw responses per
+study support both numbers — the only thing that changed between them is
+a reporting decision made *after* data collection. That's the definition
+of remediable used throughout the talk: if the raw examiner-by-item
+responses are available, a flaw in how they were originally summarized
+can be fixed by whoever has the data, without going back into the field.
+
+Contrast this with the talk's other case study (Flaw B, non-representative
+sampling): no reanalysis of these same responses can produce a valid
+estimate for a differently-composed population of examiners or firearms.
+That's the structural difference the flowchart slide is pointing at, made
+concrete with the same simulation machinery on both sides.
+
+# Next steps
+
+- Swap this into `icfis/draft.qmd`'s Case Study 1 slides in place of the
+  CI-coverage placeholder — the "One example study" table and the
+  "Reported vs. worst-case" boxplot are the two candidates for the
+  Results slide.
+- Consider whether to also show the *inconclusive rate itself* varying
+  (e.g., under the contextual-bias / Hawthorne-effect mechanism from
+  `icfis/analysis.qmd`'s backup slides) to connect this case study back to
+  Flaw C.
+- If time allows before the talk, revisit CI coverage (Flaw E) as a second
+  remediable example — the firearm-clustering extension it needs is still
+  unbuilt.
+
+# References
+
+::: {#refs}
+:::

@@ -1,0 +1,807 @@
+---
+title: "Verifying the Data-Generating Process"
+subtitle: "Comparing simulated ground-truth x decision crosstabs to an Ames-II-family study"
+bibliography: ../output/paper/references.bib
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-location: body
+    number-sections: false
+    code-fold: true
+---
+
+# Goal
+
+Before building the two case studies for the talk, we want to check that the
+data-generating process (DGP) behind `icfis/app.R` — at its current default
+settings — produces data that look at least roughly like a real black-box
+firearms study, not just internally-consistent simulated data. This document
+generates 100 replicate studies under the app's defaults and compares the
+resulting **ground truth x decision** crosstab (the same quantity now shown
+on the app's Summary tab) to numbers reconstructed from a real Ames-II-family
+study.
+
+This is a sanity check, not a formal calibration exercise. If the simulated
+proportions are wildly different from the benchmark, that is the concrete
+starting point for tuning the DGP's baseline rates and/or heterogeneity
+parameters later.
+
+# The benchmark: reconstructing a real crosstab from Cuellar et al. (2024)
+
+We do not have the raw data from any Ames-II-family study on hand, so we
+cannot build a benchmark crosstab directly. What @cuellar2024methodological
+*do* report (Section 5.4, discussing Flaw D) is the result of a bounding
+exercise applied to the cartridge-case data from Monson, Smith, and Bajic
+(2023a):
+
+> "applying this procedure to the cartridge case data from Monson, Smith,
+> and Bajic (2023a) result in false positive error rates of 51.4% and 0.92%,
+> respectively; the corresponding false negative error rates are 1.76% and
+> 25.6%, respectively." [@cuellar2024methodological, p. 8]
+
+The "procedure" recodes every inconclusive response first as an
+identification, then as an elimination, and recomputes the error rate each
+way. That is enough information to back out the full three-way split of
+responses within each ground-truth category, since:
+
+- **Different-source pairs** (denominator for the false positive rate):
+  - Inconclusive -> identification: $\text{FPR} = (m_{id} + m_{inc}) / n_{diff} = 51.4\%$
+  - Inconclusive -> elimination: $\text{FPR} = m_{id} / n_{diff} = 0.92\%$
+- **Same-source pairs** (denominator for the false negative rate):
+  - Inconclusive -> identification: $\text{FNR} = m_{elim} / n_{same} = 1.76\%$
+  - Inconclusive -> elimination: $\text{FNR} = (m_{elim} + m_{inc}) / n_{same} = 25.6\%$
+
+```{r reconstruct-benchmark}
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(ggplot2)
+library(scales)
+
+# Different-source pairs
+diff_identification <- 0.0092
+diff_id_plus_inc <- 0.514
+diff_inconclusive <- diff_id_plus_inc - diff_identification
+diff_elimination <- 1 - diff_id_plus_inc
+
+# Same-source pairs
+same_elimination <- 0.0176
+same_elim_plus_inc <- 0.256
+same_inconclusive <- same_elim_plus_inc - same_elimination
+same_identification <- 1 - same_elim_plus_inc
+
+ames_benchmark <- tribble(
+  ~ground_truth_label, ~response,         ~benchmark_proportion,
+  "different-source",  "identification",  diff_identification,
+  "different-source",  "inconclusive",    diff_inconclusive,
+  "different-source",  "elimination",     diff_elimination,
+  "same-source",       "identification",  same_identification,
+  "same-source",       "inconclusive",    same_inconclusive,
+  "same-source",       "elimination",     same_elimination
+)
+
+knitr::kable(
+  ames_benchmark %>%
+    mutate(benchmark_proportion = percent(benchmark_proportion, accuracy = 0.1)),
+  col.names = c("Ground truth", "Decision", "Reconstructed proportion")
+)
+```
+
+This lines up with the false-positive point estimate reported elsewhere in
+the same paper — "the point estimate of the false positive error rate for
+cartridge cases in the Monson, Smith, and Bajic (2023a) study is 0.933%"
+[@cuellar2024methodological, p. 9] — which is within rounding of the 0.92%
+used above, so the two reported figures corroborate each other.
+
+**Caveats on this benchmark, to keep in view for the rest of this document:**
+
+- It is *reconstructed* from a bounding illustration, not copied from a
+  results table in the primary source. If we get access to Monson, Smith,
+  and Bajic (2023a) directly, this should be replaced with the real
+  crosstab.
+- It reflects one study (cartridge-case comparisons only, one Ames-II-family
+  analysis) — not a general "true" rate for firearms examination.
+- We do not know $n_{diff}$ or $n_{same}$ (the number of different-source
+  and same-source test cases), so we can only compare **proportions**, not
+  counts, and we cannot run a formal statistical test against this
+  benchmark.
+
+# The data-generating process
+
+The model is implemented once, in `icfis/R/simulate_dgp.R`, and sourced
+from here, from `icfis/app.R`, and from the case-study documents. (Earlier
+drafts of this document copied the functions inline and needed to be kept
+in sync with `app.R` by hand — that's what this refactor removes.)
+
+```{r define-dgp}
+source("R/simulate_dgp.R")
+
+# Keep a copy of the shared file's canonical (already-retuned) defaults
+# before this document overrides them below with the original,
+# pre-calibration values -- used later to sanity-check that this document's
+# derivation still lands on the same numbers as the shared file.
+canonical_defaults <- dgp_defaults
+canonical_incomplete_defaults <- incomplete_defaults
+```
+
+## Defaults: starting from the original, pre-calibration values
+
+`R/simulate_dgp.R`'s `dgp_defaults` has already been retuned (see the
+"Retuning the baseline rates" section below). This document exists to show
+*how* we got there, so from here on it deliberately overrides those
+canonical defaults with the original, naive starting values and works
+forward from them.
+
+```{r set-defaults}
+dgp_defaults <- list(
+  n_examiners = 50,
+  n_comparisons = 100,
+  match_rate = 0.5,
+  false_positive_rate = 0.02,
+  false_negative_rate = 0.05,
+  inconclusive_rate = 0.10,
+  examiner_skill_sd = 0.7,
+  examiner_inconclusive_sd = 0.35,
+  question_sd = 0.8
+)
+
+knitr::kable(
+  tibble(parameter = names(dgp_defaults), value = unlist(dgp_defaults)),
+  col.names = c("Parameter", "Default value")
+)
+```
+
+# Simulating 100 studies: fully-crossed design
+
+Each replicate is an independent draw of a full study (50 examiners x 100
+comparisons = 5,000 responses) under the defaults above, using a distinct
+seed per replicate. This assumes every examiner evaluates every comparison
+— i.e., a fully-crossed design. **The real study did not use this design**
+(see the next section), so treat this as a reference point, not the final
+comparison to the benchmark.
+
+```{r simulate-100-studies, cache=TRUE}
+# study_crosstab() comes from R/simulate_dgp.R (sourced above).
+n_replications <- 100
+set.seed(2026)
+replicate_seeds <- sample.int(1e6, n_replications)
+
+sim_studies <- purrr::map_dfr(seq_len(n_replications), function(r) {
+  study_data <- generate_sim_data(
+    seed = replicate_seeds[r],
+    n_examiners = dgp_defaults$n_examiners,
+    n_comparisons = dgp_defaults$n_comparisons,
+    match_rate = dgp_defaults$match_rate,
+    false_positive_rate = dgp_defaults$false_positive_rate,
+    false_negative_rate = dgp_defaults$false_negative_rate,
+    inconclusive_rate = dgp_defaults$inconclusive_rate,
+    examiner_skill_sd = dgp_defaults$examiner_skill_sd,
+    examiner_inconclusive_sd = dgp_defaults$examiner_inconclusive_sd,
+    question_sd = dgp_defaults$question_sd
+  )
+
+  study_crosstab(study_data, replicate_id = r)
+})
+```
+
+# Results: fully-crossed design
+
+## Across-study summary
+
+For each of the six crosstab cells, this summarizes the proportion across
+the 100 replicate studies (each study contributes one proportion per cell),
+and also pools all 100 studies together into one combined crosstab (500,000
+responses) for a single-number comparison to the benchmark.
+
+```{r summarize-results}
+sim_summary <- sim_studies %>%
+  group_by(ground_truth_label, response) %>%
+  summarise(
+    mean_proportion = mean(proportion),
+    sd_proportion = sd(proportion),
+    min_proportion = min(proportion),
+    max_proportion = max(proportion),
+    .groups = "drop"
+  )
+
+pooled_crosstab <- sim_studies %>%
+  group_by(ground_truth_label, response) %>%
+  summarise(total_n = sum(n), .groups = "drop") %>%
+  group_by(ground_truth_label) %>%
+  mutate(pooled_proportion = total_n / sum(total_n)) %>%
+  ungroup() %>%
+  select(-total_n)
+
+comparison_table <- sim_summary %>%
+  select(ground_truth_label, response, mean_proportion) %>%
+  left_join(pooled_crosstab, by = c("ground_truth_label", "response")) %>%
+  left_join(ames_benchmark, by = c("ground_truth_label", "response")) %>%
+  mutate(
+    difference = pooled_proportion - benchmark_proportion,
+    ground_truth_label = factor(
+      ground_truth_label,
+      levels = c("same-source", "different-source")
+    ),
+    response = factor(
+      response,
+      levels = c("identification", "inconclusive", "elimination")
+    )
+  ) %>%
+  arrange(ground_truth_label, response)
+
+knitr::kable(
+  comparison_table %>%
+    mutate(across(c(mean_proportion, pooled_proportion, benchmark_proportion, difference), ~ percent(.x, accuracy = 0.1))),
+  col.names = c("Ground truth", "Decision", "Mean (100 studies)", "Pooled (500k responses)", "Ames-II-family benchmark", "Pooled - benchmark")
+)
+```
+
+## Simulated distribution vs. benchmark
+
+```{r plot-comparison, fig.width=9, fig.height=5}
+sim_studies_plot <- sim_studies %>%
+  mutate(
+    ground_truth_label = factor(
+      ground_truth_label,
+      levels = c("same-source", "different-source")
+    ),
+    response = factor(
+      response,
+      levels = c("identification", "inconclusive", "elimination")
+    )
+  )
+
+ames_benchmark_plot <- ames_benchmark %>%
+  mutate(
+    ground_truth_label = factor(
+      ground_truth_label,
+      levels = c("same-source", "different-source")
+    ),
+    response = factor(
+      response,
+      levels = c("identification", "inconclusive", "elimination")
+    )
+  )
+
+ggplot(sim_studies_plot, aes(x = response, y = proportion)) +
+  geom_boxplot(outlier.size = 0.5) +
+  geom_point(
+    data = ames_benchmark_plot,
+    aes(y = benchmark_proportion),
+    color = "#D55E00",
+    shape = 18,
+    size = 4
+  ) +
+  facet_wrap(~ ground_truth_label) +
+  scale_y_continuous(labels = percent_format(accuracy = 1)) +
+  labs(
+    title = "Simulated ground truth x decision proportions across 100 studies",
+    subtitle = "Boxplots: 100 simulated studies at current app defaults. Diamond: Ames-II-family benchmark",
+    x = "Decision",
+    y = "Proportion within ground-truth category"
+  ) +
+  theme_minimal()
+```
+
+# Incorporating the study's actual design: incomplete assignment
+
+The fully-crossed design above isn't what the real study did. Examiners
+were randomly assigned roughly 30 comparisons each, drawn from a much
+larger pool of about 300 comparisons — not every examiner evaluating every
+item. That's a form of *designed* missingness: it's built into the study
+design on purpose (unlike Flaw F's missing-not-at-random dropout, which
+happens after assignment), but it still means most examiner-item pairs are
+never observed.
+
+The response model itself doesn't change — a pair that gets assigned is
+generated exactly as before. Only the *assignment* mechanism changes: each
+examiner now gets a random subset of the item pool instead of the whole
+pool. `generate_sim_data_incomplete()`, already sourced from
+`R/simulate_dgp.R` above, implements this.
+
+## Defaults for the incomplete design
+
+Same examiner panel size and rate/heterogeneity parameters as before; only
+the item pool size and per-examiner assignment are new.
+
+```{r set-defaults-incomplete}
+incomplete_defaults <- modifyList(
+  dgp_defaults,
+  list(n_comparisons = 300, items_per_examiner = 30)
+)
+
+knitr::kable(
+  tibble(parameter = names(incomplete_defaults), value = unlist(incomplete_defaults)),
+  col.names = c("Parameter", "Default value")
+)
+```
+
+## Simulating 100 studies under the incomplete design
+
+Each replicate now produces 50 examiners x 30 items = 1,500 responses (not
+5,000), since each examiner only sees a fraction of the pool.
+
+```{r simulate-100-studies-incomplete, cache=TRUE}
+set.seed(2026)
+replicate_seeds_incomplete <- sample.int(1e6, n_replications)
+
+sim_studies_incomplete <- purrr::map_dfr(seq_len(n_replications), function(r) {
+  study_data <- generate_sim_data_incomplete(
+    seed = replicate_seeds_incomplete[r],
+    n_examiners = incomplete_defaults$n_examiners,
+    n_comparisons = incomplete_defaults$n_comparisons,
+    items_per_examiner = incomplete_defaults$items_per_examiner,
+    match_rate = incomplete_defaults$match_rate,
+    false_positive_rate = incomplete_defaults$false_positive_rate,
+    false_negative_rate = incomplete_defaults$false_negative_rate,
+    inconclusive_rate = incomplete_defaults$inconclusive_rate,
+    examiner_skill_sd = incomplete_defaults$examiner_skill_sd,
+    examiner_inconclusive_sd = incomplete_defaults$examiner_inconclusive_sd,
+    question_sd = incomplete_defaults$question_sd
+  )
+
+  study_crosstab(study_data, replicate_id = r)
+})
+```
+
+## Results: incomplete design
+
+```{r summarize-results-incomplete}
+sim_summary_incomplete <- sim_studies_incomplete %>%
+  group_by(ground_truth_label, response) %>%
+  summarise(
+    mean_proportion = mean(proportion),
+    sd_proportion = sd(proportion),
+    min_proportion = min(proportion),
+    max_proportion = max(proportion),
+    .groups = "drop"
+  )
+
+pooled_crosstab_incomplete <- sim_studies_incomplete %>%
+  group_by(ground_truth_label, response) %>%
+  summarise(total_n = sum(n), .groups = "drop") %>%
+  group_by(ground_truth_label) %>%
+  mutate(pooled_proportion = total_n / sum(total_n)) %>%
+  ungroup() %>%
+  select(-total_n)
+
+comparison_table_incomplete <- sim_summary_incomplete %>%
+  select(ground_truth_label, response, mean_proportion) %>%
+  left_join(pooled_crosstab_incomplete, by = c("ground_truth_label", "response")) %>%
+  left_join(ames_benchmark, by = c("ground_truth_label", "response")) %>%
+  mutate(
+    difference = pooled_proportion - benchmark_proportion,
+    ground_truth_label = factor(
+      ground_truth_label,
+      levels = c("same-source", "different-source")
+    ),
+    response = factor(
+      response,
+      levels = c("identification", "inconclusive", "elimination")
+    )
+  ) %>%
+  arrange(ground_truth_label, response)
+
+knitr::kable(
+  comparison_table_incomplete %>%
+    mutate(across(c(mean_proportion, pooled_proportion, benchmark_proportion, difference), ~ percent(.x, accuracy = 0.1))),
+  col.names = c("Ground truth", "Decision", "Mean (100 studies)", "Pooled (150k responses)", "Ames-II-family benchmark", "Pooled - benchmark")
+)
+```
+
+```{r plot-comparison-incomplete, fig.width=9, fig.height=5}
+sim_studies_incomplete_plot <- sim_studies_incomplete %>%
+  mutate(
+    ground_truth_label = factor(
+      ground_truth_label,
+      levels = c("same-source", "different-source")
+    ),
+    response = factor(
+      response,
+      levels = c("identification", "inconclusive", "elimination")
+    )
+  )
+
+ggplot(sim_studies_incomplete_plot, aes(x = response, y = proportion)) +
+  geom_boxplot(outlier.size = 0.5) +
+  geom_point(
+    data = ames_benchmark_plot,
+    aes(y = benchmark_proportion),
+    color = "#D55E00",
+    shape = 18,
+    size = 4
+  ) +
+  facet_wrap(~ ground_truth_label) +
+  scale_y_continuous(labels = percent_format(accuracy = 1)) +
+  labs(
+    title = "Simulated proportions across 100 studies, incomplete design",
+    subtitle = "Boxplots: 100 simulated studies, 30 of 300 items per examiner. Diamond: Ames-II-family benchmark",
+    x = "Decision",
+    y = "Proportion within ground-truth category"
+  ) +
+  theme_minimal()
+```
+
+## Does the design itself change the picture?
+
+The response model is identical between the two designs, so any difference
+in the *pooled* (bias) estimates should be sampling noise, not a systematic
+shift. What should change is the *spread* across the 100 replicate studies
+— each incomplete-design study has 1,500 responses instead of 5,000, so
+individual-study estimates should be noticeably less stable.
+
+```{r compare-designs}
+design_comparison <- comparison_table %>%
+  select(ground_truth_label, response, fully_crossed_pooled = pooled_proportion) %>%
+  left_join(
+    comparison_table_incomplete %>%
+      select(ground_truth_label, response, incomplete_pooled = pooled_proportion),
+    by = c("ground_truth_label", "response")
+  ) %>%
+  left_join(ames_benchmark, by = c("ground_truth_label", "response"))
+
+knitr::kable(
+  design_comparison %>%
+    mutate(across(c(fully_crossed_pooled, incomplete_pooled, benchmark_proportion), ~ percent(.x, accuracy = 0.1))),
+  col.names = c("Ground truth", "Decision", "Fully-crossed (pooled)", "Incomplete (pooled)", "Ames-II-family benchmark")
+)
+
+sd_comparison <- sim_summary %>%
+  select(ground_truth_label, response, sd_fully_crossed = sd_proportion) %>%
+  left_join(
+    sim_summary_incomplete %>% select(ground_truth_label, response, sd_incomplete = sd_proportion),
+    by = c("ground_truth_label", "response")
+  )
+
+knitr::kable(
+  sd_comparison %>%
+    mutate(across(c(sd_fully_crossed, sd_incomplete), ~ percent(.x, accuracy = 0.1))),
+  col.names = c("Ground truth", "Decision", "SD across studies (fully-crossed)", "SD across studies (incomplete)")
+)
+```
+
+# Interpretation
+
+## Bias: the design doesn't change which benchmark gap we need to fix
+
+The incomplete design's pooled proportions land close to the fully-crossed
+design's pooled proportions (see the comparison table above) — as expected,
+since the same per-pair response model generates both. So the benchmark
+mismatch identified with the fully-crossed design is not an artifact of
+that (unrealistic) design choice; incorporating the real assignment
+mechanism doesn't fix it. Using the pooled incomplete-design proportions:
+
+- **Inconclusive rate is far too low, by a wide margin.** Simulated:
+  11.4% (different-source) / 11.6% (same-source). Benchmark: 50.5%
+  (different-source) / 23.8% (same-source). The simulation is missing
+  roughly 4/5 of the different-source inconclusive rate and about half of
+  the same-source inconclusive rate. This is the single biggest mismatch
+  and is worth prioritizing before this DGP is used to argue anything about
+  inconclusive-handling (Flaw D) specifically.
+- **False positive rate is too high by roughly 3.5x.** Simulated 3.2% vs.
+  benchmark 0.9%, even though the *baseline* parameter is
+  `false_positive_rate = 0.02` (2%) — already above the benchmark before
+  heterogeneity is even added. The realized rate is higher still because
+  the logit link means the baseline parameter and the realized marginal
+  rate are not the same thing (Jensen's inequality: averaging
+  `plogis(logit(p) + noise)` over symmetric noise pulls the mean above `p`)
+  — see the talk's calibration slide.
+- **False negative rate is too high by roughly 4.3x.** Simulated 7.7% vs.
+  benchmark 1.8%, again starting from a baseline parameter
+  (`false_negative_rate = 0.05`) already well above the benchmark.
+
+**Bottom line:** all three quantities are biased in the same direction —
+too many errors, too few inconclusives — relative to this benchmark, and
+that bias is essentially unchanged by moving from the fully-crossed design
+to the real incomplete design. Before using these defaults in the talk's
+case studies, `inconclusive_rate` should be raised substantially, and
+`false_positive_rate` / `false_negative_rate` lowered, with the
+baseline-vs-realized gap (Jensen's inequality) accounted for rather than
+assumed away. This document is set up to make that check repeatable —
+rerunning it after changing `dgp_defaults` (and correspondingly `app.R`)
+will show whether the gap closes.
+
+## Variance: the design does matter here
+
+The SD-across-studies table shows a modest but consistent increase in
+study-to-study variability under the incomplete design — e.g., the
+different-source inconclusive-rate SD rises from 1.1% (fully-crossed) to
+1.4% (incomplete), and the different-source elimination-rate SD from 1.4%
+to 1.7%. That's smaller than the roughly 1.8x increase a naive
+$\sqrt{5000/1500}$ binomial-sampling argument would predict, likely because
+examiner- and item-level heterogeneity (which don't shrink just because
+fewer pairs are observed per study) already dominate the variance in the
+fully-crossed case. Still, the direction is right: a sparser design produces
+less stable single-study estimates, which is exactly the argument the
+talk's sample-size case study (Flaw A) will want to make quantitatively —
+this incomplete-design machinery is a natural building block for that.
+
+# Retuning the baseline rates
+
+## Why an exact fit isn't possible
+
+The model has three scalar baseline-rate parameters
+(`false_positive_rate`, `false_negative_rate`, `inconclusive_rate`), but the
+benchmark effectively specifies four largely-independent targets: the
+false positive rate, the false negative rate, and *two* inconclusive
+rates — one for different-source pairs (50.5%) and one for same-source
+pairs (23.8%). `inconclusive_probability` in `simulate_response()` doesn't
+condition on ground truth at all, so the model structurally cannot produce
+different inconclusive rates for same- vs. different-source pairs no matter
+how `inconclusive_rate` is set — only one shared value is possible.
+
+Given that ceiling, we searched for the baseline rates that come closest
+to all four targets at once, accepting that the two inconclusive-rate
+targets can only be compromised between, not matched individually. (We
+decided against extending the model to give same-source and
+different-source pairs separate inconclusive baselines, to avoid changing
+the response-probability equation already written into the talk — see the
+Interpretation below for exactly how large the resulting gap is.)
+
+```{r calibration-search, cache=TRUE}
+# A vectorized reimplementation of simulate_response(), used only for this
+# search. Mathematically identical to the row-wise version defined above --
+# vectorizing just avoids per-row function-call overhead so the optimizer
+# can evaluate many candidate parameter sets quickly. The row-wise version
+# above (matching icfis/app.R) is what actually generates the studies used
+# everywhere else in this document.
+simulate_responses_vec <- function(ground_truth, decision_challenge, examiner_inconclusive_tendency,
+                                   false_positive_rate, false_negative_rate, inconclusive_rate) {
+  error_probability <- ifelse(
+    ground_truth == 1,
+    plogis(safe_logit(false_negative_rate) + decision_challenge),
+    plogis(safe_logit(false_positive_rate) + decision_challenge)
+  )
+  inconclusive_probability <- plogis(safe_logit(inconclusive_rate) + 0.5 * decision_challenge + examiner_inconclusive_tendency)
+  total_probability <- error_probability + inconclusive_probability
+  scaling_factor <- ifelse(total_probability >= 0.95, 0.95 / total_probability, 1)
+  error_probability <- error_probability * scaling_factor
+  inconclusive_probability <- inconclusive_probability * scaling_factor
+
+  draw <- runif(length(ground_truth))
+  error_label <- ifelse(ground_truth == 1, "elimination", "identification")
+  correct_label <- ifelse(ground_truth == 1, "identification", "elimination")
+  ifelse(
+    draw < error_probability, error_label,
+    ifelse(draw < error_probability + inconclusive_probability, "inconclusive", correct_label)
+  )
+}
+
+# One large, fixed-seed, fully-crossed dataset per candidate parameter set.
+# Fully-crossed (not incomplete) is fine here since we already showed design
+# doesn't affect the pooled/bias estimates, only their variance.
+simulate_large_reference <- function(false_positive_rate, false_negative_rate, inconclusive_rate,
+                                     n_examiners = 300, n_comparisons = 300, seed = 42) {
+  set.seed(seed)
+
+  comparison_set <- tibble(
+    question_id = seq_len(n_comparisons),
+    ground_truth = rbinom(n_comparisons, 1, dgp_defaults$match_rate),
+    question_difficulty = rnorm(n_comparisons, mean = 0, sd = dgp_defaults$question_sd)
+  )
+  examiner_panel <- tibble(
+    examiner_id = paste0("E", seq_len(n_examiners)),
+    examiner_skill = rnorm(n_examiners, mean = 0, sd = dgp_defaults$examiner_skill_sd),
+    examiner_inconclusive_tendency = rnorm(n_examiners, mean = 0, sd = dgp_defaults$examiner_inconclusive_sd)
+  )
+
+  tidyr::crossing(examiner_panel, comparison_set) %>%
+    mutate(decision_challenge = question_difficulty - examiner_skill) %>%
+    mutate(response = simulate_responses_vec(
+      ground_truth, decision_challenge, examiner_inconclusive_tendency,
+      false_positive_rate = false_positive_rate,
+      false_negative_rate = false_negative_rate,
+      inconclusive_rate = inconclusive_rate
+    ))
+}
+
+calibration_targets <- c(
+  diff_id = diff_identification,
+  diff_inc = diff_inconclusive,
+  same_elim = same_elimination,
+  same_inc = same_inconclusive
+)
+
+calibration_objective <- function(par) {
+  rates <- plogis(par)
+  d <- simulate_large_reference(rates[1], rates[2], rates[3])
+
+  diff <- d %>% filter(ground_truth == 0)
+  same <- d %>% filter(ground_truth == 1)
+
+  sim <- c(
+    diff_id = mean(diff$response == "identification"),
+    diff_inc = mean(diff$response == "inconclusive"),
+    same_elim = mean(same$response == "elimination"),
+    same_inc = mean(same$response == "inconclusive")
+  )
+
+  sum((sim - calibration_targets)^2)
+}
+
+calibration_fit <- optim(
+  par = qlogis(c(dgp_defaults$false_positive_rate, dgp_defaults$false_negative_rate, dgp_defaults$inconclusive_rate)),
+  fn = calibration_objective,
+  method = "Nelder-Mead",
+  control = list(maxit = 300, reltol = 1e-10)
+)
+
+calibrated_rates <- plogis(calibration_fit$par)
+names(calibrated_rates) <- c("false_positive_rate", "false_negative_rate", "inconclusive_rate")
+
+knitr::kable(
+  tibble(parameter = names(calibrated_rates), fitted_value = round(calibrated_rates, 4)),
+  col.names = c("Parameter", "Fitted value")
+)
+```
+
+Rounding those fitted values to cleaner numbers (`0.01`, `0.02`, `0.36`)
+barely changes the fit, so those are the retuned defaults used from here
+on.
+
+```{r update-defaults}
+dgp_defaults$false_positive_rate <- 0.01
+dgp_defaults$false_negative_rate <- 0.02
+dgp_defaults$inconclusive_rate <- 0.36
+
+incomplete_defaults$false_positive_rate <- 0.01
+incomplete_defaults$false_negative_rate <- 0.02
+incomplete_defaults$inconclusive_rate <- 0.36
+
+knitr::kable(
+  tibble(parameter = names(dgp_defaults), value = unlist(dgp_defaults)),
+  col.names = c("Parameter", "Retuned default value")
+)
+```
+
+## Verifying the retuned defaults under the incomplete design
+
+Re-running the same 100-replicate, incomplete-design simulation as before
+(50 examiners, 30 of 300 items each), now with the retuned rates.
+
+```{r simulate-100-studies-retuned, cache=TRUE}
+set.seed(2026)
+replicate_seeds_retuned <- sample.int(1e6, n_replications)
+
+sim_studies_retuned <- purrr::map_dfr(seq_len(n_replications), function(r) {
+  study_data <- generate_sim_data_incomplete(
+    seed = replicate_seeds_retuned[r],
+    n_examiners = incomplete_defaults$n_examiners,
+    n_comparisons = incomplete_defaults$n_comparisons,
+    items_per_examiner = incomplete_defaults$items_per_examiner,
+    match_rate = incomplete_defaults$match_rate,
+    false_positive_rate = incomplete_defaults$false_positive_rate,
+    false_negative_rate = incomplete_defaults$false_negative_rate,
+    inconclusive_rate = incomplete_defaults$inconclusive_rate,
+    examiner_skill_sd = incomplete_defaults$examiner_skill_sd,
+    examiner_inconclusive_sd = incomplete_defaults$examiner_inconclusive_sd,
+    question_sd = incomplete_defaults$question_sd
+  )
+
+  study_crosstab(study_data, replicate_id = r)
+})
+
+pooled_crosstab_retuned <- sim_studies_retuned %>%
+  group_by(ground_truth_label, response) %>%
+  summarise(total_n = sum(n), .groups = "drop") %>%
+  group_by(ground_truth_label) %>%
+  mutate(pooled_proportion = total_n / sum(total_n)) %>%
+  ungroup() %>%
+  select(-total_n)
+```
+
+```{r plot-comparison-retuned, fig.width=9, fig.height=5}
+sim_studies_retuned_plot <- sim_studies_retuned %>%
+  mutate(
+    ground_truth_label = factor(ground_truth_label, levels = c("same-source", "different-source")),
+    response = factor(response, levels = c("identification", "inconclusive", "elimination"))
+  )
+
+ggplot(sim_studies_retuned_plot, aes(x = response, y = proportion)) +
+  geom_boxplot(outlier.size = 0.5) +
+  geom_point(
+    data = ames_benchmark_plot,
+    aes(y = benchmark_proportion),
+    color = "#D55E00",
+    shape = 18,
+    size = 4
+  ) +
+  facet_wrap(~ ground_truth_label) +
+  scale_y_continuous(labels = percent_format(accuracy = 1)) +
+  labs(
+    title = "Simulated proportions across 100 studies, retuned defaults",
+    subtitle = "Boxplots: 100 simulated studies, incomplete design, retuned rates. Diamond: Ames-II-family benchmark",
+    x = "Decision",
+    y = "Proportion within ground-truth category"
+  ) +
+  theme_minimal()
+```
+
+## Before vs. after retuning
+
+```{r before-after-retuning}
+before_after <- comparison_table_incomplete %>%
+  select(ground_truth_label, response, before = pooled_proportion) %>%
+  left_join(
+    pooled_crosstab_retuned %>% select(ground_truth_label, response, after = pooled_proportion),
+    by = c("ground_truth_label", "response")
+  ) %>%
+  left_join(ames_benchmark, by = c("ground_truth_label", "response")) %>%
+  mutate(
+    ground_truth_label = factor(ground_truth_label, levels = c("same-source", "different-source")),
+    response = factor(response, levels = c("identification", "inconclusive", "elimination"))
+  ) %>%
+  arrange(ground_truth_label, response)
+
+knitr::kable(
+  before_after %>%
+    mutate(across(c(before, after, benchmark_proportion), ~ percent(.x, accuracy = 0.1))),
+  col.names = c("Ground truth", "Decision", "Before retuning", "After retuning", "Benchmark")
+)
+```
+
+## Sanity check: does this match `R/simulate_dgp.R`?
+
+```{r check-canonical-defaults}
+rate_names <- c("false_positive_rate", "false_negative_rate", "inconclusive_rate")
+
+knitr::kable(
+  tibble(
+    parameter = rate_names,
+    this_document = unlist(dgp_defaults[rate_names]),
+    shared_file = unlist(canonical_defaults[rate_names])
+  ),
+  col.names = c("Parameter", "Retuned here", "R/simulate_dgp.R")
+)
+```
+
+This document's derived values match the shared file's canonical defaults
+— `R/simulate_dgp.R` already reflects the outcome of this calibration, so
+nothing further needs to be copied over by hand.
+
+## Interpretation of the retuned fit
+
+FPR and FNR are now close to the benchmark: false positive rate
+~1.7% vs. a 0.9% benchmark, false negative rate ~3.4% vs. 1.8% — both much
+closer than the roughly 3.5x/4.3x gaps before retuning, though still
+running a bit high in the same direction as before.
+
+The inconclusive-rate gap is smaller than before retuning but, as expected
+from the structural argument above, doesn't close — it's now split roughly
+evenly in both directions: simulated inconclusive rates land around
+37% for both ground-truth categories, against a benchmark of 50.5%
+(different-source, still ~13 pp low) and 23.8% (same-source, now ~13 pp
+*high*). That residual asymmetry is a known, accepted limitation of these
+defaults, not an oversight — closing it would require giving same-source
+and different-source pairs separate inconclusive baselines, which was
+deliberately deferred to keep the model matching what's already on the
+slides.
+
+# Next steps
+
+- ~~`icfis/app.R`'s slider defaults should be updated to match these retuned
+  rates~~ — done: `R/simulate_dgp.R` now holds the canonical, already-retuned
+  defaults, and both `icfis/app.R` and this document source it.
+- Track down the actual Monson, Smith, and Bajic (2023a) crosstab (or
+  another Ames-II-family table) to replace the reconstructed benchmark with
+  real reported proportions, including sample sizes and the actual
+  examiner/item-pool counts (we used 50 examiners / 30 of 300 items as a
+  stand-in for "roughly 30 questions from a pool of roughly 300" — worth
+  replacing with the real numbers if available).
+- Re-run this comparison against at least one more study (e.g., AMES I /
+  Baldwin et al.) to check whether "true" inconclusive/error rates are
+  reasonably stable across studies or vary enough that a single target
+  isn't meaningful.
+- If the residual same-source/different-source inconclusive-rate gap ends
+  up mattering for the talk (e.g., it visibly weakens the inconclusive-
+  handling material), revisit the decision to keep a single shared
+  `inconclusive_rate` and consider the model extension noted above.
+- Decide whether `icfis/app.R` itself should offer the incomplete-design
+  option (it currently only supports full crossing), since that's the more
+  realistic design and is now implemented here.
+
+# References
+
+::: {#refs}
+:::
