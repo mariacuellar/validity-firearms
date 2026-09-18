@@ -1,0 +1,452 @@
+---
+title: "Case Study: A Non-Remediable Flaw (Non-Representative Sampling)"
+subtitle: "Flaw B -- why reweighting can't fix a sample with no data on most of the population"
+bibliography: ../output/paper/references.bib
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-location: body
+    number-sections: false
+    code-fold: true
+---
+
+# Goal
+
+This is case study 2 for the talk, matching the three-beat structure
+already on the "Simulation design" slide in `icfis/draft.qmd`:
+
+1. A convenience sample of firearm types produces a biased estimate of the
+   population-average error rate.
+2. *If* a study had covered every type (even non-proportionally) and
+   recorded type as a covariate, reweighting by the true population
+   distribution would recover something close to the true value — this is
+   Chin et al.'s "moderator" / big-team-science suggestion, and it works.
+3. The actual convenience sample has **zero** observations for most of the
+   population's weight. Applying that same reweighting idea to it doesn't
+   work — not because nobody tried, but because there's no data to weight.
+
+Non-representative sampling in real black-box studies operates at two
+nested levels, both documented in @cuellar2024methodological: which
+firearm **makes/models** get tested at all (between-model), and, even for
+a model that is tested, which specific **individual firearms** of that
+model happen to be in the lab (within-model). This document models both,
+stacked, since a real convenience sample is short on both dimensions at
+once.
+
+This builds on the same shared DGP and canonical (retuned) defaults as
+`icfis/analysis.qmd` and `icfis/case_study_inconclusive.qmd`.
+
+```{r setup}
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(ggplot2)
+library(scales)
+
+source("R/simulate_dgp.R")
+source("R/simulate_dgp_types.R")
+```
+
+# A population of firearm types (between-model)
+
+"Type" here means firearm **make/model** (e.g., Beretta M9A3 vs. Glock 19)
+— not an individual firearm. Eight types, each with its own baseline
+classification difficulty. @cuellar2024methodological (p. 10) cite
+evidence from Guyll et al. (2023) and Bajic et al. (2020, "AMES II") that
+different makes/models (their example: Jimenez vs. Beretta) differ in how
+easy they are to match — that's the between-model heterogeneity modeled
+here.
+
+```{r type-population}
+type_population <- make_type_population()
+
+knitr::kable(
+  type_population %>%
+    arrange(type_id) %>%
+    mutate(
+      population_weight = percent(population_weight, accuracy = 1),
+      type_difficulty = round(type_difficulty, 2)
+    ),
+  col.names = c("Type", "Population weight (casework)", "Difficulty (latent scale)")
+)
+
+easiest_types <- type_population %>%
+  arrange(type_difficulty) %>%
+  slice(1:2) %>%
+  pull(type_id)
+```
+
+The two easiest types to classify are types `r paste(easiest_types, collapse = " and ")`,
+together accounting for
+`r percent(sum(type_population$population_weight[type_population$type_id %in% easiest_types]), accuracy = 1)`
+of real casework. The convenience sample below is restricted to exactly
+these two — a stand-in for "the lab used whatever well-maintained,
+easy-to-compare firearms it had on hand," echoing the paper's discussion of
+newly-manufactured vs. damaged/corroded firearms affecting difficulty.
+
+# Individual firearms within each type (within-model)
+
+Even firearms of the *same* model differ. @cuellar2024methodological cite
+a 0%–62% "hard" range across 27 otherwise-identical Beretta pistols in
+Ames II — a big enough range to take seriously as a second, additive
+source of difficulty on top of the type-level effect above. Each type's
+"world population" here has 50 individual firearms, each with its own
+difficulty offset (independent of its type's difficulty and of how common
+that type is).
+
+```{r firearm-population}
+firearm_population <- make_firearm_population(type_population)
+
+firearm_population_summary <- firearm_population %>%
+  group_by(type_id) %>%
+  summarise(
+    n_firearms = n(),
+    mean_firearm_difficulty = mean(firearm_difficulty),
+    sd_firearm_difficulty = sd(firearm_difficulty),
+    .groups = "drop"
+  )
+
+knitr::kable(
+  firearm_population_summary %>% mutate(across(c(mean_firearm_difficulty, sd_firearm_difficulty), ~ round(.x, 2))),
+  col.names = c("Type", "Firearms in world population", "Mean firearm difficulty", "SD firearm difficulty")
+)
+```
+
+A real study only ever uses a handful of specific firearms per type it
+includes — Ames-II-family studies used on the order of 27–37 firearms
+total, not the full population of each model in circulation. Every
+scenario below draws only 5 specific firearms per included type, so even
+the "full-coverage" study in beat 2 only samples a small, possibly
+unrepresentative slice of each type's own difficulty range.
+
+# The true population-average error rate
+
+A large reference simulation: items are assigned to types proportional to
+the *true* population weights, and within each item's type, to an
+individual firearm drawn from that type's full 50-firearm population
+(with replacement, since the reference is meant to approximate the full
+diversity of firearms in casework, not one study's limited draw). This is
+the estimand the talk cares about: the population-average error rate
+under casework-representative firearms.
+
+```{r true-reference}
+true_reference_data <- generate_population_reference_by_firearm(
+  seed = 1,
+  type_population = type_population,
+  firearm_population = firearm_population,
+  sampling_weights = type_population$population_weight,
+  n_items_total = 2000,
+  n_examiners = dgp_defaults$n_examiners,
+  match_rate = dgp_defaults$match_rate,
+  false_positive_rate = dgp_defaults$false_positive_rate,
+  false_negative_rate = dgp_defaults$false_negative_rate,
+  inconclusive_rate = dgp_defaults$inconclusive_rate,
+  examiner_skill_sd = dgp_defaults$examiner_skill_sd,
+  examiner_inconclusive_sd = dgp_defaults$examiner_inconclusive_sd,
+  question_sd = dgp_defaults$question_sd
+)
+
+true_reference_rates <- compute_pooled_rates(true_reference_data)
+
+knitr::kable(
+  true_reference_rates %>% mutate(rate = percent(rate, accuracy = 0.01)),
+  col.names = c("Metric", "True population-average rate")
+)
+```
+
+# The three scenarios
+
+Every scenario now draws 5 specific firearms per included type (held
+fixed across scenarios, so the comparison isolates *which types* get
+included, not how many firearms per type) and generates several
+comparisons per firearm.
+
+```{r define-scenarios}
+# Beat 1: convenience sample -- only the two easiest types.
+conv_weights <- if_else(type_population$type_id %in% easiest_types, 1, 0)
+
+# Beat 2: hypothetical better study -- every type represented (not
+# necessarily in population-correct proportions; equal allocation is a
+# common, defensible design choice as long as type is recorded and the
+# analyst reweights afterward).
+better_weights <- rep(1, nrow(type_population))
+
+n_firearms_per_type <- 5
+n_replications <- 500
+set.seed(4042)
+replicate_seeds <- sample.int(1e6, n_replications)
+
+simulate_scenario <- function(seed, sampling_weights, items_per_firearm) {
+  generate_sim_data_by_type_and_firearm(
+    seed = seed,
+    type_population = type_population,
+    firearm_population = firearm_population,
+    sampling_weights = sampling_weights,
+    n_firearms_per_type = n_firearms_per_type,
+    items_per_firearm = items_per_firearm,
+    n_examiners = dgp_defaults$n_examiners,
+    match_rate = dgp_defaults$match_rate,
+    false_positive_rate = dgp_defaults$false_positive_rate,
+    false_negative_rate = dgp_defaults$false_negative_rate,
+    inconclusive_rate = dgp_defaults$inconclusive_rate,
+    examiner_skill_sd = dgp_defaults$examiner_skill_sd,
+    examiner_inconclusive_sd = dgp_defaults$examiner_inconclusive_sd,
+    question_sd = dgp_defaults$question_sd
+  )
+}
+```
+
+## Beat 1: the convenience sample is biased
+
+`r n_replications` replicate studies, each using 5 firearms from each of
+the two easiest types (10 firearms, 10 items per firearm = 100 items
+total — same overall scale as before the firearm layer was added).
+
+```{r beat-1, cache=TRUE, cache.extra=n_replications}
+convenience_results <- purrr::map_dfr(seq_len(n_replications), function(r) {
+  study_data <- simulate_scenario(replicate_seeds[r], conv_weights, items_per_firearm = 10)
+  compute_pooled_rates(study_data) %>%
+    mutate(replicate_id = r, scenario = "Convenience sample (naive)")
+})
+```
+
+## Beat 2: the fix that could work
+
+`r n_replications` replicate studies, each using 5 firearms from every one
+of the eight types (40 firearms, 4 items per firearm = 160 items total) —
+then reweighted by the *true* population distribution.
+
+```{r beat-2, cache=TRUE, cache.extra=n_replications}
+better_study_results <- purrr::map_dfr(seq_len(n_replications), function(r) {
+  study_data <- simulate_scenario(replicate_seeds[r], better_weights, items_per_firearm = 4)
+  type_rates <- compute_type_level_rates(study_data)
+  reweight_by_population(type_rates, type_population) %>%
+    rename(rate = reweighted_rate) %>%
+    mutate(replicate_id = r, scenario = "Full-coverage study (reweighted)")
+})
+```
+
+## Beat 3: the fix that doesn't exist
+
+The *same* reweighting procedure applied to the convenience sample from
+beat 1 — renormalizing the population weights over just the two types
+actually observed.
+
+```{r beat-3, cache=TRUE, cache.extra=n_replications}
+convenience_fixed_results <- purrr::map_dfr(seq_len(n_replications), function(r) {
+  study_data <- simulate_scenario(replicate_seeds[r], conv_weights, items_per_firearm = 10)
+  type_rates <- compute_type_level_rates(study_data)
+  reweight_by_population(type_rates, type_population) %>%
+    rename(rate = reweighted_rate) %>%
+    mutate(replicate_id = r, scenario = "Convenience sample (\"reweighted\")")
+})
+```
+
+# Results
+
+```{r combine-results}
+all_results <- bind_rows(convenience_results, better_study_results, convenience_fixed_results) %>%
+  mutate(
+    scenario = factor(
+      scenario,
+      levels = c(
+        "Convenience sample (naive)",
+        "Full-coverage study (reweighted)",
+        "Convenience sample (\"reweighted\")"
+      )
+    ),
+    metric = factor(metric, levels = c("FPR", "FNR"))
+  )
+
+summary_table <- all_results %>%
+  group_by(metric, scenario) %>%
+  summarise(mean_rate = mean(rate), sd_rate = sd(rate), .groups = "drop") %>%
+  mutate(se_rate = sd_rate / sqrt(n_replications)) %>%
+  left_join(
+    true_reference_rates %>% rename(true_rate = rate) %>% mutate(metric = factor(metric, levels = c("FPR", "FNR"))),
+    by = "metric"
+  ) %>%
+  arrange(metric, scenario)
+
+knitr::kable(
+  summary_table %>%
+    mutate(
+      mean_rate = percent(mean_rate, accuracy = 0.01),
+      sd_rate = percent(sd_rate, accuracy = 0.01),
+      se_rate = percent(se_rate, accuracy = 0.001),
+      true_rate = percent(true_rate, accuracy = 0.01)
+    ),
+  col.names = c("Metric", "Scenario", sprintf("Mean (%d studies)", n_replications), "SD", "SE of the mean", "True population rate")
+)
+```
+
+```{r plot-results, fig.width=9, fig.height=5}
+true_reference_plot <- true_reference_rates %>%
+  mutate(metric = factor(metric, levels = c("FPR", "FNR")))
+
+ggplot(all_results, aes(x = scenario, y = rate)) +
+  geom_boxplot(outlier.size = 0.5) +
+  geom_hline(
+    data = true_reference_plot,
+    aes(yintercept = rate),
+    color = "#D55E00",
+    linetype = "dashed",
+    linewidth = 1
+  ) +
+  facet_wrap(~ metric, scales = "free_y") +
+  scale_y_continuous(labels = percent_format(accuracy = 0.1)) +
+  labs(
+    title = "Naive vs. reweighted estimates against the true population rate",
+    subtitle = "Dashed line: true population-average rate. Reweighting only helps when the sample covers the population.",
+    x = NULL,
+    y = "Rate"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 15, hjust = 1))
+```
+
+# Monte Carlo error
+
+Each scenario's reported mean is itself an estimate from a finite number
+of simulated studies, so it carries its own uncertainty — separate from
+the substantive bias/variance story the case study is about. The
+`SE of the mean` column above is $SD/\sqrt{`r n_replications`}$ for each
+scenario/metric; a rough 95% CI for the *mean* estimate itself is
+`r n_replications`-replicate mean $\pm\ 1.96 \times$ that SE.
+
+```{r mc-error-table}
+knitr::kable(
+  summary_table %>%
+    mutate(
+      ci_low = mean_rate - 1.96 * se_rate,
+      ci_high = mean_rate + 1.96 * se_rate
+    ) %>%
+    mutate(across(c(mean_rate, se_rate, ci_low, ci_high), ~ percent(.x, accuracy = 0.01))) %>%
+    select(metric, scenario, mean_rate, se_rate, ci_low, ci_high),
+  col.names = c("Metric", "Scenario", "Mean", "SE of the mean", "95% CI (low)", "95% CI (high)")
+)
+```
+
+These CIs are narrow relative to the gaps the case study rests on (the
+full-coverage vs. convenience-sample means differ by roughly 1.8
+percentage points on FPR; the widest CI half-width above is under 0.1
+percentage points), so Monte Carlo noise isn't a plausible explanation for
+any of the three-beat comparisons.
+
+## Was 500 replicates actually necessary?
+
+Comparing the `r n_replications`-replicate means reported here against the
+100-replicate means from the version of this document before the replicate
+count was raised:
+
+```{r mc-error-comparison}
+previous_100_results <- tribble(
+  ~metric, ~scenario, ~mean_rate_100,
+  "FPR", "Convenience sample (naive)", 0.0041,
+  "FPR", "Full-coverage study (reweighted)", 0.0232,
+  "FPR", "Convenience sample (\"reweighted\")", 0.0046,
+  "FNR", "Convenience sample (naive)", 0.0077,
+  "FNR", "Full-coverage study (reweighted)", 0.0393,
+  "FNR", "Convenience sample (\"reweighted\")", 0.0085
+) %>%
+  mutate(
+    metric = factor(metric, levels = c("FPR", "FNR")),
+    scenario = factor(
+      scenario,
+      levels = c(
+        "Convenience sample (naive)",
+        "Full-coverage study (reweighted)",
+        "Convenience sample (\"reweighted\")"
+      )
+    )
+  )
+
+mc_comparison <- summary_table %>%
+  select(metric, scenario, mean_rate_500 = mean_rate, se_rate) %>%
+  left_join(previous_100_results, by = c("metric", "scenario")) %>%
+  mutate(shift = mean_rate_500 - mean_rate_100)
+
+knitr::kable(
+  mc_comparison %>%
+    mutate(across(c(mean_rate_100, mean_rate_500, shift), ~ percent(.x, accuracy = 0.01))) %>%
+    select(metric, scenario, mean_rate_100, mean_rate_500, shift),
+  col.names = c("Metric", "Scenario", "Mean at n=100", "Mean at n=500", "Shift")
+)
+```
+
+The means moved by at most a few hundredths of a percentage point between
+100 and 500 replicates — well inside the SE at n=100 (which was
+$\sqrt{5} \approx 2.24\times$ larger than the SE at n=500 shown above, for
+the same underlying SD). In other words, **100 replicates already gave a
+stable answer** for every conclusion this case study draws; going to 500
+tightens the estimate's own uncertainty but doesn't change any of the
+three-beat comparisons. Worth knowing before spending the extra ~2.5
+minutes of render time on every future edit — 100 may be the better
+default while still iterating on the narrative, with 500 reserved for a
+final check before the talk.
+
+# Interpretation
+
+Using the pooled/mean rates from the `r n_replications`-replication table
+above (true population rate: FPR 2.13%, FNR 3.67%):
+
+- **The convenience sample is badly biased, in the optimistic direction.**
+  Restricting the study to the two easiest types (and only 5 of each
+  type's 50 firearms) produces FPR 0.40% and FNR 0.77% — roughly **5x too
+  low** on both metrics.
+- **Reweighting works when the sample has full coverage.** The
+  full-coverage study (all eight types, 5 firearms each) reaches FPR
+  2.27% and FNR 3.98% once reweighted — within about 6–8% of the true rate
+  on both metrics, even though it too only samples 5 of each type's 50
+  firearms. Within-model firearm sampling adds noise (see the SD column),
+  not bias, as long as every type is represented.
+- **The same correction fails on the actual convenience sample.**
+  Reweighting the two-type convenience sample by population share moves
+  the estimate only to FPR 0.44% and FNR 0.86% — still roughly **4.5x too
+  low** on both metrics, barely different from doing nothing. There's no
+  information at all about the six unsampled types, which together hold
+  79% of the population's weight. Reweighting can't fix that, no matter
+  how many (or how few) firearms of the *included* types were tested.
+- **Spread is visibly wider than before the firearm layer was added.**
+  Compare SDs to the type-only version of this case study: convenience
+  sample FPR SD is 0.22% here vs. 0.13% there; full-coverage reweighted
+  FPR SD is 0.71% here vs. 0.40% there. Which specific 5 firearms got
+  drawn for a given type is now an extra source of study-to-study
+  variability, on top of the between-type sampling question beats 1–3 are
+  about — visible in the boxplots' width, not just their position. (As the
+  Monte Carlo section above shows, none of this spread is an artifact of
+  too few replications — it's the actual between-study variability the
+  design produces.)
+
+# Why this counts as non-remediable
+
+Nothing about the *analysis* is broken here — the reweighting procedure in
+beat 2 is statistically valid and works, even with the added within-model
+noise from only sampling 5 firearms per type. What fails in beat 3 is
+specific to the convenience sample's *design*: it never observed most of
+the population it claims to generalize to, at the type level. No amount
+of reanalysis of that particular dataset can fix a positivity violation
+this severe — and adding a more realistic within-model layer doesn't
+change that conclusion, it just makes the simulation's design closer to
+how an actual black-box study is built (a handful of types, a handful of
+firearms per type, many comparisons per firearm).
+
+# Next steps
+
+- Swap the updated numbers into `icfis/draft.qmd`'s Case Study 2 slides.
+- Consider whether the "hypothetical better study" (beat 2) should use
+  equal-per-type allocation or a different defensible design (e.g.,
+  oversampling rare types further for power) — equal allocation was
+  chosen for simplicity, not because it's the only valid choice.
+- `firearm_difficulty_sd = 0.9` (in `make_firearm_population()`) is
+  illustrative, not calibrated to the 0%–62% Beretta figure or anything
+  else specific — worth a sensitivity check once there's time.
+- If useful, add a version of beat 3 using *partial* type coverage (e.g.,
+  4 of 8 types, not just the 2 easiest) to show the bias shrinking
+  gradually as coverage improves, rather than only the two extremes.
+
+# References
+
+::: {#refs}
+:::

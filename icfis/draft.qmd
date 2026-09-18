@@ -10,10 +10,7 @@ format:
   revealjs:
     theme: simple
     slide-number: true
-    width: 1280
-    height: 720
-    transition: slide
-    incremental: false
+    incremental: true
     footer: "ICFIS 2026"
     # TODO: swap in institution logo 
 ---
@@ -54,6 +51,7 @@ before the talk so a curious audience member can't catch the mismatch.
 ## Why this talk {.smaller}
 
 - NAS (2009) and PCAST (2016): scientific validity of firearms examination has not been established
+- Recent large-scale black-box validation studies have attempted to remedy this (Ames I and II, Hicklin et al)
 - @cuellar2024methodological: literature search of 28 black-box validation studies
   - Found six flaws (A–F) present, with minor exceptions, in **every** study
   - Concluded: none of the existing studies can establish scientific validity
@@ -61,10 +59,6 @@ before the talk so a curious audience member can't catch the mismatch.
   - Draws on evidence-based medicine / systematic-review practice
   - Argues for a **cumulative** forensic science: openness, registration, meta-analysis
 
-::: {.notes}
-~1 min. Set up the stakes: these error-rate studies are cited in criminal trials.
-Don't relitigate all 28 studies — just enough to motivate the disagreement.
-:::
 
 ## The six flaws {.smaller}
 
@@ -77,29 +71,19 @@ Don't relitigate all 28 studies — just enough to motivate the disagreement.
 | E | Invalid or nonexistent uncertainty measures | Fixable if raw responses available |
 | F | Missing data handled inappropriately | Fixable if missingness can be characterized |
 
-::: {.notes}
-~1.5 min. This table *is* the paper's Table 1 — don't read it verbatim,
-point at rows B and D/E specifically since those anchor the two case studies.
-:::
 
 ## Where we agree with Chin et al.
 
+- No single study is perfect
 - Not every flaw has the same consequences
-- Analytic shortcomings (D, E) may be **repairable after the fact** — if the raw
+- Analytic shortcomings (D, E) may be **repairable after the fact** if the raw
   responses were recorded
-- Imperfect studies can still inform the design of *future* studies
-- We should not discourage data collection just because a study can't stand alone
+- Imperfect studies are still useful for some purposes 
+- We should not discourage data collection just because a study has flaws 
 
-::: {.notes}
-~1 min. This concession slide matters rhetorically — it shows the talk isn't
-just restating the 2024 paper, it's sharpening it in response to real pushback.
-:::
+## Main point of disagreement: 
 
-## Where we push back
-
-> "The problem is not simply that the wrong quantity was reported... The
-> problem is that the data needed to estimate the relevant quantity were
-> never collected in the first place." — response to @chin2026towards
+> The problem is not simply that the wrong quantity was reported. The problem is that the data needed to estimate the relevant quantity were never collected in the first place.
 
 - Some flaws (B, C) operate on **study design and sampling**, not analysis
 - No amount of reanalysis recovers information that was never observed
@@ -161,85 +145,41 @@ hard cases because the studies never characterized the population they'd
 need to correct for.
 :::
 
-## Reading the tree
+## Remainder of the talk
 
-- **A (sample size)** — noise, not bias. More examiners / comparisons fixes it.
-- **D, E (inconclusives, uncertainty)** — pure reanalysis of existing responses.
-- **F (missing data)** — recoverable only under a stated missingness assumption;
-  the honest "gray zone."
-- **B, C (sample, conditions)** — the estimate is biased for a population that
-  was never characterized. Reweighting would require information the studies
-  don't have.
+1. Remediable flaw example
 
-::: {.notes}
-~0.5–1 min transition slide into "now let's show this, not just assert it."
-:::
+2. Non-remediable flaw example
 
-# Data-Generating Process
+## Approach: simulation study
 
-## Why simulate?
-
-- The 28 studies can't be un-run — we can't observe the "true" error rate they missed
-- A simulation with a **known ground truth** lets us show, precisely, what each
-  flaw does to a study's conclusions
-- Same generative model powers both case studies — only the lever we pull differs
+- We can't go back and observe the "true" error rate for the 28 studies
+- A simulation with a **known ground truth** lets us show, precisely, what each flaw does to a study's conclusions
+- Same generative model powers both case studies
 
 ::: {.notes}
-~0.5 min.
+~1 min.
 :::
 
-## Notation {.smaller}
 
-Complete crossed design: every examiner evaluates every item.
 
-- Items $i = 1, \dots, I$; examiners $j = 1, \dots, J$; $n = IJ$ total responses
-- $\operatorname{expit}(x) = 1/(1+e^{-x})$, the inverse logit link
-- Baseline rates (hyperparameters): $p_{FP}, p_{FN}, p_{IC} \in (0,1)$
-- Heterogeneity (hyperparameters): $\sigma_Q$ (item difficulty), $\sigma_S$
-  (examiner skill), $\sigma_T$ (examiner inconclusive tendency)
+## Data generating model
 
-::: {.notes}
-~0.5 min. Just orient the audience to the indices before the equations land.
-:::
+- Each item $i$ has a latent difficulty $d_i \sim N(0, \sigma_d^2)$
+- Each examiner $j$ has a latent skill $s_j \sim N(0, \sigma_s^2)$ **and** a latent tendency to call items inconclusive $\tau_j \sim N(0, \tau_j^2)$
+- Pairing item $i$ with examiner $j$ creates a decision challenge: $c_{ij} = d_i - s_j$
+    - this becomes an "offset" from the overall estimand
 
-## Item and examiner models {.smaller}
-
-$$
-G_i \overset{\text{iid}}{\sim} \text{Bernoulli}(\rho), \qquad
-d_i \overset{\text{iid}}{\sim} N(0, \sigma_Q^2), \qquad i = 1,\dots,I
-$$
-
-$$
-s_j \overset{\text{iid}}{\sim} N(0, \sigma_S^2), \qquad
-\tau_j \overset{\text{iid}}{\sim} N(0, \sigma_T^2), \qquad j = 1,\dots,J
-$$
-
-with $G_i, d_i, s_j, \tau_j$ mutually independent across $i,j$.
-
-**Decision challenge** for pair $(i,j)$:
-$$
-c_{ij} = d_i - s_j
-$$
-
-Harder item ($d_i$ large) or weaker examiner ($s_j$ small) $\Rightarrow$ larger $c_{ij}$.
-
-::: {.notes}
-~1.5 min. $G_i$ = ground truth (1 = same-source). $\rho$ = match_rate.
-:::
 
 ## Response probabilities {.smaller}
 
-$$
-\pi^{err}_{ij} = \operatorname{expit}\Big[\operatorname{logit}(p_{FN})\,\mathbb{1}\{G_i=1\} + \operatorname{logit}(p_{FP})\,\mathbb{1}\{G_i=0\} + c_{ij}\Big]
-$$
+Target estimand: overall population FPR or FNR or IR
 
-$$
-\pi^{inc}_{ij} = \operatorname{expit}\Big[\operatorname{logit}(p_{IC}) + 0.5\,c_{ij} + \tau_j\Big]
-$$
+A harder item or a weaker examiner makes the challenge larger, which pushes up both the chance of an error and the chance of an inconclusive call on the log-odds scale: 
 
-If $\pi^{err}_{ij} + \pi^{inc}_{ij} \ge 0.95$, rescale both by
-$\kappa_{ij} = 0.95 / (\pi^{err}_{ij}+\pi^{inc}_{ij})$ so response
-probabilities stay valid.
+$\pi_{ij}^{err} = P(\text{FP}) = \text{expit}[\text{logit(FPR)} + c_{ij}]$
+
+$\pi_{ij}^{inc} = P(\text{Inconclusive}) = \text{expit}[\text{logit(IR)} + 0.5 \cdot c_{ij} + \tau_j]$
 
 ::: {.notes}
 ~1.5 min. The 0.5 weight on $c_{ij}$ in the inconclusive term and the 0.95
@@ -249,26 +189,28 @@ asked, and put a sensitivity analysis on the to-do list.
 
 ## The response, formally {.smaller}
 
-Let $e(G) = $ "elimination" if $G=1$, "identification" if $G=0$ (the *error* label),
-and $c(G) = $ "identification" if $G=1$, "elimination" if $G=0$ (the *correct* label).
+$e(\cdot)$ denotes an error and $c(\cdot)$ denotes a correct response. $G_i$ indicates ground truth (SS or DS)
 
 $$
-R_{ij} \mid G_i, c_{ij}, \tau_j \;\sim\; \text{Categorical}
+R_{ij} \mid G_i, c_{ij}, \tau_j \;\sim\; 
 \begin{cases}
 e(G_i) & \text{w.p. } \pi^{err}_{ij} \\
-\text{"inconclusive"} & \text{w.p. } \pi^{inc}_{ij} \\
+\text{inconclusive} & \text{w.p. } \pi^{inc}_{ij} \\
 c(G_i) & \text{w.p. } 1 - \pi^{err}_{ij} - \pi^{inc}_{ij}
 \end{cases}
 $$
 
 independently across $(i,j)$ given the latent variables above.
 
-<!-- TODO: add a firearm-level random effect (firearms nested within
-     make/model) here — currently items are exchangeable, which is fine for
-     both case studies as built (inconclusive handling and non-representative
-     sampling), but would be needed if CI coverage (Flaw E) is added later as
-     a second remediable-flaw example. See backup slide "Appendix: firearm
-     clustering" for the planned extension. -->
+<!-- TODO: this slide's DGP still treats items as exchangeable -- fine for
+     both case studies as built, since case study 1 doesn't need firearm
+     structure at all and case study 2 adds it separately in
+     icfis/R/simulate_dgp_types.R (not reflected in this core-model slide).
+     A firearm-level random effect *is* implemented there and already used
+     by case study 2, just not for CI coverage -- see backup slide
+     "Appendix: what's left for CI coverage (Flaw E)" for what's still
+     missing on that front specifically. -->
+
 
 ::: {.notes}
 ~1.5 min. This slide is the payoff of the notation build-up — say the plain-
@@ -279,33 +221,30 @@ examiner is." Don't let the audience get lost in the categorical notation.
 
 ## Calibrating to real studies
 
-- Baseline rates and heterogeneity currently loosely set; next step is
-  anchoring to published summary statistics, e.g.:
-  - Ames II: proportion of "hard" cartridge-case comparisons per individual
-    Beretta pistol ranges **0%–62%** across otherwise-identical firearms
-    [@cuellar2024methodological]
-  - Scurich et al. (2025): inconclusive rate 39.3% (blind) vs. 56.4%
-    (known test) at the Houston Forensic Science Center
-- Goal: every number on later slides should be traceable to either the
-  simulation or a cited empirical estimate — not an arbitrary constant
+- Baseline rates retuned against a benchmark reconstructed from
+  @cuellar2024methodological's bounding-procedure algebra for Monson,
+  Smith, and Bajic (2023a) — see `icfis/analysis.qmd`
+- Also anchored to Scurich et al. (2025)'s blind-vs-known-test
+  inconclusive rates (39.3% / 56.4%) and Ames II's 0%–62% "hard"-comparison
+  range across individual Beretta pistols
+- Result: FPR/FNR land within ~2x of the benchmark (down from 3.5–4.4x
+  before retuning) — but the model's one shared `inconclusive_rate`
+  parameter **cannot** reproduce the benchmark's same-source vs.
+  different-source inconclusive-rate asymmetry: a known, ~13-point
+  residual gap in opposite directions, not fixable without giving the two
+  ground-truth categories separate baselines
 
 ::: {.notes}
 ~1.5 min. This slide doubles as a credibility signal — show the audience
-you're not hand-waving the parameters.
+you're not hand-waving the parameters, *and* that you know exactly where
+the model still falls short. If pressed on "how well calibrated is this,
+really?": good on FPR/FNR, honest known miss on the inconclusive
+asymmetry specifically, deliberately not patched because fixing it means
+changing the response-probability equation already used throughout the
+talk (see icfis/analysis.qmd's "Retuning the baseline rates" section for
+the full derivation).
 :::
 
-## One dataset, two designs
-
-- **Case study 1** perturbs the *analysis* of a properly-sampled dataset
-  (adds firearm-level clustering; compares CI methods)
-- **Case study 2** perturbs the *sampling* itself (draws a non-representative
-  subset of firearm types / examiners from the same population)
-- Same DGP, same code base — the only thing that changes is which flaw is
-  "switched on"
-
-::: {.notes}
-~1 min. Bridge slide into the two case studies.
-:::
 
 # Case Study 1: A Remediable Flaw
 
@@ -370,8 +309,6 @@ figure should show both distributions barely overlapping.
 - This is exactly the kind of flaw Chin et al. are right about: a study with
   this flaw alone can still contribute to a cumulative evidence base, *once
   reanalyzed*
-- Contrast with what's next: no reanalysis of these same responses can fix a
-  non-representative sample
 
 ::: {.notes}
 ~0.5 min. Land the point before moving to the harder case.
@@ -391,48 +328,73 @@ figure should show both distributions barely overlapping.
 ~1 min.
 :::
 
-## Simulation design: three beats
+## Two levels of variability
 
-1. **Biased estimate.** Draw a convenience sample of firearm types (e.g.,
-   oversampling easier-to-classify makes/models) from a heterogeneous
-   population; show the naive error-rate estimate is biased for the
-   population-average estimand.
-2. **The fix that could work.** *If* the population distribution of firearm
-   types and their difficulty were known, and each study recorded firearm
-   make/model, post-stratification / reweighting would recover an unbiased
-   estimate — this is Chin et al.'s "moderator" / big-team-science suggestion.
-3. **The fix that doesn't exist.** The actual studies neither characterize
-   the target population of firearms in casework nor consistently record the
-   covariates needed to reweight. The correction in (2) is not available in
-   practice.
+- Different firearm makes/models have different baseline difficulties
+    - **Simulation:** choose 8 types
+
+- Individual firearms *within* a make/model also have different difficulties
+    - **Simulation:** assume a difficulty distribution for each firearm type; draw 5 firearms from that distribution
+
+- 8 types $\times$ 5 of each type = 40 individual firearms used to generate test cases
+    - Ames II: used ~30
+
+## Three different "analysis" approaches:
+
+1. **Biased estimate.** A convenience sample restricted to only two types (21% of casework by weight), 5 firearms each 
+2. **The fix that could work.** A hypothetical better study covering all
+   eight types (5 firearms each, not in population-correct proportions)
+   with type recorded as a covariate — reweighting by the true population
+   distribution afterward — Chin et al.'s "moderator" / big-team-science
+   suggestion.
+3. **The fix that doesn't exist.** Applying that same reweighting to the
+   *actual* convenience sample from (1), which has zero data on the six
+   unsampled types — 79% of the population's weight.
 
 ::: {.notes}
 ~2 min. This is the slide to get right — beat 2 is what keeps this honest
 (we're not claiming reweighting is impossible in principle), beat 3 is what
-makes it non-remediable *for the existing studies*.
+makes it non-remediable *for the existing studies*. The two-level design
+(types, then firearms within type) mirrors how an actual black-box study
+is built.
 :::
 
-## Results [placeholder]
+## Results
 
-- [FIGURE: naive estimate vs. true population FPR, across degrees of
-  sampling bias]
-- [FIGURE: same comparison, with and without the (unavailable) reweighting
-  correction]
-- Expected story: bias grows with the degree of non-representativeness;
-  reweighting closes the gap only when population + covariate information
-  exists, which it doesn't for any of the 28 studies
+500 replicate studies per scenario (checked for Monte Carlo stability
+against a 100-replicate run — the estimates moved by at most 0.05
+percentage points, so 100 would have been enough; 500 is used here as the
+final, most precise number). True population rate: **FPR 2.13%,
+FNR 3.67%**.
+
+- Convenience sample (naive): FPR **0.40%**, FNR **0.77%** — roughly **5x
+  too low** on both
+- Convenience sample, "reweighted": FPR **0.44%**, FNR **0.86%** — still
+  roughly **4.5x too low** — barely moved
+- Full-coverage study, reweighted: FPR **2.27%**, FNR **3.98%** — within
+  ~6–8% of truth on both — reweighting works, even with only 5 firearms
+  sampled per type
 
 ::: {.notes}
-~2 min.
+~2 min. The punchline is the third bullet: the same statistically valid
+reweighting procedure that worked in beat 2 does almost nothing here. Not
+because it was done wrong — because there's nothing to weight. If asked
+about the firearm-level noise, it's a secondary point: even a
+well-designed study (full type coverage) still needs enough firearms
+*per* type, echoing case study 1's sample-size point one level down.
 :::
 
 ## Why this counts as non-remediable
 
 - No statistical procedure applied to *this* dataset can recover the
-  population-average estimand
-- Fixing it requires **new data** collected under a design that characterizes
-  the target population — not a different analysis of the same responses
-- This is the sharpest version of the paper's disagreement with Chin et al.
+  population-average estimand — reweighting is valid and
+  works, even accounting for within-model firearm sampling noise; the same
+  procedure applied to the convenience sample fails, not from a math
+  error, but because 79% of the population was never observed at the type
+  level
+- Fixing it requires **new data** collected under a design that
+  characterizes the target population — not a different analysis of the
+  same responses
 
 ::: {.notes}
 ~1 min.
@@ -445,7 +407,7 @@ makes it non-remediable *for the existing studies*.
 - Not all six flaws are alike — sorting them by *remediable vs. non-remediable*
   clarifies exactly where Chin et al.'s cumulative-science argument applies
 - **Remediable** (A, D, E, and F with assumptions): reanalysis of existing
-  data can recover a valid estimate — Chin et al. are right here
+  data can recover a valid estimate 
 - **Non-remediable** (B, C): the target quantity was never within reach of
   the sampled data — no reanalysis fixes this
 
@@ -455,14 +417,12 @@ makes it non-remediable *for the existing studies*.
 
 ## Recommendations
 
-- Report raw, examiner-by-item responses (not just summary error rates) —
-  enables post-hoc correction of remediable flaws
-- Pre-register sampling frames and characterize the target population of
-  firearms / examiners *before* data collection
-- Use cluster-aware / MRMC statistical methods designed for the dependence
-  structure of validation studies
-- Distinguish, explicitly, between flaws a study can outgrow and flaws that
-  require a new study
+- Report raw, examiner-by-item responses (not just summary error/inconclusive rates) 
+    - enables post-hoc correction of remediable flaws
+- Pre-register sampling frames
+    - characterize the target population of firearms / examiners *before* data collection
+- Use cluster-aware / MRMC statistical methods designed for the dependence structure of validation studies
+
 
 ::: {.notes}
 ~1.5 min.
@@ -470,7 +430,7 @@ makes it non-remediable *for the existing studies*.
 
 ## Thank you
 
-- Amanda Luby — lubyamanda@gmail.com
+- Amanda Luby 
 - Maria Cuellar
 - Code and simulations: `github.com/mariacuellar/validity-firearms`
 
@@ -535,22 +495,56 @@ deletion) error rates downward.
 Backup only.
 :::
 
-## Appendix: planned firearm-clustering extension {.smaller}
+## Appendix: what's left for CI coverage (Flaw E) {.smaller}
 
-Needed only if CI coverage (Flaw E) is added as a second remediable-flaw
-example. Not needed for either case study as currently built (inconclusive
-handling and non-representative sampling). Not yet implemented.
+The individual-firearm random effect itself is **already built and in
+use** — `make_firearm_population()` in `icfis/R/simulate_dgp_types.R`
+gives each type $K$ individual firearms $k = 1, \dots, K$, each with
+$f_k \sim N(0, \sigma_F^2)$, and case study 2 draws from it (5 firearms
+per included type). What's *not* built is using that structure for CI
+coverage:
 
-- Introduce firearms $k = 1, \dots, K$, each with a latent firearm effect
-  $f_k \sim N(0, \sigma_F^2)$ (e.g., make/model differences in how easy they
-  are to classify — cf. the 0%–62% "hard" range across individual Beretta
-  pistols in Ames II)
-- Items are nested within firearms rather than exchangeable: $d_i \to d_{i(k)} = f_k + d_i$
-- Responses for items sharing a firearm are then **dependent** given $f_k$,
-  which is exactly the structure a naive Clopper–Pearson interval ignores
-  and a cluster-robust / MRMC interval accounts for
+- Case study 2 uses the firearm layer for a **bias** demonstration
+  (does reweighting recover the population mean?) — it never constructs
+  a confidence interval
+- A Flaw E case study needs the same nested structure feeding an actual
+  **interval-coverage** comparison: simulate many studies from a known
+  true rate, compute a 95% CI three ways per study (naive Clopper–Pearson,
+  cluster-robust, Gallas et al. 2009-style MRMC), and check what fraction
+  of intervals actually contain the truth
+- Responses for items sharing a firearm are **dependent** given $f_k$ —
+  exactly what a naive interval ignores and a cluster-robust one accounts
+  for; this is a different question from case study 2's, even though the
+  generative structure is shared
 
 ::: {.notes}
 Backup only — this is the concrete build item to report progress on if
-asked "what's left to do."
+asked "what's left to do." Don't say "not implemented" for the firearm
+effect itself — it is; what's missing is the CI-coverage simulation loop
+on top of it.
+:::
+
+## Appendix: is the "5x" just an artifact of our parameters? {.smaller}
+
+Case study 2's `type_difficulty_sd`, `firearm_difficulty_sd`, and
+`examiner_skill_sd` are uncalibrated. Checked a 3×3 grid (difficulty
+heterogeneity × examiner heterogeneity, each Low/Medium/High; 50 replicate
+studies per cell) — see `icfis/sensitivity_nonrepresentative.qmd`.
+
+- **Bias ratio scales strongly with difficulty heterogeneity**: convenience
+  sample is ~2–2.5x too low at Low, ~4–5x at Medium (the main case study's
+  defaults), ~9–11x at High
+- **Examiner heterogeneity has a real but much smaller effect** — moves the
+  ratio only modestly across the same range
+- **The qualitative story holds at all 9 settings tested**: full-coverage
+  reweighted stays within 0.85x–1.31x of truth everywhere; convenience
+  "reweighted" never climbs out of 0.10x–0.62x
+- **Conclusion**: the specific multiplier ("5x") is not an empirical claim
+  — it moves with unvalidated assumptions. The *direction* and the
+  reweighting-works/fails distinction don't.
+
+::: {.notes}
+Backup only. Pull this up if asked "isn't 5x just an artifact of your
+parameter choices?" — yes, the number is; the direction and mechanism
+aren't. That's the whole slide in one sentence if time is short.
 :::

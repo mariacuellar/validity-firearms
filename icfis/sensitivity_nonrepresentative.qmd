@@ -1,0 +1,304 @@
+---
+title: "Sensitivity Analysis: Non-Representative Sampling Case Study"
+subtitle: "How much does the bias magnitude depend on uncalibrated heterogeneity parameters?"
+bibliography: ../output/paper/references.bib
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-location: body
+    number-sections: false
+    code-fold: true
+---
+
+# Goal
+
+`icfis/case_study_nonrepresentative.qmd`'s headline numbers (convenience
+sample FPR/FNR roughly 5x and 4.5x too low) depend on three uncalibrated
+heterogeneity parameters: `type_difficulty_sd` (between-model, currently
+1.2), `firearm_difficulty_sd` (within-model, currently 0.9), and
+`examiner_skill_sd` (currently 0.7, shared with the rest of the talk).
+None of these are fit to real data — see that case study's own "Next
+steps."
+
+This document checks how much of the three-beat story is **structural**
+(should hold for any reasonable parameter choice) versus **magnitude**
+(specific to the chosen values), by re-running the same three-beat
+comparison across a small grid of parameter settings.
+
+```{r setup}
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(ggplot2)
+library(scales)
+
+source("R/simulate_dgp.R")
+source("R/simulate_dgp_types.R")
+```
+
+# Design matrix
+
+Two factors, three levels each:
+
+- **Difficulty heterogeneity** (Low / Medium / High): scales both
+  `type_difficulty_sd` and `firearm_difficulty_sd` together by 0.5x / 1x
+  (the case study's current values) / 1.5x. Medium reproduces the case
+  study's numbers exactly.
+- **Examiner heterogeneity** (Low / Medium / High): scales
+  `examiner_skill_sd` by 0.5x / 1x (the talk's canonical default) / 2x.
+
+```{r design-matrix}
+design_matrix <- crossing(
+  difficulty_scenario = c("Low", "Medium", "High"),
+  examiner_scenario = c("Low", "Medium", "High")
+) %>%
+  mutate(
+    difficulty_multiplier = case_when(
+      difficulty_scenario == "Low" ~ 0.5,
+      difficulty_scenario == "Medium" ~ 1,
+      difficulty_scenario == "High" ~ 1.5
+    ),
+    type_difficulty_sd = difficulty_multiplier * 1.2,
+    firearm_difficulty_sd = difficulty_multiplier * 0.9,
+    examiner_multiplier = case_when(
+      examiner_scenario == "Low" ~ 0.5,
+      examiner_scenario == "Medium" ~ 1,
+      examiner_scenario == "High" ~ 2
+    ),
+    examiner_skill_sd = examiner_multiplier * dgp_defaults$examiner_skill_sd,
+    difficulty_scenario = factor(difficulty_scenario, levels = c("Low", "Medium", "High")),
+    examiner_scenario = factor(examiner_scenario, levels = c("Low", "Medium", "High"))
+  )
+
+knitr::kable(
+  design_matrix %>%
+    select(difficulty_scenario, examiner_scenario, type_difficulty_sd, firearm_difficulty_sd, examiner_skill_sd) %>%
+    mutate(across(c(type_difficulty_sd, firearm_difficulty_sd, examiner_skill_sd), ~ round(.x, 2))),
+  col.names = c("Difficulty", "Examiner", "type_difficulty_sd", "firearm_difficulty_sd", "examiner_skill_sd")
+)
+```
+
+Scaling `type_difficulty_sd` preserves *which* two types are easiest
+(confirmed separately: the relative ordering of the eight types'
+difficulties doesn't change under rescaling, since it's the same fixed
+random draw just multiplied) — so the convenience sample is always
+restricted to the same two types across every cell of this grid, only
+their difficulty *magnitude* changes.
+
+# Running the grid
+
+For each of the 9 cells, this builds a fresh type/firearm population at
+that cell's heterogeneity settings, computes the true population-average
+rate, and runs the same three-beat comparison as the main case study — at
+50 replicate studies per beat (this is a sensitivity survey, not a final
+number; the Monte Carlo error section in `case_study_nonrepresentative.qmd`
+already showed 100 replicates barely differs from 500 for the mean, so 50
+is enough to see the pattern here).
+
+```{r run-grid-functions}
+run_cell <- function(type_difficulty_sd, firearm_difficulty_sd, examiner_skill_sd,
+                     n_replications = 50, seed_base) {
+  type_population <- make_type_population(type_difficulty_sd = type_difficulty_sd)
+  firearm_population <- make_firearm_population(type_population, firearm_difficulty_sd = firearm_difficulty_sd)
+
+  easiest_types <- type_population %>% arrange(type_difficulty) %>% slice(1:2) %>% pull(type_id)
+  conv_weights <- if_else(type_population$type_id %in% easiest_types, 1, 0)
+  better_weights <- rep(1, nrow(type_population))
+
+  true_reference_data <- generate_population_reference_by_firearm(
+    seed = seed_base,
+    type_population = type_population,
+    firearm_population = firearm_population,
+    sampling_weights = type_population$population_weight,
+    n_items_total = 1000,
+    n_examiners = dgp_defaults$n_examiners,
+    match_rate = dgp_defaults$match_rate,
+    false_positive_rate = dgp_defaults$false_positive_rate,
+    false_negative_rate = dgp_defaults$false_negative_rate,
+    inconclusive_rate = dgp_defaults$inconclusive_rate,
+    examiner_skill_sd = examiner_skill_sd,
+    examiner_inconclusive_sd = dgp_defaults$examiner_inconclusive_sd,
+    question_sd = dgp_defaults$question_sd
+  )
+  true_rates <- compute_pooled_rates(true_reference_data)
+
+  seeds <- seed_base + seq_len(n_replications)
+
+  simulate_one <- function(seed, sampling_weights, items_per_firearm) {
+    generate_sim_data_by_type_and_firearm(
+      seed = seed,
+      type_population = type_population,
+      firearm_population = firearm_population,
+      sampling_weights = sampling_weights,
+      n_firearms_per_type = 5,
+      items_per_firearm = items_per_firearm,
+      n_examiners = dgp_defaults$n_examiners,
+      match_rate = dgp_defaults$match_rate,
+      false_positive_rate = dgp_defaults$false_positive_rate,
+      false_negative_rate = dgp_defaults$false_negative_rate,
+      inconclusive_rate = dgp_defaults$inconclusive_rate,
+      examiner_skill_sd = examiner_skill_sd,
+      examiner_inconclusive_sd = dgp_defaults$examiner_inconclusive_sd,
+      question_sd = dgp_defaults$question_sd
+    )
+  }
+
+  convenience_results <- map_dfr(seeds, function(s) {
+    compute_pooled_rates(simulate_one(s, conv_weights, 10)) %>%
+      mutate(scenario = "Convenience sample (naive)")
+  })
+  better_results <- map_dfr(seeds, function(s) {
+    reweight_by_population(compute_type_level_rates(simulate_one(s, better_weights, 4)), type_population) %>%
+      rename(rate = reweighted_rate) %>%
+      mutate(scenario = "Full-coverage study (reweighted)")
+  })
+  convenience_fixed_results <- map_dfr(seeds, function(s) {
+    reweight_by_population(compute_type_level_rates(simulate_one(s, conv_weights, 10)), type_population) %>%
+      rename(rate = reweighted_rate) %>%
+      mutate(scenario = "Convenience sample (\"reweighted\")")
+  })
+
+  bind_rows(convenience_results, better_results, convenience_fixed_results) %>%
+    group_by(metric, scenario) %>%
+    summarise(mean_rate = mean(rate), .groups = "drop") %>%
+    left_join(true_rates %>% rename(true_rate = rate), by = "metric")
+}
+```
+
+```{r run-grid, cache=TRUE}
+grid_results <- design_matrix %>%
+  mutate(
+    row_id = row_number(),
+    results = pmap(
+      list(type_difficulty_sd, firearm_difficulty_sd, examiner_skill_sd, row_id),
+      function(td, fd, es, rid) run_cell(td, fd, es, n_replications = 50, seed_base = 5000 * rid)
+    )
+  ) %>%
+  select(difficulty_scenario, examiner_scenario, results) %>%
+  unnest(results) %>%
+  mutate(
+    scenario = factor(
+      scenario,
+      levels = c(
+        "Convenience sample (naive)",
+        "Full-coverage study (reweighted)",
+        "Convenience sample (\"reweighted\")"
+      )
+    ),
+    metric = factor(metric, levels = c("FPR", "FNR")),
+    ratio_to_truth = mean_rate / true_rate
+  )
+```
+
+# Results
+
+## Full table
+
+```{r results-table}
+knitr::kable(
+  grid_results %>%
+    mutate(
+      mean_rate = percent(mean_rate, accuracy = 0.01),
+      true_rate = percent(true_rate, accuracy = 0.01),
+      ratio_to_truth = sprintf("%.2fx", ratio_to_truth)
+    ) %>%
+    arrange(metric, scenario, difficulty_scenario, examiner_scenario),
+  col.names = c("Difficulty", "Examiner", "Scenario", "Metric", "Mean rate", "True rate", "Ratio to truth")
+)
+```
+
+## Does the bias ratio depend on difficulty heterogeneity or examiner heterogeneity?
+
+```{r heatmap-plot, fig.width=10, fig.height=6}
+convenience_ratios <- grid_results %>%
+  filter(scenario == "Convenience sample (naive)")
+
+ggplot(convenience_ratios, aes(x = examiner_scenario, y = difficulty_scenario, fill = ratio_to_truth)) +
+  geom_tile(color = "white") +
+  geom_text(aes(label = sprintf("%.1fx", ratio_to_truth)), color = "white", size = 5) +
+  facet_wrap(~ metric) +
+  scale_fill_viridis_c(name = "Naive rate /\ntrue rate", option = "magma", direction = -1) +
+  labs(
+    title = "How much does the convenience sample's bias ratio move across the grid?",
+    subtitle = "Each cell: mean naive rate / true population rate, 50 replicate studies",
+    x = "Examiner heterogeneity",
+    y = "Difficulty heterogeneity (type + firearm, scaled together)"
+  ) +
+  theme_minimal() +
+  theme(panel.grid = element_blank())
+```
+
+## Does reweighting still work (beat 2) and still fail (beat 3) across the whole grid?
+
+```{r reweighting-robustness-plot, fig.width=10, fig.height=6}
+reweighting_check <- grid_results %>%
+  filter(scenario != "Convenience sample (naive)")
+
+ggplot(reweighting_check, aes(x = examiner_scenario, y = ratio_to_truth, color = scenario, group = scenario)) +
+  geom_hline(yintercept = 1, linetype = "dashed", color = "grey50") +
+  geom_line() +
+  geom_point(size = 2) +
+  facet_grid(metric ~ difficulty_scenario, labeller = labeller(difficulty_scenario = function(x) paste("Difficulty:", x))) +
+  scale_y_continuous(labels = label_number(suffix = "x")) +
+  labs(
+    title = "Reweighted estimate / true rate, across the grid",
+    subtitle = "Dashed line at 1x = perfect recovery. Full-coverage (reweighted) should stay near 1x everywhere; convenience (\"reweighted\") should not.",
+    x = "Examiner heterogeneity",
+    y = "Ratio to true rate",
+    color = NULL
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+# Interpretation
+
+- **The bias ratio scales strongly and monotonically with difficulty
+  heterogeneity.** For FPR, the convenience sample's naive rate is roughly
+  0.4–0.56x the true rate at Low difficulty heterogeneity (~2–2.5x too
+  low), 0.20–0.24x at Medium (~4–5x too low — this is where the main case
+  study's "5x" comes from), and 0.09–0.11x at High (~9–11x too low). FNR
+  shows the same pattern. More between-model difficulty spread makes the
+  two "easiest" types more extreme relative to the population average, so
+  the bias gets *worse*, not better, as this parameter grows.
+- **Examiner heterogeneity has a real but much smaller effect.** Within
+  each difficulty row, moving from Low to High examiner heterogeneity
+  nudges the ratio up modestly (e.g., FPR at Medium difficulty: 0.20x →
+  0.21x → 0.24x going Low → Medium → High examiner) — a mild dilution
+  effect, not the near-total insensitivity originally hypothesized, but
+  small next to the ~5x range difficulty heterogeneity produces on its
+  own.
+- **The qualitative story holds at every one of the 9 grid points
+  tested.** Full-coverage (reweighted) stays within 0.85x–1.31x of the
+  true rate everywhere (consistent with sampling noise at only 50
+  replicates per cell, not a systematic miss). Convenience ("reweighted")
+  stays within 0.10x–0.62x — badly biased everywhere, never approaching
+  1x. Reweighting recovering the truth with coverage, and failing without
+  it, does not depend on the specific heterogeneity magnitudes used in
+  the main case study.
+- **The specific "5x" and "4.5x" figures in the main case study are one
+  point in this grid (Medium difficulty, Medium examiner)** — real,
+  reproducible from the same code, but not privileged over any other
+  cell; the true bias could plausibly be reported as anywhere from ~2x to
+  ~11x too low depending on how much between-model heterogeneity actually
+  exists in real casework, which nothing here is calibrated to (see the
+  main case study's "Next steps"). Only the *direction* and the
+  reweighting-works/fails distinction should be treated as a claim; the
+  specific multiplier should not be quoted as an empirical estimate about
+  real firearms examination.
+
+# How to use this in the talk
+
+If asked "isn't your 5x just an artifact of your parameter choices?" —
+yes, the *number* is; the *direction and mechanism* aren't. This document
+is the receipt: the bias ratio moves with difficulty heterogeneity as
+expected, is roughly flat across examiner heterogeneity, and reweighting's
+success/failure pattern (recovers truth with coverage, doesn't without)
+holds at every one of the 9 settings tested here, not just the one
+reported in the main case study.
+
+# References
+
+::: {#refs}
+:::
