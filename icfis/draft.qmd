@@ -31,19 +31,13 @@ rehearsal; delete before final export if desired.
 
 RESOLVED: Case study 1 uses inconclusive handling (Flaw D), not CI coverage
 (Flaw E) -- built and verified in icfis/case_study_inconclusive.qmd, which
-sources the shared DGP in icfis/R/simulate_dgp.R (canonical, already-retuned
-defaults; see icfis/analysis.qmd for how those were derived). CI coverage
+sources the shared DGP in icfis/R/simulate_dgp.R (canonical defaults: maximum-
+likelihood fit to the raw Ames II cartridge-case responses, with separate
+same-/different-source inconclusive baselines -- see icfis/fit_ames2.qmd; the
+earlier shared-baseline calibration is icfis/analysis.qmd). CI coverage
 would need a nested firearm random effect the DGP doesn't have yet (see the
 "Appendix: planned firearm-clustering extension" backup slide) -- revisit
 only if there's time for a second remediable-flaw example.
-
-NOTE ON THE MATH BELOW: the repo currently has an inconsistency between
-analysis.qmd's baseline preview code (skill SD = examiner_sd/2, inconclusive-
-tendency SD = examiner_sd) and simulate_study(), used by all three flaw
-simulations (skill SD = examiner_sd, inconclusive-tendency SD =
-examiner_sd/2). The equations below follow the simulate_study() convention
-since that's the one actually driving results. Reconcile the preview code
-before the talk so a curious audience member can't catch the mismatch.
 -->
 
 # Motivation
@@ -102,8 +96,7 @@ after this slide is in service of defending this one claim.
 
 Fix a target quantity (the **estimand**):
 
-> the population-average examiner error rate (FPR / FNR), under casework-representative
-> firearms, ammunition, examiners, and testing conditions
+> the population-average error rate (FPR / FNR), under casework-representative firearms, ammunition, examiners, and testing conditions
 
 - **Remediable**: given the raw examiner-by-item responses, the estimand can
   still be validly estimated (possibly with extra assumptions / new analysis)
@@ -166,7 +159,7 @@ need to correct for.
 ## Data generating model
 
 - Each item $i$ has a latent difficulty $d_i \sim N(0, \sigma_d^2)$
-- Each examiner $j$ has a latent skill $s_j \sim N(0, \sigma_s^2)$ **and** a latent tendency to call items inconclusive $\tau_j \sim N(0, \tau_j^2)$
+- Each examiner $j$ has a latent skill $s_j \sim N(0, \sigma_s^2)$ **and** a latent tendency to call items inconclusive $\tau_j \sim N(0, \sigma_\tau^2)$
 - Pairing item $i$ with examiner $j$ creates a decision challenge: $c_{ij} = d_i - s_j$
     - this becomes an "offset" from the overall estimand
 
@@ -177,9 +170,11 @@ Target estimand: overall population FPR or FNR or IR
 
 A harder item or a weaker examiner makes the challenge larger, which pushes up both the chance of an error and the chance of an inconclusive call on the log-odds scale: 
 
-$\pi_{ij}^{err} = P(\text{FP}) = \text{expit}[\text{logit(FPR)} + c_{ij}]$
+$\pi_{ij}^{err} = P(\text{error}) = \text{expit}[\text{logit}(\text{FPR or FNR}) + c_{ij}]$
 
-$\pi_{ij}^{inc} = P(\text{Inconclusive}) = \text{expit}[\text{logit(IR)} + 0.5 \cdot c_{ij} + \tau_j]$
+$\pi_{ij}^{inc} = P(\text{Inconclusive}) = \text{expit}[\text{logit}(\text{IR}_{G_i}) + 0.5 \cdot c_{ij} + \tau_j]$
+
+The baseline inconclusive rate $\text{IR}_{G_i}$ can differ for same-source and different-source items.
 
 ::: {.notes}
 ~1.5 min. The 0.5 weight on $c_{ij}$ in the inconclusive term and the 0.95
@@ -221,30 +216,58 @@ examiner is." Don't let the audience get lost in the categorical notation.
 
 ## Calibrating to real studies
 
-- Baseline rates retuned against a benchmark reconstructed from
-  @cuellar2024methodological's bounding-procedure algebra for Monson,
-  Smith, and Bajic (2023a) — see `icfis/analysis.qmd`
-- Also anchored to Scurich et al. (2025)'s blind-vs-known-test
-  inconclusive rates (39.3% / 56.4%) and Ames II's 0%–62% "hard"-comparison
-  range across individual Beretta pistols
-- Result: FPR/FNR land within ~2x of the benchmark (down from 3.5–4.4x
-  before retuning) — but the model's one shared `inconclusive_rate`
-  parameter **cannot** reproduce the benchmark's same-source vs.
-  different-source inconclusive-rate asymmetry: a known, ~13-point
-  residual gap in opposite directions, not fixable without giving the two
-  ground-truth categories separate baselines
+- Probability model above *cannot* capture every effect that arises in real data
+- Goal is to create simulated studies that resemble previously-collected results: 
+    - Ames II cartridge cases (raw responses): baseline FPR, FNR, and inconclusive rates, fit by maximum likelihood
+        - same-source and different-source items get *separate* inconclusive baselines: about 17% vs. 50%
+    - Scurich et al (2025) blind-vs-known test inconclusive rates: 39.3% (blind) vs 56.4% (known)
+    - Ames II: range of 0-62% "hard" comparison range across individual Beretta pistols
+- Reproduces the real study's decision table and the examiner-to-examiner spread in inconclusive rates; does **not** capture firearm-level differences
+
+::: callout-warning
+Disagree with calibrating to these numbers? We have an app for that! [add link]
+:::
+
+<!--
+Previous calibration (before the raw Ames II data were available): a single
+inconclusive baseline shared by same- and different-source items, tuned
+against a benchmark reconstructed from @cuellar2024methodological's bounding
+algebra for Monson, Smith, and Bajic (2023a) -- see icfis/analysis.qmd. That
+version could not reproduce the same-source vs. different-source
+inconclusive asymmetry (a ~13-point residual gap in opposite directions);
+the maximum-likelihood fit to the raw data (icfis/fit_ames2.qmd) removes it.
+-->
 
 ::: {.notes}
 ~1.5 min. This slide doubles as a credibility signal — show the audience
 you're not hand-waving the parameters, *and* that you know exactly where
-the model still falls short. If pressed on "how well calibrated is this,
-really?": good on FPR/FNR, honest known miss on the inconclusive
-asymmetry specifically, deliberately not patched because fixing it means
-changing the response-probability equation already used throughout the
-talk (see icfis/analysis.qmd's "Retuning the baseline rates" section for
-the full derivation).
+the model still falls short. The baselines are fit by maximum likelihood
+to the raw Ames II cartridge-case responses (icfis/fit_ames2.qmd); simulated
+studies at these defaults match all six cells of the real decision table to
+within about a point, and the SD across examiners of inconclusive rates
+(0.24 real, 0.24 simulated).
+
+If pressed on "how well calibrated is this, really?": good on the response
+distribution and examiner spread. Known misses: (1) firearm-level variation
+-- real same-source inconclusive rates range from 3% to 70% across the 38
+firearms, more than the model produces (backup slide candidate); (2) an
+examiner's inconclusive tendency behaves differently on same- vs.
+different-source items in the real data; (3) item and examiner-skill SD are
+NOT identified by this study (each item was seen by one examiner), so those
+two defaults are fixed at plausible values (0.8, 0.5), not estimated.
 :::
 
+## Example: 
+
+[ames II response table]
+
+column 1: 1 study
+
+[table]
+
+column 2: 100 studies
+
+[table]
 
 # Case Study 1: A Remediable Flaw
 
@@ -256,30 +279,24 @@ the full derivation).
 - @cuellar2024methodological recommend a bounding procedure instead: recode
   every inconclusive as an identification, then as an elimination, and
   report **both** recomputed error rates as a range
-- Sharper point from working through the algebra: for how Monson, Smith, and
-  Bajic (2023a) define these rates, the number a study **reports** already
-  equals one of the two bounds — it is not a neutral middle ground
 - Claim: this is *remediable* — both numbers come from the same raw
   responses, recomputed after the fact
 
 ::: {.notes}
-~1 min. The "reported = one of the bounds" point is the hook — it means the
-commonly-cited error rate was never a best estimate, it was already the
-optimistic end of a range nobody reported the other end of.
+~1 min. The hook is that the bounding procedure gives a range instead of one
+falsely precise number, and both ends come from the same raw responses.
 :::
 
 ## Simulation design
 
-- Same DGP as the rest of the talk, at the retuned defaults, under the
-  study's actual incomplete design (50 examiners, 30 of 300 items each)
+- Same DGP as earlier, at the Ames II-calibrated defaults, under an incomplete design (50 examiners, 30 of 300 items each)
 - For each simulated study, compute both numbers from the same raw
   responses:
   - **Reported**: identifications / all different-source cases (and the
     same-source analog for the false negative rate)
   - **Worst case**: recode every inconclusive as the error-favoring label,
     recompute
-- Repeat across 100 replicate studies to check the gap is a stable pattern,
-  not a fluke of one random draw
+- Repeat across 100 replicate studies
 
 ::: {.notes}
 ~1.5 min.
@@ -287,11 +304,13 @@ optimistic end of a range nobody reported the other end of.
 
 ## Results
 
-- One example study: FPR **1.3% → 42.1%**, FNR **3.0% → 38.9%** — same raw
+- One example study: FPR **0.6% → 51.1%**, FNR **1.8% → 23.8%** — same raw
   responses, same study, wildly different numbers depending on a reporting
   choice made after data collection
-- Across 100 replicate studies (means): FPR **1.6% → 38.7%**, FNR
-  **3.3% → 40.4%** — the gap holds up, it's not one unlucky draw
+- Across 100 replicate studies (means): FPR **0.9% → 50.7%**, FNR
+  **1.7% → 25.4%** — the gap holds up, it's not one unlucky draw
+- The real Ames II cartridge-case responses give the same picture: FPR
+  **0.9% → 51.5%**, FNR **1.8% → 25.7%**
 - [FIGURE: boxplots of reported vs. worst-case FPR/FNR across 100 studies,
   faceted by rate — see icfis/case_study_inconclusive.qmd]
 
@@ -299,6 +318,12 @@ optimistic end of a range nobody reported the other end of.
 ~2 min. Lead with the one-study numbers (concrete, easy to say out loud),
 then the 100-study means as the "this isn't a fluke" follow-up. The boxplot
 figure should show both distributions barely overlapping.
+
+The real-data bullet is a realism check, not independent evidence: the
+simulation's defaults were fit to those responses. The point is that the
+simulated gap is the size of the gap in an actual published study. The
+asymmetry (larger gap for false positives) comes from inconclusives being much
+more common on different-source items (about 50%) than same-source (about 23%).
 :::
 
 ## Why this counts as remediable
@@ -309,6 +334,10 @@ figure should show both distributions barely overlapping.
 - This is exactly the kind of flaw Chin et al. are right about: a study with
   this flaw alone can still contribute to a cumulative evidence base, *once
   reanalyzed*
+
+. . . 
+
+On the other hand: this isn't a true "solution" to the problem of inconclusives in black-box studies
 
 ::: {.notes}
 ~0.5 min. Land the point before moving to the harder case.
@@ -322,11 +351,14 @@ figure should show both distributions barely overlapping.
   represent the **full spectrum of real casework** [@cuellar2024methodological]
 - None of the 28 studies demonstrate this
 - Chin et al.'s response: non-representative samples can still contribute to
-  a cumulative literature if combined with other studies / moderator analysis
+  a cumulative literature if combined with other studies 
 
 ::: {.notes}
 ~1 min.
 :::
+
+## Ames II
+
 
 ## Two levels of variability
 
@@ -362,17 +394,17 @@ is built.
 ## Results
 
 500 replicate studies per scenario (checked for Monte Carlo stability
-against a 100-replicate run — the estimates moved by at most 0.05
+against the first 100 replicates — the estimates moved by at most 0.03
 percentage points, so 100 would have been enough; 500 is used here as the
-final, most precise number). True population rate: **FPR 2.13%,
-FNR 3.67%**.
+final, most precise number). True population rate: **FPR 1.25%,
+FNR 2.12%**.
 
-- Convenience sample (naive): FPR **0.40%**, FNR **0.77%** — roughly **5x
-  too low** on both
-- Convenience sample, "reweighted": FPR **0.44%**, FNR **0.86%** — still
-  roughly **4.5x too low** — barely moved
-- Full-coverage study, reweighted: FPR **2.27%**, FNR **3.98%** — within
-  ~6–8% of truth on both — reweighting works, even with only 5 firearms
+- Convenience sample (naive): FPR **0.22%**, FNR **0.39%** — roughly
+  **5–6x too low** on both
+- Convenience sample, "reweighted": FPR **0.24%**, FNR **0.43%** — still
+  roughly **5x too low** — barely moved
+- Full-coverage study, reweighted: FPR **1.31%**, FNR **2.22%** — within
+  ~5% of truth on both — reweighting works, even with only 5 firearms
   sampled per type
 
 ::: {.notes}
@@ -532,13 +564,14 @@ heterogeneity × examiner heterogeneity, each Low/Medium/High; 50 replicate
 studies per cell) — see `icfis/sensitivity_nonrepresentative.qmd`.
 
 - **Bias ratio scales strongly with difficulty heterogeneity**: convenience
-  sample is ~2–2.5x too low at Low, ~4–5x at Medium (the main case study's
-  defaults), ~9–11x at High
-- **Examiner heterogeneity has a real but much smaller effect** — moves the
-  ratio only modestly across the same range
+  sample is ~2–3x too low at Low, ~5x at Medium (the main case study's
+  defaults), ~12–14x at High
+- **Examiner (skill) heterogeneity has no consistent effect** — much smaller
+  than the range difficulty heterogeneity produces, and not always in the
+  same direction
 - **The qualitative story holds at all 9 settings tested**: full-coverage
-  reweighted stays within 0.85x–1.31x of truth everywhere; convenience
-  "reweighted" never climbs out of 0.10x–0.62x
+  reweighted stays within 0.81x–1.22x of truth everywhere; convenience
+  "reweighted" never climbs out of 0.08x–0.53x
 - **Conclusion**: the specific multiplier ("5x") is not an empirical claim
   — it moves with unvalidated assumptions. The *direction* and the
   reweighting-works/fails distinction don't.

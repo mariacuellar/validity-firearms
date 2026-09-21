@@ -17,7 +17,7 @@ This is a first pass at the talk's "remediable flaw" case study, using
 Flaw D (inconclusive responses treated as correct or ignored) rather than
 Flaw E (invalid uncertainty measures / CI coverage), since Flaw D needs no
 new simulation machinery — it's a pure reanalysis of the same raw
-responses `icfis/analysis.qmd` already validated. If CI coverage (Flaw E)
+responses whose DGP `icfis/fit_ames2.qmd` fit to the raw Ames II data. If CI coverage (Flaw E)
 gets built out later, this document either becomes a second case study or
 stays as backup material.
 
@@ -33,7 +33,7 @@ library(purrr)
 library(ggplot2)
 library(scales)
 
-source("R/simulate_dgp.R")
+source(here::here("icfis/R/simulate_dgp.R"))
 ```
 
 # The two ways error rates get reported
@@ -41,7 +41,7 @@ source("R/simulate_dgp.R")
 @cuellar2024methodological point out that most black-box studies handle
 inconclusive responses by either excluding them or folding them into the
 "correct" category — both of which understate the true error rate. They
-recommend a bounding procedure instead: recompute the error rate twice,
+recommend a bounding procedure from the FDA instead: recompute the error rate twice,
 once with every inconclusive response recoded as an identification, and
 once with every inconclusive response recoded as an elimination. That
 gives a defensible range instead of one falsely precise number.
@@ -98,8 +98,10 @@ compute_reported_and_worst_case <- function(sim_data) {
 # One example study
 
 A single simulated study under the study's actual design (incomplete
-assignment: 50 examiners, 30 of 300 items each) and the retuned defaults
-from `icfis/analysis.qmd`.
+assignment: 50 examiners, 30 of 300 items each) and the shared DGP's current
+defaults, which were fit to the raw Ames II cartridge-case responses
+(`icfis/fit_ames2.qmd`): about 50% of different-source and 17% of same-source
+responses are inconclusive.
 
 ```{r one-study}
 example_study <- generate_sim_data_incomplete(
@@ -111,6 +113,7 @@ example_study <- generate_sim_data_incomplete(
   false_positive_rate = incomplete_defaults$false_positive_rate,
   false_negative_rate = incomplete_defaults$false_negative_rate,
   inconclusive_rate = incomplete_defaults$inconclusive_rate,
+  inconclusive_rate_same = incomplete_defaults$inconclusive_rate_same,
   examiner_skill_sd = incomplete_defaults$examiner_skill_sd,
   examiner_inconclusive_sd = incomplete_defaults$examiner_inconclusive_sd,
   question_sd = incomplete_defaults$question_sd
@@ -161,6 +164,7 @@ case_study_results <- purrr::map_dfr(seq_len(n_replications), function(r) {
     false_positive_rate = incomplete_defaults$false_positive_rate,
     false_negative_rate = incomplete_defaults$false_negative_rate,
     inconclusive_rate = incomplete_defaults$inconclusive_rate,
+    inconclusive_rate_same = incomplete_defaults$inconclusive_rate_same,
     examiner_skill_sd = incomplete_defaults$examiner_skill_sd,
     examiner_inconclusive_sd = incomplete_defaults$examiner_inconclusive_sd,
     question_sd = incomplete_defaults$question_sd
@@ -214,7 +218,13 @@ ggplot(case_study_plot_data, aes(x = method, y = value)) +
 The gap between "reported" and "worst case" is consistent across
 replications, not an artifact of one unlucky draw — it's a structural
 consequence of how large a share of responses are inconclusive at these
-(retuned) defaults (roughly 37% either way; see `icfis/analysis.qmd`).
+defaults (roughly 50% of different-source and 23% of same-source responses;
+see `icfis/fit_ames2.qmd`). It is also close to what the raw Ames II responses
+themselves give under the same two recodings: false positive rate 0.9% vs.
+51.5%, false negative rate 1.8% vs. 25.7% (see `icfis/fit_ames2.qmd`'s
+benchmark check). That agreement is by construction — the defaults were fit to
+those responses — so it shows the simulation is realistic, not independent
+evidence.
 
 # Why this is remediable
 

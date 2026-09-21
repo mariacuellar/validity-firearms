@@ -1,0 +1,590 @@
+---
+title: "Sensitivity Analysis: Inconclusive-Handling Case Study"
+subtitle: "Can a high inconclusive rate hide a high true error rate -- and does that depend on how we model inconclusives, examiners, and items?"
+bibliography: ../output/paper/references.bib
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-location: body
+    number-sections: false
+    code-fold: true
+---
+
+# Goal
+
+`icfis/case_study_inconclusive.qmd` shows that the same raw responses give
+very different "error rates" depending on how inconclusives are handled
+(reported vs. worst case). That case study uses one set of DGP defaults: a
+single inconclusive baseline shared by same- and different-source items and
+fixed levels of examiner and item heterogeneity. This document asks how much
+of the story depends on those choices, by re-running it over a grid:
+
+- **(a) Inconclusive baselines:** one rate shared by same- and different-source
+  comparisons (the talk's *previous* default, 36%) vs. separate rates for each (the talk's current default, from what the
+  Ames II data prefer; see `icfis/fit_ames2.qmd`).
+- **(b) Examiner heterogeneity:** low / medium / high.
+- **(c) Item heterogeneity:** low / medium / high.
+- **(d) Testing condition:** blind (casework-like) vs. a known test, in which
+  examiners' inconclusive probability is shifted up by the Hawthorne effect
+  estimated from Scurich et al. (2025).
+
+The claim to check is the one the talk wants to make: **a study's reported error
+rate can be very low while the true error rate is high, with the difference
+hidden inside a large inconclusive rate — and a known-test study's
+inconclusive rate need not resemble casework's at all.**
+
+```{r setup}
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(ggplot2)
+library(scales)
+library(tibble)
+
+source(here::here("icfis/R/simulate_dgp.R"))
+```
+
+# What "true error rate" means here
+
+In the shared DGP, an examiner's response is an error, an inconclusive, or a
+correct call, and the study's reported error rate
+(identifications / all different-source comparisons, and the same-source
+analog) is exactly the probability of the "error" response. Nothing in that
+model says what an inconclusive *would have been* had the examiner been
+required to decide, so with the model alone the reported rate cannot be shown
+to be wrong. It is only bounded: recoding every inconclusive as an error gives
+the worst case.
+
+To ask "what if the inconclusives are hiding errors?" we add one scenario
+parameter on top of the DGP, **without changing any of the simulated
+responses**: $h$, the share of inconclusive responses that would have been
+errors had the examiner been forced to make a call. Then, for either rate,
+
+$$
+\text{true (forced-decision) rate}(h) \;=\; \text{reported} \;+\; h \times \text{inconclusive share},
+$$
+
+with $h = 0$ reproducing the reported rate and $h = 1$ the worst case. **$h$
+cannot be estimated from a study's responses** — that is the point — so results
+are shown for $h \in \{0.1, 0.25, 0.5\}$ alongside the two extremes. This is a
+scenario, not a calibrated quantity; nothing in the Ames II data pins it down.
+
+# The grid
+
+```{r grid-definition}
+# (a) Inconclusive baselines. The separate values are the talk's current defaults,
+# from the M1 fit to the Ames II cartridge-case data (icfis/fit_ames2.qmd): about
+# 50% for different-source and 17% for same-source. The shared value is the
+# talk's previous default (icfis/analysis.qmd).
+ir_structures <- tribble(
+  ~ir_structure,            ~ir_diff, ~ir_same,
+  "Shared (previous default)",   0.36,     0.36,
+  "Separate (current default)",  0.50,     0.17
+)
+
+# (b) Examiner heterogeneity: skill SD and inconclusive-tendency SD move together.
+# "High" is the talk's current default (tendency SD 1.3 from the Ames II fit, skill
+# SD 0.5); "Low" uses the previous default's tendency SD (0.35). Skill SD is not
+# identified by Ames II, so these values are only illustrative.
+examiner_levels <- tribble(
+  ~examiner_level, ~sd_skill, ~sd_incon,
+  "Low",           0.25,      0.35,
+  "Medium",        0.35,      0.80,
+  "High",          0.50,      1.30
+)
+
+# (c) Item heterogeneity: 0.8 is the talk's default (current and previous); Ames II cannot distinguish
+# values from ~0 to about 1.2 (see fit_ames2.qmd's profile likelihoods).
+item_levels <- tribble(
+  ~item_level, ~sd_item,
+  "Low",       0.4,
+  "Medium",    0.8,
+  "High",      1.2
+)
+
+# (d) Known-test (Hawthorne) shift on the inconclusive logit, from Scurich et al.
+# (2025): 39.3% inconclusive on blind vs. 56.4% on known-test items.
+hawthorne_shift <- qlogis(0.564) - qlogis(0.393)
+
+conditions <- tribble(
+  ~condition,     ~shift,
+  "Blind",        0,
+  "Known test",   hawthorne_shift
+)
+
+# Held fixed: the talk's current error baselines and the incomplete design (50 examiners,
+# 30 of 300 items each) used throughout the case studies.
+fixed <- list(
+  fpr = dgp_defaults$false_positive_rate,
+  fnr = dgp_defaults$false_negative_rate,
+  match_rate = incomplete_defaults$match_rate,
+  n_examiners = incomplete_defaults$n_examiners,
+  n_comparisons = incomplete_defaults$n_comparisons,
+  items_per_examiner = incomplete_defaults$items_per_examiner
+)
+
+h_values <- c(0.1, 0.25, 0.5)
+n_reps <- 500
+
+design_matrix <- crossing(
+  examiner_level = examiner_levels$examiner_level,
+  item_level = item_levels$item_level
+) |>
+  left_join(examiner_levels, by = "examiner_level") |>
+  left_join(item_levels, by = "item_level") |>
+  mutate(
+    examiner_level = factor(examiner_level, levels = c("Low", "Medium", "High")),
+    item_level = factor(item_level, levels = c("Low", "Medium", "High"))
+  )
+
+knitr::kable(
+  bind_rows(
+    ir_structures |> transmute(Factor = "(a) Inconclusive baselines", Level = ir_structure,
+                               Values = sprintf("different-source %s, same-source %s", percent(ir_diff), percent(ir_same))),
+    examiner_levels |> transmute(Factor = "(b) Examiner heterogeneity", Level = examiner_level,
+                                 Values = sprintf("skill SD %.2f, inconclusive-tendency SD %.2f", sd_skill, sd_incon)),
+    item_levels |> transmute(Factor = "(c) Item heterogeneity", Level = item_level,
+                             Values = sprintf("item SD %.1f", sd_item)),
+    conditions |> transmute(Factor = "(d) Testing condition", Level = condition,
+                            Values = sprintf("inconclusive logit shift %+.2f", shift))
+  )
+)
+```
+
+The grid is 2 x 3 x 3 x 2 = 36 combinations, each simulated
+`r n_reps` times. Within a replicate, all four combinations of (a) and (d)
+reuse the same random draws (same examiners, items, ground truth, and
+uniform draws for each response), so differences between them are due to the
+factor, not noise.
+
+# Simulation
+
+The shared `generate_sim_data_incomplete()` supports separate baselines via its
+`inconclusive_rate_same` argument, but simulates one response at a time. With
+36 grid cells x 500 replicates x 4 (a) x (d) combinations, this document uses
+a vectorized re-implementation of the same response model instead (which also
+lets the four combinations share their random draws). The response
+probabilities are the same as `simulate_response()`'s, including the 0.95 cap;
+the next section checks that the two implementations agree for both levels of (a).
+
+```{r simulator}
+# Mirrors simulate_response() in R/simulate_dgp.R, vectorized. `a_err` and
+# `a_inc` are baseline logits; `challenge` and `tendency` are per response.
+response_probs <- function(challenge, tendency, a_err, a_inc) {
+  err <- plogis(a_err + challenge)
+  inc <- plogis(a_inc + 0.5 * challenge + tendency)
+  total <- err + inc
+  scale <- ifelse(total >= 0.95, 0.95 / total, 1)
+  list(err = err * scale, inc = inc * scale)
+}
+
+# All random draws for one simulated study (incomplete design). Drawn once per
+# seed and reused across the (a) x (d) combinations.
+draw_latents <- function(seed, sd_skill, sd_incon, sd_item, fixed) {
+  set.seed(seed)
+  items <- tibble(
+    item = seq_len(fixed$n_comparisons),
+    truth = rbinom(fixed$n_comparisons, 1, fixed$match_rate),
+    difficulty = rnorm(fixed$n_comparisons, 0, sd_item)
+  )
+  examiners <- tibble(
+    examiner = seq_len(fixed$n_examiners),
+    skill = rnorm(fixed$n_examiners, 0, sd_skill),
+    tendency = rnorm(fixed$n_examiners, 0, sd_incon)
+  )
+  assignment <- tibble(
+    examiner = rep(examiners$examiner, each = fixed$items_per_examiner),
+    item = unlist(replicate(fixed$n_examiners, sample.int(fixed$n_comparisons, fixed$items_per_examiner), simplify = FALSE))
+  )
+  assignment |>
+    left_join(examiners, by = "examiner") |>
+    left_join(items, by = "item") |>
+    mutate(challenge = difficulty - skill, u = runif(n()))
+}
+
+# Response for each row: "err", "inc", or "cor".
+respond <- function(lat, ir_diff, ir_same, shift, fixed) {
+  a_err <- if_else(lat$truth == 1, safe_logit(fixed$fnr), safe_logit(fixed$fpr))
+  a_inc <- if_else(lat$truth == 1, safe_logit(ir_same), safe_logit(ir_diff)) + shift
+  p <- response_probs(lat$challenge, lat$tendency, a_err, a_inc)
+  case_when(lat$u < p$err ~ "err", lat$u < p$err + p$inc ~ "inc", TRUE ~ "cor")
+}
+
+# Reported, worst-case, and inconclusive share for FPR and FNR.
+summarise_study <- function(lat, resp) {
+  diff_rows <- lat$truth == 0
+  same_rows <- lat$truth == 1
+  tibble(
+    rate = c("FPR", "FNR"),
+    reported = c(mean(resp[diff_rows] == "err"), mean(resp[same_rows] == "err")),
+    inc_share = c(mean(resp[diff_rows] == "inc"), mean(resp[same_rows] == "inc"))
+  ) |>
+    mutate(worst_case = reported + inc_share)
+}
+```
+
+## Check: the vectorized simulator matches the shared generator
+
+For each level of (a), blind, the two implementations should give the same
+ground truth x decision proportions up to Monte Carlo error. (The separate-baseline
+row also exercises the shared generator's `inconclusive_rate_same` argument.)
+
+```{r check-simulator, cache=TRUE}
+check_reps <- 100
+canonical <- dgp_defaults
+
+check_one <- function(ir_diff, ir_same) {
+  shared_gen <- map_dfr(seq_len(check_reps), function(r) {
+    generate_sim_data_incomplete(
+      seed = 700 + r,
+      n_examiners = incomplete_defaults$n_examiners, n_comparisons = incomplete_defaults$n_comparisons,
+      items_per_examiner = incomplete_defaults$items_per_examiner, match_rate = incomplete_defaults$match_rate,
+      false_positive_rate = canonical$false_positive_rate, false_negative_rate = canonical$false_negative_rate,
+      inconclusive_rate = ir_diff, inconclusive_rate_same = ir_same,
+      examiner_skill_sd = canonical$examiner_skill_sd,
+      examiner_inconclusive_sd = canonical$examiner_inconclusive_sd, question_sd = canonical$question_sd
+    ) |> study_crosstab(replicate_id = r)
+  }) |>
+    group_by(ground_truth_label, response) |>
+    summarise(shared_generator = mean(proportion), .groups = "drop")
+
+  local_gen <- map_dfr(seq_len(check_reps), function(r) {
+    lat <- draw_latents(700 + r, canonical$examiner_skill_sd, canonical$examiner_inconclusive_sd, canonical$question_sd, fixed)
+    resp <- respond(lat, ir_diff, ir_same, 0, fixed)
+    tibble(truth = lat$truth, resp = resp) |>
+      count(truth, resp) |>
+      group_by(truth) |>
+      mutate(proportion = n / sum(n)) |>
+      ungroup()
+  }) |>
+    mutate(
+      ground_truth_label = if_else(truth == 1, "same-source", "different-source"),
+      response = case_when(
+        resp == "inc" ~ "inconclusive",
+        resp == "err" & truth == 1 ~ "elimination",
+        resp == "err" & truth == 0 ~ "identification",
+        resp == "cor" & truth == 1 ~ "identification",
+        TRUE ~ "elimination"
+      )
+    ) |>
+    group_by(ground_truth_label, response) |>
+    summarise(vectorized_simulator = sum(proportion) / check_reps, .groups = "drop")
+
+  left_join(shared_gen, local_gen, by = c("ground_truth_label", "response"))
+}
+
+simulator_check <- ir_structures |>
+  mutate(result = map2(ir_diff, ir_same, check_one)) |>
+  select(ir_structure, result) |>
+  unnest(result)
+
+knitr::kable(
+  simulator_check |>
+    mutate(across(c(shared_generator, vectorized_simulator), ~ percent(.x, accuracy = 0.1))),
+  col.names = c("Baselines", "Ground truth", "Decision", "Shared generator (mean of 100 studies)", "Vectorized simulator (mean of 100 studies)")
+)
+```
+
+Agreement is within what 100 replicates of 1,500 responses can resolve
+(differences of a few tenths of a percentage point on the larger cells), for both
+levels of (a).
+
+# Running the grid
+
+```{r run-grid, cache=TRUE, cache.extra=list(n_reps, hawthorne_shift)}
+run_cell <- function(cell_id, sd_skill, sd_incon, sd_item) {
+  map_dfr(seq_len(n_reps), function(r) {
+    lat <- draw_latents(10000 * cell_id + r, sd_skill, sd_incon, sd_item, fixed)
+
+    crossing(ir_structures, conditions) |>
+      pmap_dfr(function(ir_structure, ir_diff, ir_same, condition, shift) {
+        summarise_study(lat, respond(lat, ir_diff, ir_same, shift, fixed)) |>
+          mutate(ir_structure = ir_structure, condition = condition, replicate = r)
+      })
+  })
+}
+
+study_results <- design_matrix |>
+  mutate(cell_id = row_number()) |>
+  mutate(results = pmap(list(cell_id, sd_skill, sd_incon, sd_item), run_cell)) |>
+  select(examiner_level, item_level, results) |>
+  unnest(results) |>
+  mutate(
+    ir_structure = factor(ir_structure, levels = ir_structures$ir_structure),
+    condition = factor(condition, levels = conditions$condition),
+    rate = factor(rate, levels = c("FPR", "FNR"))
+  )
+
+grid_summary <- study_results |>
+  group_by(ir_structure, condition, examiner_level, item_level, rate) |>
+  summarise(
+    # SDs first: later arguments in summarise() see columns created earlier.
+    sd_reported = sd(reported), sd_worst_case = sd(worst_case),
+    reported = mean(reported), inc_share = mean(inc_share), worst_case = mean(worst_case),
+    .groups = "drop"
+  ) |>
+  mutate(
+    truth_h10 = reported + 0.10 * inc_share,
+    truth_h25 = reported + 0.25 * inc_share,
+    truth_h50 = reported + 0.50 * inc_share
+  )
+```
+
+# Results
+
+## The headline picture: one plausible cell, four ways
+
+The cell below combines the Ames-II-like settings from the fit (separate
+baselines, high examiner heterogeneity) with the talk's default item
+heterogeneity. That is exactly the talk's current default parameter set. The
+contrast is the previous shared-baseline default. Each row
+shows what a study would *report* (filled dot), the *worst case* (open dot),
+and where the true forced-decision rate would sit if 10%, 25%, or 50% of
+inconclusives were hidden errors (diamonds).
+
+```{r plot-headline, fig.width=10, fig.height=4.5}
+headline <- grid_summary |>
+  filter(examiner_level == "High", item_level == "Medium") |>
+  mutate(row = paste(ir_structure, condition, sep = " | "))
+
+headline_long <- headline |>
+  select(row, rate, truth_h10, truth_h25, truth_h50) |>
+  pivot_longer(starts_with("truth_"), names_to = "h", values_to = "value") |>
+  mutate(h = recode(h, truth_h10 = "10% of inconclusives", truth_h25 = "25%", truth_h50 = "50%"))
+
+ggplot(headline, aes(y = row)) +
+  geom_segment(aes(x = reported, xend = worst_case, yend = row), color = "grey70", linewidth = 2) +
+  geom_point(data = headline_long, aes(x = value, shape = h), size = 2.5, color = "#D55E00") +
+  geom_point(aes(x = worst_case), shape = 1, size = 3) +
+  geom_point(aes(x = reported), size = 3) +
+  facet_wrap(~ rate) +
+  scale_x_continuous(labels = percent_format(accuracy = 1)) +
+  scale_shape_manual(values = c("10% of inconclusives" = 5, "25%" = 18, "50%" = 9)) +
+  labs(
+    title = "Reported vs. worst-case error rate, with plausible true rates in between",
+    subtitle = "Filled dot: reported. Open dot: worst case. Diamonds: true rate if a share of inconclusives were errors",
+    x = "Error rate", y = NULL, shape = "Share of inconclusives that\nwould have been errors"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+## Full table
+
+```{r results-table}
+knitr::kable(
+  grid_summary |>
+    arrange(rate, ir_structure, condition, examiner_level, item_level) |>
+    mutate(across(c(reported, inc_share, worst_case, truth_h10, truth_h25, truth_h50, sd_reported, sd_worst_case), ~ percent(.x, accuracy = 0.1))) |>
+    select(rate, ir_structure, condition, examiner_level, item_level, reported, inc_share, truth_h10, truth_h25, truth_h50, worst_case, sd_reported, sd_worst_case),
+  col.names = c("Rate", "Baselines", "Condition", "Examiner het.", "Item het.", "Reported", "Inconclusive share",
+                "True (h = 10%)", "True (h = 25%)", "True (h = 50%)", "Worst case", "SD reported", "SD worst case")
+)
+```
+
+## How far above the reported rate could the truth be?
+
+Each tile is the true rate at $h = 25\%$ divided by the reported rate — how many
+times larger the true forced-decision error rate is than what the study
+reports if a quarter of its inconclusives were errors.
+
+```{r plot-ratio-heatmap, fig.width=11, fig.height=8}
+ggplot(grid_summary, aes(x = examiner_level, y = item_level, fill = truth_h25 / reported)) +
+  geom_tile(color = "white") +
+  geom_text(aes(label = sprintf("%.0fx", truth_h25 / reported)), color = "white", size = 4) +
+  facet_grid(ir_structure + condition ~ rate) +
+  scale_fill_viridis_c(name = "True (h = 25%) /\nreported", option = "magma", direction = -1) +
+  labs(
+    title = "True forced-decision error rate relative to the reported rate",
+    subtitle = "If 25% of inconclusives would have been errors. Each cell: mean over simulated studies",
+    x = "Examiner heterogeneity", y = "Item heterogeneity"
+  ) +
+  theme_minimal() +
+  theme(panel.grid = element_blank())
+```
+
+## Does the reported rate itself move with heterogeneity?
+
+```{r plot-reported-heatmap, fig.width=11, fig.height=8}
+ggplot(grid_summary, aes(x = examiner_level, y = item_level, fill = reported)) +
+  geom_tile(color = "white") +
+  geom_text(aes(label = percent(reported, accuracy = 0.1)), color = "white", size = 4) +
+  facet_grid(ir_structure + condition ~ rate) +
+  scale_fill_viridis_c(name = "Reported rate", option = "magma", direction = -1, labels = percent_format(accuracy = 1)) +
+  labs(
+    title = "What a study would report, across the grid",
+    subtitle = "Each cell: mean over simulated studies",
+    x = "Examiner heterogeneity", y = "Item heterogeneity"
+  ) +
+  theme_minimal() +
+  theme(panel.grid = element_blank())
+```
+
+## The Hawthorne effect: what a known test changes
+
+Comparing the blind and known-test rows within each cell (paired: same
+simulated examiners, items, and uniform draws):
+
+```{r hawthorne-table}
+hawthorne <- grid_summary |>
+  select(ir_structure, examiner_level, item_level, rate, condition, reported, inc_share, worst_case) |>
+  pivot_wider(names_from = condition, values_from = c(reported, inc_share, worst_case)) |>
+  mutate(
+    d_reported = `reported_Known test` - reported_Blind,
+    d_inc_share = `inc_share_Known test` - inc_share_Blind,
+    d_worst_case = `worst_case_Known test` - worst_case_Blind
+  ) |>
+  group_by(ir_structure, rate) |>
+  summarise(
+    across(c(d_reported, d_inc_share, d_worst_case), list(mean = mean, min = min, max = max)),
+    .groups = "drop"
+  )
+
+pp <- function(x) sprintf("%+.1f pp", 100 * x)
+knitr::kable(
+  hawthorne |>
+    transmute(
+      Baselines = ir_structure, Rate = rate,
+      `Change in reported rate` = sprintf("%s (range %s to %s)", pp(d_reported_mean), pp(d_reported_min), pp(d_reported_max)),
+      `Change in inconclusive share` = sprintf("%s (range %s to %s)", pp(d_inc_share_mean), pp(d_inc_share_min), pp(d_inc_share_max)),
+      `Change in worst case` = sprintf("%s (range %s to %s)", pp(d_worst_case_mean), pp(d_worst_case_min), pp(d_worst_case_max))
+    )
+)
+```
+
+## Study-to-study spread
+
+Under high examiner heterogeneity, a single study's inconclusive share — and
+therefore its worst-case bound — depends heavily on which 50 examiners happened
+to take part.
+
+```{r plot-spread, fig.width=10, fig.height=5}
+spread_data <- study_results |>
+  filter(item_level == "Medium", condition == "Blind") |>
+  select(ir_structure, examiner_level, rate, replicate, reported, worst_case) |>
+  pivot_longer(c(reported, worst_case), names_to = "measure", values_to = "value") |>
+  mutate(measure = recode(measure, reported = "Reported", worst_case = "Worst case"))
+
+ggplot(spread_data, aes(x = examiner_level, y = value, fill = measure)) +
+  geom_boxplot(outlier.size = 0.4, position = position_dodge(width = 0.8)) +
+  facet_grid(rate ~ ir_structure, scales = "free_y") +
+  scale_y_continuous(labels = percent_format(accuracy = 1)) +
+  scale_fill_manual(values = c("Reported" = "grey85", "Worst case" = "#E69F00")) +
+  labs(
+    title = "Single-study reported and worst-case rates, by examiner heterogeneity",
+    subtitle = "Blind condition, medium item heterogeneity; each box: 500 simulated studies",
+    x = "Examiner heterogeneity", y = "Rate", fill = NULL
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+# Interpretation
+
+```{r interp-numbers, include=FALSE}
+rng <- function(x, digits = 1) {
+  lo <- percent(min(x), accuracy = 10^-digits); hi <- percent(max(x), accuracy = 10^-digits)
+  if (lo == hi) lo else paste0(lo, "--", hi)
+}
+rng_pp <- function(x) sprintf("%.0f--%.0f", 100 * min(x), 100 * max(x))
+
+gs <- grid_summary
+ratio_range <- function(d) sprintf("%.0f--%.0fx", min(d$truth_h25 / d$reported), max(d$truth_h25 / d$reported))
+
+blind_sep <- gs |> filter(condition == "Blind", ir_structure == "Separate (current default)")
+blind_shared <- gs |> filter(condition == "Blind", ir_structure == "Shared (previous default)")
+known_sep <- gs |> filter(condition == "Known test", ir_structure == "Separate (current default)")
+
+ex_effect <- gs |>
+  filter(item_level == "Medium", condition == "Blind") |>
+  group_by(examiner_level) |>
+  summarise(inc = mean(inc_share), sd_worst = mean(sd_worst_case), .groups = "drop")
+item_effect <- gs |>
+  filter(examiner_level == "Medium", condition == "Blind", rate == "FPR") |>
+  group_by(item_level) |>
+  summarise(reported = mean(reported), .groups = "drop")
+```
+
+- **Reported rates stay small and the worst case is huge, everywhere in the grid.**
+  Across all 36 combinations, the reported FPR is `r rng(gs$reported[gs$rate == "FPR"])` and the
+  reported FNR `r rng(gs$reported[gs$rate == "FNR"])`, while the worst case ranges from
+  `r rng(gs$worst_case)`. The interval between them is exactly the inconclusive share, and no setting of
+  examiner or item heterogeneity brings it near zero. The reported number by itself says
+  almost nothing about how large the true error rate could be.
+- **Whether the true rate is "high" depends entirely on $h$, which the study cannot tell us.**
+  If a quarter of inconclusives would have been errors, the forced-decision rate is
+  `r ratio_range(gs |> filter(rate == "FPR"))` the reported FPR and
+  `r ratio_range(gs |> filter(rate == "FNR"))` the reported FNR. False positive rates are affected most
+  because their reported rate starts lowest. At $h = 10\%$ the truth is already several times the
+  reported rate; nothing in the responses distinguishes $h = 0$ from $h = 1$.
+- **(a) Separate inconclusive baselines change *where* the hidden error sits, not whether it exists.**
+  With the previous shared 36% baseline, the blind worst cases are nearly symmetric
+  (FPR `r rng(blind_shared$worst_case[blind_shared$rate == "FPR"], 0)`, FNR
+  `r rng(blind_shared$worst_case[blind_shared$rate == "FNR"], 0)`). With the Ames II-style
+  separate baselines they are not: the worst-case FPR is
+  `r rng(blind_sep$worst_case[blind_sep$rate == "FPR"], 0)` but the worst-case FNR only
+  `r rng(blind_sep$worst_case[blind_sep$rate == "FNR"], 0)`. The shared-baseline simulation
+  in `case_study_inconclusive.qmd` therefore *understates* the ambiguity in false positives and *overstates* it in false negatives, relative to what the
+  real study's inconclusive pattern implies.
+- **(b) Examiner heterogeneity barely moves the average bounds, but changes how much a single study can be trusted.**
+  Going from low to high examiner heterogeneity moves the mean inconclusive share by only
+  `r sprintf("%.0f", 100 * (ex_effect$inc[ex_effect$examiner_level == "High"] - ex_effect$inc[ex_effect$examiner_level == "Low"]))`
+  points on average in this cut, but the study-to-study SD of the worst case grows from about
+  `r percent(ex_effect$sd_worst[ex_effect$examiner_level == "Low"], accuracy = 0.1)` to
+  `r percent(ex_effect$sd_worst[ex_effect$examiner_level == "High"], accuracy = 0.1)` (see the spread plot).
+  At the current default (Ames II-like) level of examiner heterogeneity, which 50 examiners take part
+  visibly changes how wide a single study's interval is.
+- **(c) Item heterogeneity mostly changes the *reported* rate, in the opposite direction from what one might hope.**
+  Reported FPR rises from `r percent(item_effect$reported[item_effect$item_level == "Low"], accuracy = 0.1)` to
+  `r percent(item_effect$reported[item_effect$item_level == "High"], accuracy = 0.1)` as item heterogeneity goes
+  from low to high (a logit-scale Jensen effect noted in `analysis.qmd`), while the inconclusive share is essentially
+  unchanged. So the *ratio* of the forced-decision rate to the reported rate is smaller when items are
+  more heterogeneous, but the *level* of the true rate at a given $h$ is nearly the same.
+- **(d) A known test widens the interval by about 10--16 points; in this model it does not lower the reported rate.**
+  The Hawthorne shift adds
+  `r sprintf("%.0f to %.0f", 100 * min(hawthorne$d_inc_share_min), 100 * max(hawthorne$d_inc_share_max))` points of inconclusive share (see the table above) and moves the
+  reported rate by 0.0 points. The second half is built into the DGP
+  (the shift acts only on the inconclusive probability), not a finding: it is the same simplification the
+  contextual-bias backup slide notes. Two consequences follow. First, what the known-test study shows
+  about casework is *different in kind* from what a blind study of the same examiners would show:
+  its unresolved share is 
+  `r sprintf("%.0f", 100 * mean(known_sep$inc_share[known_sep$rate == "FPR"]))`% for false positives against
+  `r sprintf("%.0f", 100 * mean(blind_sep$inc_share[blind_sep$rate == "FPR"]))`% under blind conditions,
+  so its worst-case bound is not the casework bound. Second, the mechanism the talk may want to invoke — examiners
+  moving would-be errors into "inconclusive" when they know they are tested, so that the *reported* rate
+  falls — is **not** in this model; if the extra inconclusives under a known test come disproportionately from would-be errors, the reported rate would drop and the hidden share would
+  grow. That would need a selective mechanism (e.g., the Hawthorne shift scaling with item difficulty)
+  and is not supported or ruled out here.
+
+## Caveats
+
+- $h$ is a scenario parameter with no empirical anchor; the grid shows what follows for
+  $h \in \{0.1, 0.25, 0.5\}$, not which is right.
+- All levels in the grid are illustrative. Ames II pins down the inconclusive baselines and
+  the examiner inconclusive-tendency SD but not the item or skill SDs (see `fit_ames2.qmd`), and it also shows
+  structure the DGP lacks (firearm-level variation, examiner behaviour that differs by ground truth) that
+  would widen the study-to-study spread beyond what is shown here.
+- The error baselines (FPR `r percent(fixed$fpr, accuracy = 0.1)`, FNR `r percent(fixed$fnr, accuracy = 0.1)`),
+  the 50-examiner, 30-of-300-item design, and the 50/50 match rate
+  are fixed at the talk's current defaults; the real study is one-third same-source.
+
+# How to use this in the talk
+
+- **The message this supports:** a validity study's reported error rate and its
+  worst case can be an order of magnitude or more apart, that gap is exactly the inconclusive share, and the
+  study's own responses cannot narrow it. It does not depend on how heterogeneous examiners or items are, and it
+  survives switching between the previous shared baseline and the current Ames II-style separate baselines.
+- **The headline plot** (Ames II-like settings, four rows) is the candidate slide: filled dots stay near
+  zero while the open dots (worst case) sit at roughly 25--65%.
+- **On the Hawthorne effect, be precise about what is shown:** a known test raises the inconclusive share by
+  about 10--16 points, so the study's unresolved mass no longer matches casework's. This model does *not* show a
+  known test lowering the reported error rate; do not say it does unless a selective mechanism is added.
+- **If asked "isn't $h$ made up?":** yes, and that is the point — the study cannot estimate it. The
+  claim is not that the true error rate *is* (say) 13%, it is that a reported false positive rate of about 1% is compatible with anything up to
+  about 50%.
+
+# References
+
+::: {#refs}
+:::

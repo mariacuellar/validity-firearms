@@ -22,6 +22,13 @@ resulting **ground truth x decision** crosstab (the same quantity now shown
 on the app's Summary tab) to numbers reconstructed from a real Ames-II-family
 study.
 
+> **Status note.** This document is the *earlier* calibration, done against a
+> benchmark reconstructed from Cuellar et al. (2024) before the raw Ames II data
+> were available. It works with a single inconclusive baseline shared by same- and
+> different-source items, and derives the values FPR 1%, FNR 2%, inconclusive 36%.
+> The shared DGP's current defaults come from the maximum-likelihood fit in
+> `icfis/fit_ames2.qmd` instead. Everything below describes the earlier derivation.
+
 This is a sanity check, not a formal calibration exercise. If the simulated
 proportions are wildly different from the benchmark, that is the concrete
 starting point for tuning the DGP's baseline rates and/or heterogeneity
@@ -94,6 +101,23 @@ cartridge cases in the Monson, Smith, and Bajic (2023a) study is 0.933%"
 [@cuellar2024methodological, p. 9] — which is within rounding of the 0.92%
 used above, so the two reported figures corroborate each other.
 
+Reconstruction from original Ames II data:
+
+```{r}
+ames2 <- readxl::read_xlsx(here::here("real-data/ames2.xlsx"), sheet = 3) |>
+  mutate(
+    response_3 = case_when(stringr::str_detect(`Examiner's Analysis`, "Inc") ~ "Inconclusive",
+    stringr::str_detect(`Examiner's Analysis`, "ID") ~ "Identification",
+    stringr::str_detect(`Examiner's Analysis`, "Elim") ~ "Elimination"
+    )
+  )
+
+ames2 |>
+  select(c("M_NM", "response_3")) |>
+  table() |>
+  prop.table(1)
+```
+
 **Caveats on this benchmark, to keep in view for the rest of this document:**
 
 - It is *reconstructed* from a bounding illustration, not copied from a
@@ -115,14 +139,16 @@ drafts of this document copied the functions inline and needed to be kept
 in sync with `app.R` by hand — that's what this refactor removes.)
 
 ```{r define-dgp}
-source("R/simulate_dgp.R")
+source(here::here("icfis/R/simulate_dgp.R"))
 
-# Keep a copy of the shared file's canonical (already-retuned) defaults
-# before this document overrides them below with the original,
-# pre-calibration values -- used later to sanity-check that this document's
-# derivation still lands on the same numbers as the shared file.
-canonical_defaults <- dgp_defaults
-canonical_incomplete_defaults <- incomplete_defaults
+# The shared-baseline defaults this document's calibration produced. R/simulate_dgp.R
+# has since been updated (separate same-/different-source inconclusive baselines,
+# refit to the raw Ames II data in fit_ames2.qmd), so these are frozen here rather
+# than read from the shared file -- used later to sanity-check that this
+# document's derivation still lands on the numbers it originally produced.
+canonical_defaults <- list(
+  false_positive_rate = 0.01, false_negative_rate = 0.02, inconclusive_rate = 0.36
+)
 ```
 
 ## Defaults: starting from the original, pre-calibration values
@@ -750,15 +776,18 @@ knitr::kable(
   tibble(
     parameter = rate_names,
     this_document = unlist(dgp_defaults[rate_names]),
-    shared_file = unlist(canonical_defaults[rate_names])
+    frozen_values = unlist(canonical_defaults[rate_names])
   ),
-  col.names = c("Parameter", "Retuned here", "R/simulate_dgp.R")
+  col.names = c("Parameter", "Retuned here", "Values this calibration originally produced")
 )
 ```
 
-This document's derived values match the shared file's canonical defaults
-— `R/simulate_dgp.R` already reflects the outcome of this calibration, so
-nothing further needs to be copied over by hand.
+This document's derived values match the values it originally produced.
+**These are no longer the defaults in `R/simulate_dgp.R`:** this document calibrated
+a *shared* inconclusive baseline to a reconstructed benchmark, and the model has
+since been refit to the raw Ames II responses with separate same- and
+different-source baselines (`icfis/fit_ames2.qmd`), which is what the shared file now holds.
+This document is kept as the record of the earlier derivation.
 
 ## Interpretation of the retuned fit
 

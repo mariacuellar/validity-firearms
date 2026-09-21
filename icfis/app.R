@@ -85,6 +85,14 @@ overview_panel <- withMathJax(
     p("$$P(\\text{error}) = \\text{expit}\\big[\\text{logit}(\\text{baseline rate}) + c_{ij}\\big]$$"),
     p("$$P(\\text{inconclusive}) = \\text{expit}\\big[\\text{logit}(\\text{baseline inconclusive rate}) + 0.5\\,c_{ij} + \\tau_j\\big]$$"),
     p(
+      "The baseline error rate is the false positive rate for different-source items ",
+      "and the false negative rate for same-source items. The baseline inconclusive rate ",
+      "can differ by ground truth: the defaults use separate baselines for same-source and ",
+      "different-source items, because in the real study (Ames II cartridge cases) about half of ",
+      "different-source responses but under a quarter of same-source responses were inconclusive. ",
+      "Tick the box under the sliders to use a single shared baseline instead."
+    ),
+    p(
       "The baseline rates and the heterogeneity \\(\\sigma_Q\\), \\(\\sigma_S\\), ",
       "\\(\\sigma_T\\) are exactly the sliders on the left. Change them and press ",
       "\"Generate data\" to see how the simulated responses shift."
@@ -115,9 +123,11 @@ ui <- fluidPage(
       numericInput("n_examiners", "Number of examiners", value = dgp_defaults$n_examiners, min = 1, step = 1),
       numericInput("n_comparisons", "Number of comparisons", value = dgp_defaults$n_comparisons, min = 1, step = 1),
       sliderInput("match_rate", "Proportion same-source", min = 0, max = 1, value = dgp_defaults$match_rate, step = 0.01),
-      sliderInput("false_positive_rate", "Baseline false positive rate", min = 0.01, max = 0.5, value = dgp_defaults$false_positive_rate, step = 0.01),
-      sliderInput("false_negative_rate", "Baseline false negative rate", min = 0.01, max = 0.5, value = dgp_defaults$false_negative_rate, step = 0.01),
-      sliderInput("inconclusive_rate", "Baseline inconclusive rate", min = 0.01, max = 0.9, value = dgp_defaults$inconclusive_rate, step = 0.01),
+      sliderInput("false_positive_rate", "Baseline false positive rate", min = 0.001, max = 0.5, value = dgp_defaults$false_positive_rate, step = 0.001),
+      sliderInput("false_negative_rate", "Baseline false negative rate", min = 0.001, max = 0.5, value = dgp_defaults$false_negative_rate, step = 0.001),
+      sliderInput("inconclusive_rate", "Baseline inconclusive rate (different-source)", min = 0.01, max = 0.9, value = dgp_defaults$inconclusive_rate, step = 0.01),
+      sliderInput("inconclusive_rate_same", "Baseline inconclusive rate (same-source)", min = 0.01, max = 0.9, value = dgp_defaults$inconclusive_rate_same, step = 0.01),
+      checkboxInput("shared_inconclusive", "Use the different-source rate for both (one shared baseline)", value = FALSE),
       sliderInput("examiner_skill_sd", "Examiner skill heterogeneity (SD)", min = 0, max = 2, value = dgp_defaults$examiner_skill_sd, step = 0.05),
       sliderInput("examiner_inconclusive_sd", "Examiner inconclusive-tendency heterogeneity (SD)", min = 0, max = 2, value = dgp_defaults$examiner_inconclusive_sd, step = 0.05),
       sliderInput("question_sd", "Question difficulty heterogeneity (SD)", min = 0, max = 2, value = dgp_defaults$question_sd, step = 0.05),
@@ -168,6 +178,7 @@ server <- function(input, output, session) {
         false_positive_rate = input$false_positive_rate,
         false_negative_rate = input$false_negative_rate,
         inconclusive_rate = input$inconclusive_rate,
+        inconclusive_rate_same = if (isTRUE(input$shared_inconclusive)) NULL else input$inconclusive_rate_same,
         examiner_skill_sd = input$examiner_skill_sd,
         examiner_inconclusive_sd = input$examiner_inconclusive_sd,
         question_sd = input$question_sd

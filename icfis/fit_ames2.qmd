@@ -1,0 +1,888 @@
+---
+title: "Fitting the DGP to the Ames II cartridge-case data"
+subtitle: "How well does the talk's data-generating process describe a real black-box study?"
+bibliography: ../output/paper/references.bib
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-location: body
+    number-sections: false
+    code-fold: true
+---
+
+# Goal
+
+`icfis/analysis.qmd` calibrated the DGP's three baseline rates to a
+*reconstructed* benchmark (Cuellar et al.'s bounding numbers for Monson,
+Smith, and Bajic 2023a). Now that the raw Ames II cartridge-case responses
+are in `real-data/ames2.xlsx`, this document goes further: it **fits the DGP
+in `icfis/R/simulate_dgp.R` to the raw responses by maximum likelihood** and
+asks
+
+1. Which parameter values does the data prefer, and how do they compare to
+   the defaults used in the talk?
+2. How well does the fitted model reproduce features of the real study it
+   was *not* fit to (examiner-to-examiner spread, firearm-to-firearm spread,
+   error counts, ...)?
+3. What goes wrong — parameters the data cannot pin down, or features the
+   model structurally cannot produce?
+
+**Terminology.** "Previous talk defaults" below means the defaults the talk used
+before this analysis: one inconclusive baseline shared by same- and
+different-source items (36%), FPR 1%, FNR 2%, examiner inconclusive-tendency SD
+0.35. They are frozen in this document as `legacy_defaults`. After this analysis,
+`R/simulate_dgp.R` was updated to values based on model M1 (see "Implications for
+the talk").
+
+The fits below are implemented in this document's own likelihood, so they do
+not depend on any change to the shared file. (Since this document was written,
+`simulate_dgp.R` gained an optional `inconclusive_rate_same` argument that
+implements the separate-baseline extension, M1, below; the default reproduces
+the original model exactly.)
+
+```{r setup}
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(ggplot2)
+library(scales)
+library(tibble)
+
+source(here::here("icfis/R/simulate_dgp.R"))
+
+n_cores <- max(1, min(4, parallel::detectCores() - 1))
+```
+
+# The data
+
+```{r load-data}
+ames_raw <- readxl::read_xlsx(here::here("real-data/ames2.xlsx"), sheet = "Cartridge Cases")
+stopifnot(ncol(ames_raw) == 24)
+
+# Columns are renamed by position (two of the original names are long/truncated).
+names(ames_raw) <- c(
+  "orig_grp", "exam_id", "mailing_round", "packet", "set_number", "n_knowns",
+  "analysis", "score", "pair", "anal_type", "gun_k1", "lot1", "gun_k2", "lot2",
+  "gun_q", "lot3", "bullet_case", "m_nm", "ber", "firearm", "gun_2",
+  "exam_id_2", "exam_id_3", "round"
+)
+
+# Same coding as icfis/analysis.qmd. "Unsuitable" and "did not provide answer"
+# match none of the patterns and become NA.
+ames_all <- ames_raw |>
+  mutate(
+    resp = case_when(
+      stringr::str_detect(analysis, "Inc") ~ "inconclusive",
+      stringr::str_detect(analysis, "ID") ~ "identification",
+      stringr::str_detect(analysis, "Elim") ~ "elimination"
+    ),
+    truth = as.integer(m_nm == "M"),
+    ground_truth_label = if_else(truth == 1, "same-source", "different-source"),
+    nonber = as.integer(ber == "Non_Ber")
+  )
+
+n_dropped <- sum(is.na(ames_all$resp))
+
+ames <- ames_all |>
+  filter(!is.na(resp)) |>
+  mutate(outcome = case_when(
+    resp == "inconclusive" ~ "inc",
+    truth == 1 & resp == "elimination" ~ "err",
+    truth == 0 & resp == "identification" ~ "err",
+    TRUE ~ "cor"
+  ))
+```
+
+`r nrow(ames_all)` responses were recorded; `r n_dropped` are "unsuitable" or
+"did not provide answer" and are dropped here (`r nrow(ames)` remain).
+Dropping them is itself a Flaw-F-style choice (1.4% of responses), but the
+published rates reproduce exactly with these rows excluded (next check), and it
+barely matters at that size.
+
+## Sanity check: does this reproduce the benchmark we reconstructed?
+
+```{r benchmark-check}
+raw_rates <- ames |>
+  group_by(ground_truth_label) |>
+  summarise(
+    n = n(),
+    id = mean(resp == "identification"),
+    inc = mean(resp == "inconclusive"),
+    elim = mean(resp == "elimination"),
+    .groups = "drop"
+  )
+
+check <- tribble(
+  ~quantity, ~from_raw_data, ~cuellar_2024,
+  "FPR, inconclusive -> elimination", raw_rates$id[raw_rates$ground_truth_label == "different-source"], 0.0092,
+  "FPR, inconclusive -> identification", with(raw_rates[raw_rates$ground_truth_label == "different-source", ], id + inc), 0.514,
+  "FNR, inconclusive -> identification", raw_rates$elim[raw_rates$ground_truth_label == "same-source"], 0.0176,
+  "FNR, inconclusive -> elimination", with(raw_rates[raw_rates$ground_truth_label == "same-source", ], elim + inc), 0.256
+)
+
+knitr::kable(
+  check |> mutate(across(c(from_raw_data, cuellar_2024), ~ percent(.x, accuracy = 0.01))),
+  col.names = c("Quantity", "From raw data", "Cuellar et al. (2024)")
+)
+```
+
+The raw data reproduce all four bounding numbers, so the benchmark
+reconstructed in `analysis.qmd` was exact, and this really is the study
+those numbers came from.
+
+## Structure of the study
+
+```{r design-facts}
+design_facts <- tibble(
+  fact = c(
+    "Responses (after dropping unsuitable / no answer)",
+    "Examiners",
+    "Responses per examiner (min - max)",
+    "Packets of 15 comparisons",
+    "Times any one (packet, item) is evaluated",
+    "Share of responses that are same-source",
+    "Share of responses on Beretta (vs. non-Beretta) firearms",
+    "Distinct individual firearms recorded"
+  ),
+  value = c(
+    nrow(ames),
+    n_distinct(ames$exam_id),
+    paste(range(count(ames, exam_id)$n), collapse = " - "),
+    n_distinct(ames$orig_grp),
+    paste(unique(count(ames_raw, orig_grp, set_number)$n), collapse = ", "),
+    percent(mean(ames$truth == 1), accuracy = 0.1),
+    percent(mean(ames$nonber == 0), accuracy = 0.1),
+    n_distinct(ames$firearm)
+  )
+)
+knitr::kable(design_facts, col.names = c("", ""))
+```
+
+Three features of the design matter for fitting:
+
+- **Every item is seen exactly once.** Unlike the DGP's fully-crossed
+  simulations, examiners are not crossed with items, so item difficulty is
+  not separately observable by comparing examiners on the same item. Item
+  effects can only be inferred from the *shape* of the response distribution.
+- **Only 33% of comparisons are same-source**, not the DGP default of 50%.
+  Ground truth is observed, so the likelihood below conditions on it and
+  `match_rate` is not a parameter — but simulated studies used for goodness
+  of fit reuse the real study's ground-truth pattern.
+- **Firearm identity is recorded** (27 Beretta pistols, 11 non-Beretta), even
+  though the DGP has no firearm effect. That lets us check a
+  feature the model omits entirely.
+
+```{r crosstab}
+knitr::kable(
+  ames |>
+    count(ground_truth_label, resp) |>
+    group_by(ground_truth_label) |>
+    mutate(proportion = percent(n / sum(n), accuracy = 0.1)) |>
+    ungroup() |>
+    mutate(resp = factor(resp, levels = c("identification", "inconclusive", "elimination"))) |>
+    arrange(ground_truth_label, resp),
+  col.names = c("Ground truth", "Decision", "Count", "Proportion")
+)
+```
+
+# The likelihood
+
+Because each item appears once, the DGP's latent variables are independent
+across responses *except* through the examiner. For examiner $j$ with
+responses $R_{ij}$ on items of known ground truth $G_i$, the marginal
+likelihood is
+
+$$
+L_j = \int\!\!\int \prod_{i \in j} \left[ \int P(R_{ij} \mid G_i, c = d - s, \tau) \, \phi_{\sigma_d}(d)\, \mathrm{d}d \right] \phi_{\sigma_s}(s)\, \phi_{\sigma_\tau}(\tau)\, \mathrm{d}s\, \mathrm{d}\tau ,
+$$
+
+where $P(R \mid G, c, \tau)$ is exactly the three-way response model in
+`simulate_response()`, *including* its 0.95 cap on the combined error and
+inconclusive probability. The inner integral over item difficulty is
+one-dimensional; the outer two are examiner-level. All three are done by
+Gauss–Hermite quadrature. Since the response probabilities depend on a
+response only through its (ground truth, error / inconclusive / correct)
+category, the inner integrals are computed once per category and each
+examiner's log-likelihood is a matrix product of their category counts with
+those values — so a likelihood evaluation takes milliseconds.
+
+```{r likelihood}
+# Gauss-Hermite nodes/weights for a standard normal (Golub-Welsch); weights sum to 1.
+gh_normal <- function(n) {
+  i <- seq_len(n - 1)
+  J <- matrix(0, n, n)
+  J[cbind(i, i + 1)] <- sqrt(i)
+  J[cbind(i + 1, i)] <- sqrt(i)
+  e <- eigen(J, symmetric = TRUE)
+  list(z = e$values, w = e$vectors[1, ]^2)
+}
+
+# P(error), P(inconclusive), P(correct) for challenge `c` and examiner
+# inconclusive tendency `tau`. Mirrors simulate_response() in R/simulate_dgp.R
+# (checked by simulation below). `a_err` / `a_inc` are baseline logits.
+response_probs <- function(c, tau, a_err, a_inc) {
+  err <- plogis(a_err + c)
+  inc <- plogis(a_inc + 0.5 * c + tau)
+  total <- err + inc
+  scale <- ifelse(total >= 0.95, 0.95 / total, 1)
+  list(err = err * scale, inc = inc * scale, cor = 1 - (err + inc) * scale)
+}
+```
+
+## Check: the likelihood's response model is the shared DGP's
+
+Before trusting the likelihood, confirm `response_probs()` agrees with what
+`simulate_response()` actually does, at a handful of (ground truth,
+challenge, tendency) points — including one where the 0.95 cap binds.
+
+```{r check-response-probs, cache=TRUE}
+set.seed(11)
+check_points <- tribble(
+  ~truth, ~c,   ~tau,
+  0,      0,    0,
+  0,      1.5,  0.5,
+  1,     -1,    1,
+  1,      4,    3
+)
+
+fpr <- 0.02; fnr <- 0.05; ir <- 0.30
+n_draws <- 20000
+
+check_result <- pmap_dfr(check_points, function(truth, c, tau) {
+  draws <- purrr::map_chr(seq_len(n_draws), ~ simulate_response(
+    truth, c, tau, false_positive_rate = fpr, false_negative_rate = fnr, inconclusive_rate = ir
+  ))
+  p <- response_probs(c, tau, qlogis(if (truth == 1) fnr else fpr), qlogis(ir))
+  error_label <- if (truth == 1) "elimination" else "identification"
+  tibble(
+    truth = truth, c = c, tau = tau,
+    err_sim = mean(draws == error_label), err_formula = p$err,
+    inc_sim = mean(draws == "inconclusive"), inc_formula = p$inc
+  )
+})
+
+knitr::kable(check_result, digits = 3)
+```
+
+Simulated frequencies (`n = 20,000` draws each) match the formula to within
+Monte Carlo error at every point.
+
+## Fitting machinery
+
+Three models, fit by box-constrained maximum likelihood (`L-BFGS-B`, several
+starting points each):
+
+- **M0 — the DGP as it stands.** Six parameters: baseline logit FPR, FNR, and
+  a *single* inconclusive rate shared by same- and different-source items,
+  plus the three heterogeneity SDs $\sigma_d$ (item), $\sigma_s$ (examiner
+  skill), $\sigma_\tau$ (examiner inconclusive tendency).
+- **M1 — separate inconclusive baselines.** Same, but same-source and
+  different-source items get their own baseline inconclusive rate. This is the
+  extension `analysis.qmd` said the benchmark asymmetry called for.
+- **M2 — M1 plus a firearm-type shift.** A single additive shift $\delta$ to
+  the decision challenge for non-Beretta items, to see whether a
+  make/model-level difficulty difference (as in case study 2) improves the fit.
+
+SDs are bounded to $[0.02, 3]$. The upper bound is not arbitrary: it is 1.5x
+the app's slider maximum and is where the quadrature is still accurate
+(verified at 120 nodes below). Whether the fits *reach* the bound is itself a
+diagnostic.
+
+```{r fit-functions}
+# Category columns: truth x nonber x outcome, outcome varying fastest.
+cell_grid <- expand.grid(outcome = c("err", "inc", "cor"), nonber = 0:1, truth = 0:1, stringsAsFactors = FALSE)
+cell_names <- with(cell_grid, paste(truth, nonber, outcome))
+
+count_matrix <- ames |>
+  mutate(cell = paste(truth, nonber, outcome)) |>
+  count(exam_id, cell) |>
+  pivot_wider(names_from = cell, values_from = n, values_fill = 0)
+N <- as.matrix(count_matrix[, cell_names])
+
+# theta layouts (unconstrained: logits for rates, log for SDs):
+#   M0: fpr, fnr, ir,          log sd_d, log sd_s, log sd_t
+#   M1: fpr, fnr, ir_D, ir_S,  log sd_d, log sd_s, log sd_t
+#   M2: fpr, fnr, ir_D, ir_S, delta, log sd_d, log sd_s, log sd_t
+unpack <- function(theta, model) {
+  switch(model,
+    M0 = list(fpr = theta[1], fnr = theta[2], irD = theta[3], irS = theta[3], delta = 0, sd = exp(theta[4:6])),
+    M1 = list(fpr = theta[1], fnr = theta[2], irD = theta[3], irS = theta[4], delta = 0, sd = exp(theta[5:7])),
+    M2 = list(fpr = theta[1], fnr = theta[2], irD = theta[3], irS = theta[4], delta = theta[5], sd = exp(theta[6:8]))
+  )
+}
+
+make_loglik <- function(Q) {
+  gs <- gh_normal(Q); gt <- gh_normal(Q); gd <- gh_normal(Q)
+  log_w <- as.vector(outer(log(gs$w), log(gt$w), "+"))
+
+  # (err, inc, cor) probabilities, integrated over item difficulty, on the
+  # (examiner skill, examiner tendency) grid, for one ground-truth x type cell.
+  cell_probs <- function(a_err, a_inc, shift, sd) {
+    c_mat <- shift + outer(-sd[2] * gs$z, sd[1] * gd$z, "+")   # skill x item
+    out <- matrix(0, 3, Q * Q)
+    for (b in seq_len(Q)) {
+      p <- response_probs(c_mat, sd[3] * gt$z[b], a_err, a_inc)
+      idx <- (b - 1) * Q + seq_len(Q)
+      out[1, idx] <- p$err %*% gd$w
+      out[2, idx] <- p$inc %*% gd$w
+      out[3, idx] <- p$cor %*% gd$w
+    }
+    out
+  }
+
+  function(theta, model) {
+    p <- unpack(theta, model)
+    probs <- matrix(NA_real_, 12, Q * Q)
+    for (tr in 0:1) for (nb in 0:1) {
+      probs[tr * 6 + nb * 3 + 1:3, ] <- cell_probs(
+        a_err = if (tr == 1) p$fnr else p$fpr,
+        a_inc = if (tr == 1) p$irS else p$irD,
+        shift = nb * p$delta,
+        sd = p$sd
+      )
+    }
+    ll <- sweep(N %*% log(probs), 2, log_w, "+")
+    m <- apply(ll, 1, max)
+    sum(m + log(rowSums(exp(ll - m))))
+  }
+}
+
+loglik <- make_loglik(40)
+loglik_fine <- make_loglik(120)
+
+bounds <- function(model) {
+  n_ir <- if (model == "M0") 1 else 2
+  list(
+    lower = c(rep(qlogis(1e-4), 2), rep(qlogis(1e-3), n_ir), if (model == "M2") -4, rep(log(0.02), 3)),
+    upper = c(rep(qlogis(0.9), 2), rep(qlogis(0.95), n_ir), if (model == "M2") 4, rep(log(3), 3))
+  )
+}
+
+fit_once <- function(start, model, ll = loglik) {
+  b <- bounds(model)
+  start <- pmin(pmax(start, b$lower), b$upper)
+  optim(start, function(p) -ll(p, model), method = "L-BFGS-B",
+        lower = b$lower, upper = b$upper, control = list(maxit = 500, factr = 1e7))
+}
+
+fit_multistart <- function(model, start, n_starts = 4, seed = 1) {
+  set.seed(seed)
+  starts <- c(list(start), replicate(n_starts - 1, start + rnorm(length(start), 0, 0.8), simplify = FALSE))
+  fits <- parallel::mclapply(starts, fit_once, model = model, mc.cores = n_cores)
+  best <- fits[[which.min(map_dbl(fits, "value"))]]
+  best$all_ll <- -map_dbl(fits, "value")
+  best
+}
+```
+
+```{r fit-models, cache=TRUE}
+# The talk's defaults *before* this fit (a single inconclusive baseline shared by
+# same- and different-source items). Frozen here so this document's comparisons
+# stay true even though R/simulate_dgp.R has since been updated to the M1-based
+# values. Also used as the starting point for the fits.
+legacy_defaults <- list(
+  false_positive_rate = 0.01, false_negative_rate = 0.02, inconclusive_rate = 0.36,
+  question_sd = 0.8, examiner_skill_sd = 0.7, examiner_inconclusive_sd = 0.35
+)
+
+talk_theta <- c(
+  fpr = qlogis(legacy_defaults$false_positive_rate),
+  fnr = qlogis(legacy_defaults$false_negative_rate),
+  ir = qlogis(legacy_defaults$inconclusive_rate),
+  sd_d = log(legacy_defaults$question_sd),
+  sd_s = log(legacy_defaults$examiner_skill_sd),
+  sd_t = log(legacy_defaults$examiner_inconclusive_sd)
+)
+
+fit0 <- fit_multistart("M0", unname(talk_theta))
+fit1 <- fit_multistart("M1", unname(c(fit0$par[1:3], fit0$par[3], fit0$par[4:6])))
+fit2 <- fit_multistart("M2", unname(c(fit1$par[1:4], 0, fit1$par[5:7])))
+
+fits <- list(M0 = fit0, M1 = fit1, M2 = fit2)
+```
+
+## Do the fits agree across starting points, and is the quadrature accurate?
+
+```{r fit-diagnostics}
+diag_tbl <- tibble(
+  model = names(fits),
+  `best log-lik` = map_dbl(fits, ~ -.x$value),
+  `spread across starts` = map_dbl(fits, ~ diff(range(.x$all_ll))),
+  `log-lik at 120 nodes` = map2_dbl(fits, names(fits), ~ loglik_fine(.x$par, .y))
+)
+knitr::kable(diag_tbl, digits = 3)
+```
+
+For M1 and M2, random restarts all land on the same optimum, and 40- vs.
+120-node quadrature agree to a few thousandths of a log-likelihood unit, so
+those fits reflect the model, not the numerics. **M0 is different**: its
+restarts disagree by several log-likelihood units, i.e. its likelihood has
+multiple modes or a long ridge and the reported optimum is the best of a
+badly-behaved set. That is a result about M0, discussed below, not an
+optimizer failure — M1 is well-behaved under identical machinery.
+
+# Results
+
+## Fitted parameters
+
+```{r param-table}
+talk_p <- unpack(unname(c(talk_theta[1:3], talk_theta[3], talk_theta[4:6])), "M1")
+
+param_row <- function(p, label, k, ll) {
+  tibble(
+    Model = label,
+    FPR = plogis(p$fpr), FNR = plogis(p$fnr),
+    IR_diff = plogis(p$irD), IR_same = plogis(p$irS),
+    delta = p$delta,
+    sd_item = p$sd[1], sd_skill = p$sd[2], sd_incon = p$sd[3],
+    k = k, loglik = ll
+  )
+}
+
+param_tbl <- bind_rows(
+  param_row(talk_p, "Previous talk defaults (fixed)", 0, loglik(unname(c(talk_theta[1:3], talk_theta[4:6])), "M0")),
+  param_row(unpack(fit0$par, "M0"), "M0: DGP as-is", 6, -fit0$value),
+  param_row(unpack(fit1$par, "M1"), "M1: separate inconclusive baselines", 7, -fit1$value),
+  param_row(unpack(fit2$par, "M2"), "M2: M1 + non-Beretta shift", 8, -fit2$value)
+) |>
+  mutate(AIC = 2 * k - 2 * loglik)
+
+knitr::kable(
+  param_tbl |>
+    mutate(
+      across(c(FPR, FNR), ~ percent(.x, accuracy = 0.01)),
+      across(c(IR_diff, IR_same), ~ percent(.x, accuracy = 0.1)),
+      across(c(delta, sd_item, sd_skill, sd_incon, loglik, AIC), ~ round(.x, 2))
+    ),
+  col.names = c("Model", "Baseline FPR", "Baseline FNR", "Inconclusive (diff.-source)", "Inconclusive (same-source)",
+                "Non-Beretta shift", "SD item", "SD examiner skill", "SD examiner inconclusive", "Params", "Log-lik", "AIC")
+)
+```
+
+Baseline parameters are on the DGP's logit scale and are *not* the realized
+marginal rates (see Jensen's-inequality note in `analysis.qmd`); realized
+rates appear in the goodness-of-fit section.
+
+```{r unpack-best, include=FALSE}
+b0 <- unpack(fit0$par, "M0")
+b1 <- unpack(fit1$par, "M1")
+```
+
+Reading the table:
+
+- **The previous talk defaults are far from the data's preference.** Holding
+  everything else fixed, the defaults have a log-likelihood of
+  `r round(param_tbl$loglik[1], 1)` against `r round(param_tbl$loglik[2], 1)` for the
+  best-fitting version of the *same* model — a difference of
+  `r round(param_tbl$loglik[2] - param_tbl$loglik[1], 1)` log-likelihood units on six
+  parameters. The biggest single gap is examiner-level inconclusive heterogeneity:
+  the data want $\sigma_\tau$ around `r round(b1$sd[3], 1)`, versus the 0.35 used in the talk.
+- **M0 (the DGP as it stands) does not settle on an interior solution.** Its
+  item SD runs to the upper bound (`r round(b0$sd[1], 2)`) and its baseline FPR / FNR
+  collapse to `r percent(plogis(b0$fpr), accuracy = 0.01)` /
+  `r percent(plogis(b0$fnr), accuracy = 0.01)` — which looks like the fit reaching for a very
+  heavy-tailed item-difficulty distribution to generate rare errors, rather than using a baseline
+  rate. Its restarts also disagree (previous section). Read this as the likelihood straining
+  against a structural limit of M0 (next section), not as a believable parameter set.
+- **M1 fixes most of the problem with one extra parameter.** Allowing
+  same- and different-source items their own inconclusive baseline improves the
+  log-likelihood by `r round(-fit1$value + fit0$value, 1)` (AIC drops by
+  `r round(param_tbl$AIC[2] - param_tbl$AIC[3], 0)`) and yields an interior, sensible
+  solution: baseline FPR `r percent(plogis(b1$fpr), accuracy = 0.1)`, FNR
+  `r percent(plogis(b1$fnr), accuracy = 0.1)`, and inconclusive baselines of
+  `r percent(plogis(b1$irD), accuracy = 1)` (different-source) vs.
+  `r percent(plogis(b1$irS), accuracy = 1)` (same-source). The 13-point residual gap
+  that `analysis.qmd` flagged as "known and accepted" is not a small detail — it is the single
+  largest structural misfit.
+- **A firearm-type shift (M2) adds almost nothing.** The non-Beretta shift
+  improves the log-likelihood by only `r round(-fit2$value + fit1$value, 2)` —
+  not worth its parameter by AIC — even though non-Beretta same-source items really are
+  harder (next section). One shift on a single difficulty axis cannot describe a
+  difference that goes in *opposite directions* for same- and different-source items.
+
+## Which parameters does the data actually determine? Profile likelihoods
+
+For each heterogeneity SD, this fixes it at a grid of values, re-optimizes
+everything else, and plots the drop in log-likelihood from the best fit.
+Values within 1.92 (dashed line) of the maximum are inside an approximate 95%
+interval. A flat curve means the data cannot distinguish those values.
+
+```{r profiles, cache=TRUE}
+profile_sd <- function(model, which_sd, grid, fit) {
+  n_theta <- length(fit$par)
+  sd_index <- n_theta - 3 + which_sd
+  b <- bounds(model)
+
+  parallel::mclapply(grid, function(v) {
+    f <- optim(
+      fit$par[-sd_index],
+      function(p) {
+        th <- numeric(n_theta); th[sd_index] <- log(v); th[-sd_index] <- p
+        -loglik(th, model)
+      },
+      method = "L-BFGS-B", lower = b$lower[-sd_index], upper = b$upper[-sd_index],
+      control = list(maxit = 300, factr = 1e7)
+    )
+    tibble(model = model, parameter = c("item", "examiner skill", "examiner inconclusive")[which_sd],
+           value = v, loglik = -f$value)
+  }, mc.cores = n_cores) |> bind_rows()
+}
+
+sd_grid <- c(0.02, 0.25, 0.5, 0.8, 1.2, 1.8, 3)
+
+profile_results <- bind_rows(
+  map_dfr(1:3, ~ profile_sd("M0", .x, sd_grid, fit0)),
+  map_dfr(1:3, ~ profile_sd("M1", .x, sd_grid, fit1))
+) |>
+  left_join(tibble(model = c("M0", "M1"), max_ll = c(-fit0$value, -fit1$value)), by = "model") |>
+  mutate(
+    drop = pmin(loglik - max_ll, 0),
+    parameter = factor(parameter, levels = c("item", "examiner skill", "examiner inconclusive")),
+    model = recode(model, M0 = "M0: DGP as-is", M1 = "M1: separate inconclusive baselines")
+  )
+```
+
+```{r plot-profiles, fig.width=10, fig.height=5}
+ggplot(profile_results, aes(x = value, y = drop)) +
+  geom_hline(yintercept = -1.92, linetype = "dashed", color = "grey50") +
+  geom_line() +
+  geom_point() +
+  facet_grid(model ~ parameter, scales = "free_y") +
+  labs(
+    title = "Profile log-likelihood for each heterogeneity SD",
+    subtitle = "Drop from the maximum; dashed line = approximate 95% cutoff",
+    x = "Fixed value of the SD (latent logit scale)",
+    y = "Log-likelihood minus maximum"
+  ) +
+  theme_minimal()
+```
+
+# Goodness of fit
+
+A good likelihood is not a good model. To ask what the fitted models get
+wrong, simulate *new studies with the real study's design* — the same 173
+examiners with their actual numbers of responses, and the same ground truth,
+firearm type, and firearm for every response — from each fitted parameter
+set, using the shared `simulate_response()`. Then compare summaries the
+likelihood was never asked to match against the same summaries computed on the
+real data. (Plug-in parameters, so this ignores parameter uncertainty; for
+features off by many multiples that does not change the conclusion.)
+
+Three parameter sets are compared: the **previous talk defaults**, **M0**, and **M1**.
+
+```{r gof-functions}
+gof_design <- ames |> select(exam_id, truth, nonber, firearm, resp)
+
+simulate_fitted_study <- function(p, design, seed) {
+  set.seed(seed)
+  examiners <- distinct(design, exam_id) |>
+    mutate(skill = rnorm(n(), 0, p$sd[2]), tendency = rnorm(n(), 0, p$sd[3]))
+
+  sim <- design |>
+    select(-resp) |>
+    left_join(examiners, by = "exam_id") |>
+    mutate(challenge = nonber * p$delta + rnorm(n(), 0, p$sd[1]) - skill)
+
+  sim$resp <- purrr::pmap_chr(
+    list(
+      ground_truth = sim$truth,
+      decision_challenge = sim$challenge,
+      examiner_inconclusive_tendency = sim$tendency,
+      inconclusive_rate = if_else(sim$truth == 1, plogis(p$irS), plogis(p$irD))
+    ),
+    simulate_response,
+    false_positive_rate = plogis(p$fpr),
+    false_negative_rate = plogis(p$fnr)
+  )
+  sim
+}
+
+# Summaries that the likelihood was not directly fit to.
+gof_stats <- function(df) {
+  df <- df |> mutate(is_err = (truth == 1 & resp == "elimination") | (truth == 0 & resp == "identification"),
+                     is_inc = resp == "inconclusive")
+
+  by_ex <- df |>
+    group_by(exam_id) |>
+    summarise(
+      inc = mean(is_inc), err = mean(is_err),
+      inc_ss = mean(is_inc[truth == 1]), inc_ds = mean(is_inc[truth == 0]),
+      n_ss = sum(truth == 1), n_ds = sum(truth == 0), any_err = any(is_err),
+      .groups = "drop"
+    )
+  by_fw <- df |> filter(truth == 1) |> group_by(firearm) |> summarise(inc = mean(is_inc), .groups = "drop")
+  both <- by_ex |> filter(n_ss >= 3, n_ds >= 3)
+
+  cells <- df |>
+    count(truth, resp) |>
+    group_by(truth) |>
+    mutate(p = n / sum(n)) |>
+    ungroup()
+  cell_p <- setNames(cells$p, paste0("cell_", if_else(cells$truth == 1, "same", "diff"), "_", cells$resp))
+
+  type_inc <- df |> group_by(truth, nonber) |> summarise(inc = mean(is_inc), .groups = "drop")
+  type_p <- setNames(type_inc$inc, paste0("inc_", if_else(type_inc$truth == 1, "same", "diff"), "_", if_else(type_inc$nonber == 1, "nonber", "ber")))
+
+  scalars <- c(
+    cell_p, type_p,
+    n_errors = sum(df$is_err),
+    n_examiners_with_error = sum(by_ex$any_err),
+    sd_examiner_inc = sd(by_ex$inc),
+    cor_examiner_inc_same_vs_diff = cor(both$inc_ss, both$inc_ds),
+    cor_examiner_inc_vs_err = cor(by_ex$inc, by_ex$err),
+    sd_firearm_inc_same = sd(by_fw$inc)
+  )
+  list(scalars = scalars, examiner_sorted = sort(by_ex$inc), firearm_sorted = sort(by_fw$inc))
+}
+
+n_sims <- 200
+
+gof_params <- list(
+  "Previous talk defaults" = talk_p,
+  "M0: DGP as-is" = unpack(fit0$par, "M0"),
+  "M1: separate inconclusive baselines" = unpack(fit1$par, "M1")
+)
+```
+
+```{r run-gof, cache=TRUE}
+gof_seeds <- 9000 + seq_len(n_sims)
+
+gof_sims <- imap(gof_params, function(p, label) {
+  parallel::mclapply(gof_seeds, function(sd) gof_stats(simulate_fitted_study(p, gof_design, sd)), mc.cores = n_cores)
+})
+gof_obs <- gof_stats(gof_design)
+```
+
+## Summary statistics: real study vs. fitted models
+
+Each row is a summary of the real study; columns show the range spanned by the
+middle 95% of the `r n_sims` simulated studies from each parameter set. A
+"p" is the two-sided Monte Carlo tail probability of a simulated value at
+least as extreme as the real one; `< .01` means that in none (or almost none) of the
+`r n_sims` simulated studies did the model produce something as extreme as
+the real data.
+
+```{r gof-table}
+stat_labels <- c(
+  cell_diff_identification = "Different-source: % identification (FPR)",
+  cell_diff_inconclusive = "Different-source: % inconclusive",
+  cell_same_inconclusive = "Same-source: % inconclusive",
+  cell_same_elimination = "Same-source: % elimination (FNR)",
+  n_errors = "Total errors",
+  n_examiners_with_error = "Examiners with at least one error",
+  sd_examiner_inc = "SD across examiners of inconclusive rate",
+  cor_examiner_inc_same_vs_diff = "Across examiners: cor(inconclusive rate on same- vs. different-source items)",
+  cor_examiner_inc_vs_err = "Across examiners: cor(inconclusive rate, error rate)",
+  sd_firearm_inc_same = "SD across firearms of same-source inconclusive rate",
+  inc_same_ber = "Same-source, Beretta: % inconclusive",
+  inc_same_nonber = "Same-source, non-Beretta: % inconclusive",
+  inc_diff_ber = "Different-source, Beretta: % inconclusive",
+  inc_diff_nonber = "Different-source, non-Beretta: % inconclusive"
+)
+
+is_pct <- function(nm) grepl("^(cell_|inc_)", nm)
+fmt <- function(x, nm) if (is_pct(nm)) percent(x, accuracy = 0.1) else if (grepl("^n_", nm)) as.character(round(x)) else sprintf("%.2f", x)
+
+gof_table <- map_dfr(names(stat_labels), function(nm) {
+  obs <- gof_obs$scalars[[nm]]
+  row <- tibble(Statistic = stat_labels[[nm]], Observed = fmt(obs, nm))
+  for (label in names(gof_sims)) {
+    sims <- map_dbl(gof_sims[[label]], ~ .x$scalars[[nm]])
+    sims <- sims[is.finite(sims)]
+    p <- min(1, 2 * min(mean(sims >= obs), mean(sims <= obs)))
+    range_txt <- paste0(fmt(quantile(sims, 0.025), nm), " to ", fmt(quantile(sims, 0.975), nm))
+    row[[label]] <- paste0(range_txt, if (p < 0.01) " (p < .01)" else sprintf(" (p = %.2f)", p))
+  }
+  row
+})
+
+knitr::kable(gof_table)
+```
+
+## Examiner-to-examiner spread in inconclusive rates
+
+For each model, the sorted inconclusive rate of the 173 examiners in the real
+study (points) against the middle 95% envelope of the same order statistics in
+simulated studies (band).
+
+```{r plot-examiner-spread, fig.width=10, fig.height=4.5}
+envelope <- function(key) {
+  imap_dfr(gof_sims, function(sims, label) {
+    mat <- do.call(rbind, map(sims, key))
+    tibble(model = label, rank = seq_len(ncol(mat)),
+           lo = apply(mat, 2, quantile, 0.025), hi = apply(mat, 2, quantile, 0.975))
+  })
+}
+
+obs_examiner <- tibble(rank = seq_along(gof_obs$examiner_sorted), rate = gof_obs$examiner_sorted)
+
+ggplot(envelope(~ .x$examiner_sorted), aes(x = rank)) +
+  geom_ribbon(aes(ymin = lo, ymax = hi), fill = "grey75") +
+  geom_point(data = obs_examiner, aes(y = rate), size = 0.8, color = "#D55E00") +
+  facet_wrap(~ model) +
+  scale_y_continuous(labels = percent_format(accuracy = 1)) +
+  labs(
+    title = "Examiner-level inconclusive rates: real study vs. simulated studies",
+    subtitle = "Points: 173 real examiners, sorted. Band: 95% envelope across simulated studies",
+    x = "Examiner (sorted by inconclusive rate)", y = "Inconclusive rate"
+  ) +
+  theme_minimal()
+```
+
+## Firearm-to-firearm spread in same-source inconclusive rates
+
+The DGP has no firearm effect. If firearms really differ in difficulty, real
+firearm-level inconclusive rates should be more spread out than any of these
+models can produce, even though each model was fit to (and reproduces) the
+overall inconclusive rate.
+
+```{r plot-firearm-spread, fig.width=10, fig.height=4.5}
+obs_firearm <- tibble(rank = seq_along(gof_obs$firearm_sorted), rate = gof_obs$firearm_sorted)
+
+ggplot(envelope(~ .x$firearm_sorted), aes(x = rank)) +
+  geom_ribbon(aes(ymin = lo, ymax = hi), fill = "grey75") +
+  geom_point(data = obs_firearm, aes(y = rate), size = 1.2, color = "#D55E00") +
+  facet_wrap(~ model) +
+  scale_y_continuous(labels = percent_format(accuracy = 1)) +
+  labs(
+    title = "Firearm-level same-source inconclusive rates: real study vs. simulated studies",
+    subtitle = "Points: 38 real firearms (about 30 same-source comparisons each), sorted. Band: 95% envelope across simulated studies",
+    x = "Firearm (sorted by inconclusive rate)", y = "Inconclusive rate on same-source comparisons"
+  ) +
+  theme_minimal()
+```
+
+# What we learn
+
+## What the DGP gets right
+
+Once same- and different-source items are allowed separate inconclusive
+baselines (M1), the fitted model reproduces the real study's headline
+numbers and one structural feature it was not directly fit to:
+
+- All six cells of the ground truth x decision crosstab, including the
+  realized FPR (real `r percent(gof_obs$scalars[["cell_diff_identification"]], accuracy = 0.1)`)
+  and FNR (real `r percent(gof_obs$scalars[["cell_same_elimination"]], accuracy = 0.1)`).
+- The number of errors (real `r gof_obs$scalars[["n_errors"]]`) and of examiners who made at least one
+  (real `r gof_obs$scalars[["n_examiners_with_error"]]`).
+- **The examiner-to-examiner spread in inconclusive rates** (SD across examiners:
+  real `r sprintf("%.2f", gof_obs$scalars[["sd_examiner_inc"]])`), even though the
+  likelihood never targeted that summary directly. The examiner-level plot above
+  shows the real distribution sitting essentially inside the simulated envelope from one end to the other.
+
+## What goes wrong
+
+1. **The current DGP cannot match both inconclusive rates.** M0's single shared
+   inconclusive baseline lands at about 41% for both ground-truth categories, against
+   `r percent(gof_obs$scalars[["cell_diff_inconclusive"]], accuracy = 1)` (different-source) and
+   `r percent(gof_obs$scalars[["cell_same_inconclusive"]], accuracy = 1)` (same-source) in the
+   real data — a ~27-point gap between the two that no shared baseline can produce. Freeing
+   the two baselines (M1) is worth `r round(-fit1$value + fit0$value, 0)` log-likelihood units and
+   makes M0's odd parameter values (item SD at its bound, near-zero baseline error rates) go
+   away. In `analysis.qmd` this asymmetry was labeled a small residual to be accepted; on the
+   raw data it is the dominant structural misfit.
+2. **The previous talk defaults badly understate examiner heterogeneity, and overshoot errors.**
+   With $\sigma_\tau = 0.35$ the simulated SD of examiner inconclusive rates is about
+   0.13–0.16 against a real 0.24, and the examiner-level plot shows the real spread
+   extending well outside the envelope on both ends. The data want $\sigma_\tau \approx$
+   `r round(b1$sd[3], 1)`. On this study's design, the defaults also produce 76–117 errors (real: 51)
+   — i.e., FPR/FNR roughly 1.5–2x too high, consistent with the ~2x that `analysis.qmd` accepted, but
+   now shown not to be sampling noise.
+3. **Item and examiner-skill heterogeneity are not identified by this study.**
+   The profile likelihoods are flat over most of the range for $\sigma_d$ (item) and
+   $\sigma_s$ (skill) under M1: values from ~0 up to about 1 are all
+   within the 95% cutoff for skill, and item SD is best at its lower bound and
+   only mildly penalized out to ~1.2. Only $\sigma_\tau$ is sharply determined.
+   That is what the design implies: every item is seen by one examiner, so
+   difficulty and skill can only enter through the (rare — 51 in 4,258 responses)
+   errors and through a half-weight on inconclusives. Under M0 the item SD is instead
+   pulled to its upper bound and the restarts disagree. **Consequence:** these
+   sliders in `app.R` cannot be set from this study, and any conclusion
+   that depends on them should be shown across a range (as
+   `sensitivity_nonrepresentative.qmd` already does for case study 2), not at a fixed default.
+4. **Examiner inconclusive tendency is not one number per examiner.** The DGP gives each
+   examiner a single $\tau_j$ applied to same- and different-source items alike. In the
+   real data, an examiner's inconclusive rate on same-source items is only weakly
+   correlated with their rate on different-source items
+   (real `r sprintf("%.2f", gof_obs$scalars[["cor_examiner_inc_same_vs_diff"]])`), while
+   the fitted models predict about 0.6–0.8. Examiners appear to behave differently on
+   the two kinds of comparison — not just more or less inconclusive overall.
+5. **Firearms differ far more than the model allows.** Across the 38 firearms, the SD of the
+   same-source inconclusive rate is `r sprintf("%.2f", gof_obs$scalars[["sd_firearm_inc_same"]])`
+   in the real data vs. 0.06–0.10 in every fitted model; the firearm-level plot shows the
+   real firearms at both extremes (3% to 70%) outside the envelope. This is direct empirical
+   support for the firearm random effect already used in case study 2
+   (`make_firearm_population()`), and is consistent with the 0%–62% range across Beretta
+   pistols that Cuellar et al. cite.
+6. **A single "difficulty" axis cannot describe make/model differences.** Non-Beretta
+   same-source items are harder (more inconclusive: 32% vs. 18%), but non-Beretta
+   *different*-source items are *less* often inconclusive (44% vs. 53%). A shift that
+   makes items harder for both truth values (M2) fits neither well; its
+   improvement over M1 is `r round(-fit2$value + fit1$value, 2)` log-likelihood units. Difficulty here is
+   not one dimension shared by same- and different-source comparisons.
+7. **Errors and inconclusives are (weakly) negatively related across examiners in the
+   real data** (real correlation `r sprintf("%.2f", gof_obs$scalars[["cor_examiner_inc_vs_err"]])`),
+   i.e., more cautious examiners err less — a trade-off. In the DGP a harder challenge raises
+   both error and inconclusive probabilities, so examiners with low skill are
+   simultaneously more error-prone and more inconclusive, which pushes the
+   correlation the other way. The evidence here is thin (51 errors) and the real
+   value sits at the edge of the simulated envelope, so treat it as a
+   flag rather than a finding.
+
+## Implications for the talk
+
+- **Case study 1 gets stronger, not weaker.** On the raw Ames II responses,
+  `r percent(with(raw_rates[raw_rates$ground_truth_label == "different-source", ], inc), accuracy = 0.1)`
+  of different-source and
+  `r percent(with(raw_rates[raw_rates$ground_truth_label == "same-source", ], inc), accuracy = 0.1)`
+  of same-source responses are inconclusive; the false positive rate is
+  `r percent(check$from_raw_data[1], accuracy = 0.1)` if inconclusives are counted as eliminations and
+  `r percent(check$from_raw_data[2], accuracy = 0.1)` if counted as identifications. That is a real study,
+  not a simulation. The simulated case study, run at the talk's symmetric 36%
+  inconclusive rate, gave worst-case FPR and FNR of similar size (about 39% and 40%); the real
+  study is asymmetric (about 52% and 26%).
+- **The defaults have been updated accordingly.** `R/simulate_dgp.R` now holds values based on M1:
+  inconclusive baselines of 50% (different-source) and 17% (same-source), examiner
+  inconclusive-tendency SD 1.3, examiner skill SD 0.5, item SD 0.8, and baseline FPR / FNR of
+  0.6% / 1.1%. Because item and skill SD are not identified by this study (issue 3), they were
+  fixed at values inside their profile-likelihood ranges and the identified parameters were re-estimated
+  conditional on them (log-likelihood within 1 unit of the unconstrained M1 fit). With those defaults, the shared
+  generator reproduces all six cells of the real crosstab to within about a point and the examiner-level SD
+  of inconclusive rates (0.24 real vs. 0.24 simulated).
+- **Suggested wording for the calibration slide:** "Fit by maximum likelihood to the
+  Ames II cartridge-case responses. Matches the response distribution and examiner-to-examiner
+  spread; does not capture firearm-level differences" — with the firearm-level plot as a backup
+  slide. That is honest about both the fit and its limits.
+
+## Caveats
+
+- Goodness-of-fit simulations use plug-in parameter values and ignore parameter
+  uncertainty; for features off by several multiples that does not change the conclusion,
+  but it would matter for borderline ones (the error–inconclusive correlation, some Beretta-type rows).
+- The likelihood treats items as independent given the examiner (the DGP's assumption) even
+  though items share firearms. That is the very dependence issue 5 documents, so fitted SDs
+  partly absorb firearm-level variation and should not be read as pure item or examiner effects.
+- SDs are bounded at $[0.02, 3]$. Point estimates at a bound (M0 item SD, M1/M2 item SD) come with
+  no meaningful standard error; profile likelihoods are used instead of Wald intervals.
+- One study, one evidence type (cartridge cases; the workbook's `Bullets` sheet is untouched).
+  Ames II examiners were not sampled from the population of casework examiners, so fitted rates describe
+  this sample of examiners, not that population (Flaw B, again).
+- 62 unsuitable / unanswered responses (1.4%) were dropped, treated as ignorable.
+
+## Next steps
+
+- ~~Extend `simulate_response()` with truth-specific inconclusive baselines~~ (done: `inconclusive_rate_same`).
+  Still open: consider truth-specific examiner tendencies ($\tau_j$ for same-source vs.
+  different-source) to address issue 4.
+- Add a firearm random effect to the likelihood-based fit. Items share firearms and firearms
+  are crossed with examiners, so the exact likelihood is no longer a small quadrature; a
+  simulation-based fit (matching examiner- and firearm-level summaries) is the practical route. The observed
+  firearm-level SD of same-source inconclusive rates (0.14) is a direct target for `firearm_difficulty_sd`.
+- Repeat on the `Bullets` sheet and, if available, on Ames I / Baldwin et al., to see which fitted
+  parameters are stable across studies and which are study-specific.
+
+# References
+
+::: {#refs}
+:::

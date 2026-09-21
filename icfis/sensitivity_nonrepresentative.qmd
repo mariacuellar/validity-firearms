@@ -14,10 +14,11 @@ format:
 # Goal
 
 `icfis/case_study_nonrepresentative.qmd`'s headline numbers (convenience
-sample FPR/FNR roughly 5x and 4.5x too low) depend on three uncalibrated
+sample FPR/FNR roughly 5--6x too low) depend on three uncalibrated
 heterogeneity parameters: `type_difficulty_sd` (between-model, currently
 1.2), `firearm_difficulty_sd` (within-model, currently 0.9), and
-`examiner_skill_sd` (currently 0.7, shared with the rest of the talk).
+`examiner_skill_sd` (currently 0.5, shared with the rest of the talk; the
+Ames II fit cannot identify it).
 None of these are fit to real data — see that case study's own "Next
 steps."
 
@@ -43,8 +44,9 @@ Two factors, three levels each:
 
 - **Difficulty heterogeneity** (Low / Medium / High): scales both
   `type_difficulty_sd` and `firearm_difficulty_sd` together by 0.5x / 1x
-  (the case study's current values) / 1.5x. Medium reproduces the case
-  study's numbers exactly.
+  (the case study's current values) / 1.5x. Medium approximately reproduces the
+  case study's numbers (a smaller reference simulation and 50 rather than 500
+  replicates, so not exactly).
 - **Examiner heterogeneity** (Low / Medium / High): scales
   `examiner_skill_sd` by 0.5x / 1x (the talk's canonical default) / 2x.
 
@@ -117,6 +119,7 @@ run_cell <- function(type_difficulty_sd, firearm_difficulty_sd, examiner_skill_s
     false_positive_rate = dgp_defaults$false_positive_rate,
     false_negative_rate = dgp_defaults$false_negative_rate,
     inconclusive_rate = dgp_defaults$inconclusive_rate,
+    inconclusive_rate_same = dgp_defaults$inconclusive_rate_same,
     examiner_skill_sd = examiner_skill_sd,
     examiner_inconclusive_sd = dgp_defaults$examiner_inconclusive_sd,
     question_sd = dgp_defaults$question_sd
@@ -138,6 +141,7 @@ run_cell <- function(type_difficulty_sd, firearm_difficulty_sd, examiner_skill_s
       false_positive_rate = dgp_defaults$false_positive_rate,
       false_negative_rate = dgp_defaults$false_negative_rate,
       inconclusive_rate = dgp_defaults$inconclusive_rate,
+      inconclusive_rate_same = dgp_defaults$inconclusive_rate_same,
       examiner_skill_sd = examiner_skill_sd,
       examiner_inconclusive_sd = dgp_defaults$examiner_inconclusive_sd,
       question_sd = dgp_defaults$question_sd
@@ -254,35 +258,50 @@ ggplot(reweighting_check, aes(x = examiner_scenario, y = ratio_to_truth, color =
 
 # Interpretation
 
+```{r interp-helpers, include=FALSE}
+naive <- grid_results %>% filter(scenario == "Convenience sample (naive)")
+naive_range <- function(m, lvl) { r <- naive %>% filter(metric == m, difficulty_scenario == lvl) %>% pull(ratio_to_truth); c(min(r), max(r)) }
+fmt_ratio <- function(r) sprintf("%.2f--%.2fx", r[1], r[2])
+fmt_too_low <- function(r) { lo <- round(1 / r[2]); hi <- round(1 / r[1]); if (lo == hi) sprintf("~%.0fx too low", lo) else sprintf("~%.0f--%.0fx too low", lo, hi) }
+
+med_row <- naive %>% filter(metric == "FPR", difficulty_scenario == "Medium")
+ex_effect_txt <- paste(sprintf("%.2fx", med_row$ratio_to_truth[order(med_row$examiner_scenario)]), collapse = " -> ")
+
+full_rng <- grid_results %>% filter(scenario == "Full-coverage study (reweighted)") %>% pull(ratio_to_truth) %>% range()
+fix_rng <- grid_results %>% filter(scenario == "Convenience sample (\"reweighted\")") %>% pull(ratio_to_truth) %>% range()
+all_naive <- range(naive$ratio_to_truth)
+```
+
 - **The bias ratio scales strongly and monotonically with difficulty
   heterogeneity.** For FPR, the convenience sample's naive rate is roughly
-  0.4–0.56x the true rate at Low difficulty heterogeneity (~2–2.5x too
-  low), 0.20–0.24x at Medium (~4–5x too low — this is where the main case
-  study's "5x" comes from), and 0.09–0.11x at High (~9–11x too low). FNR
-  shows the same pattern. More between-model difficulty spread makes the
+  `r fmt_ratio(naive_range("FPR", "Low"))` the true rate at Low difficulty heterogeneity
+  (`r fmt_too_low(naive_range("FPR", "Low"))`), `r fmt_ratio(naive_range("FPR", "Medium"))` at Medium
+  (`r fmt_too_low(naive_range("FPR", "Medium"))` — this is where the main case study's "5x" comes from), and
+  `r fmt_ratio(naive_range("FPR", "High"))` at High (`r fmt_too_low(naive_range("FPR", "High"))`). FNR
+  shows the same pattern (Low `r fmt_ratio(naive_range("FNR", "Low"))`, Medium `r fmt_ratio(naive_range("FNR", "Medium"))`,
+  High `r fmt_ratio(naive_range("FNR", "High"))`). More between-model difficulty spread makes the
   two "easiest" types more extreme relative to the population average, so
   the bias gets *worse*, not better, as this parameter grows.
-- **Examiner heterogeneity has a real but much smaller effect.** Within
-  each difficulty row, moving from Low to High examiner heterogeneity
-  nudges the ratio up modestly (e.g., FPR at Medium difficulty: 0.20x →
-  0.21x → 0.24x going Low → Medium → High examiner) — a mild dilution
-  effect, not the near-total insensitivity originally hypothesized, but
-  small next to the ~5x range difficulty heterogeneity produces on its
-  own.
+- **Examiner (skill) heterogeneity has no consistent effect.** Within each difficulty row the
+  ratio moves by much less than it does across rows and not always in the same direction
+  (e.g., FPR at Medium difficulty: `r ex_effect_txt` going Low -> Medium -> High examiner heterogeneity),
+  so treat it as small next to what difficulty heterogeneity produces on its own. (Only examiner
+  *skill* is varied here; the examiner inconclusive-tendency SD, which the Ames II data do identify,
+  is held at the talk's default.)
 - **The qualitative story holds at every one of the 9 grid points
-  tested.** Full-coverage (reweighted) stays within 0.85x–1.31x of the
-  true rate everywhere (consistent with sampling noise at only 50
+  tested.** Full-coverage (reweighted) stays within
+  `r fmt_ratio(full_rng)` of the true rate everywhere (consistent with sampling noise at only 50
   replicates per cell, not a systematic miss). Convenience ("reweighted")
-  stays within 0.10x–0.62x — badly biased everywhere, never approaching
+  stays within `r fmt_ratio(range(fix_rng))` — badly biased everywhere, never approaching
   1x. Reweighting recovering the truth with coverage, and failing without
   it, does not depend on the specific heterogeneity magnitudes used in
   the main case study.
-- **The specific "5x" and "4.5x" figures in the main case study are one
+- **The specific "5x" figure in the main case study is one
   point in this grid (Medium difficulty, Medium examiner)** — real,
   reproducible from the same code, but not privileged over any other
-  cell; the true bias could plausibly be reported as anywhere from ~2x to
-  ~11x too low depending on how much between-model heterogeneity actually
-  exists in real casework, which nothing here is calibrated to (see the
+  cell; the true bias could plausibly be reported as anywhere from about
+  `r sprintf("%.0f", 1 / max(all_naive))`x to `r sprintf("%.0f", 1 / min(all_naive))`x too low depending on how much between-model
+  heterogeneity actually exists in real casework, which nothing here is calibrated to (see the
   main case study's "Next steps"). Only the *direction* and the
   reweighting-works/fails distinction should be treated as a claim; the
   specific multiplier should not be quoted as an empirical estimate about
