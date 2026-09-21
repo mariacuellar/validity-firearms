@@ -13,7 +13,15 @@ format:
     incremental: true
     footer: "ICFIS 2026"
     # TODO: swap in institution logo 
+execute: 
+  echo: false
+  warning: false
+  message: false
 ---
+
+```{r}
+library(tidyverse)
+```
 
 <!--
 TIMING BUDGET — talk is 30 minutes, excluding Q&A. Keep this comment for
@@ -42,9 +50,10 @@ only if there's time for a second remediable-flaw example.
 
 # Motivation
 
-## Why this talk {.smaller}
+## Why this talk
 
 - NAS (2009) and PCAST (2016): scientific validity of firearms examination has not been established
+- Daubert Standard: Is there a **known error rate** for the technique?
 - Recent large-scale black-box validation studies have attempted to remedy this (Ames I and II, Hicklin et al)
 - @cuellar2024methodological: literature search of 28 black-box validation studies
   - Found six flaws (A–F) present, with minor exceptions, in **every** study
@@ -70,9 +79,9 @@ only if there's time for a second remediable-flaw example.
 
 - No single study is perfect
 - Not every flaw has the same consequences
-- Analytic shortcomings (D, E) may be **repairable after the fact** if the raw
+- Analytic shortcomings may be **repairable after the fact** if the raw
   responses were recorded
-- Imperfect studies are still useful for some purposes 
+- Imperfect studies are still useful!
 - We should not discourage data collection just because a study has flaws 
 
 ## Main point of disagreement: 
@@ -85,16 +94,12 @@ only if there's time for a second remediable-flaw example.
   buckets — remediable (fixable via reanalysis) and non-remediable (fixable
   only with new data)
 
-::: {.notes}
-~1.5 min. This is the thesis statement — say it out loud, slowly. Everything
-after this slide is in service of defending this one claim.
-:::
 
 # The Remediable / Non-Remediable Distinction
 
 ## What "remediable" means here
 
-Fix a target quantity (the **estimand**):
+Define the target quantity (the **estimand**):
 
 > the population-average error rate (FPR / FNR), under casework-representative firearms, ammunition, examiners, and testing conditions
 
@@ -103,40 +108,12 @@ Fix a target quantity (the **estimand**):
 - **Non-remediable**: the sampled data cannot support the estimand, *regardless*
   of what analysis is applied to them
 
-::: {.notes}
-~1 min. Naming the estimand explicitly is what makes the rest of the flowchart
-legible — don't skip this slide even though it feels abstract.
-:::
 
 ## Flowchart: sorting the six flaws
 
-<!-- TODO: replace with a designed figure (e.g., built in the design skill or
-     as a standalone SVG/graphviz diagram). Placeholder logic below. -->
+<!-- TODO: replace  -->
 
-```{mermaid}
-flowchart TD
-    A[Flaw] --> B{Operates on data<br/>collection or analysis?}
-    B -->|Analysis / reporting| C{Raw responses<br/>available?}
-    C -->|Yes| D[Remediable<br/>— recompute]
-    D1["D: inconclusive handling"] --> D
-    D2["E: uncertainty measures"] --> D
-    B -->|Collection / design| E{Population distribution +<br/>covariates captured?}
-    E -->|No, in practice| F[Non-remediable<br/>without new data]
-    F1["B: non-representative sample"] --> F
-    F2["C: non-representative conditions"] --> F
-    B -->|Sample size| G[Remediable<br/>by pooling / more data]
-    G1["A: inadequate sample size"] --> G
-    E -->|Yes, with assumptions| H[Gray zone:<br/>remediable w/ sensitivity analysis]
-    H1["F: missing data"] --> H
-```
-
-::: {.notes}
-~2.5 min. This is the centerpiece slide — go slowly. Walk the tree left to
-right: A is variance-only (more data fixes it); D/E are pure reanalysis;
-F needs an assumption but is at least partially recoverable; B/C are the
-hard cases because the studies never characterized the population they'd
-need to correct for.
-:::
+![img/flowchart.png]
 
 ## Remainder of the talk
 
@@ -147,12 +124,8 @@ need to correct for.
 ## Approach: simulation study
 
 - We can't go back and observe the "true" error rate for the 28 studies
-- A simulation with a **known ground truth** lets us show, precisely, what each flaw does to a study's conclusions
+- A simulation with a **known estimand** lets us show what each flaw does to a study's conclusions
 - Same generative model powers both case studies
-
-::: {.notes}
-~1 min.
-:::
 
 
 
@@ -176,11 +149,6 @@ $\pi_{ij}^{inc} = P(\text{Inconclusive}) = \text{expit}[\text{logit}(\text{IR}_{
 
 The baseline inconclusive rate $\text{IR}_{G_i}$ can differ for same-source and different-source items.
 
-::: {.notes}
-~1.5 min. The 0.5 weight on $c_{ij}$ in the inconclusive term and the 0.95
-cap are both ad hoc constants in the current code — flag as a limitation if
-asked, and put a sensitivity analysis on the to-do list.
-:::
 
 ## The response, formally {.smaller}
 
@@ -197,15 +165,6 @@ $$
 
 independently across $(i,j)$ given the latent variables above.
 
-<!-- TODO: this slide's DGP still treats items as exchangeable -- fine for
-     both case studies as built, since case study 1 doesn't need firearm
-     structure at all and case study 2 adds it separately in
-     icfis/R/simulate_dgp_types.R (not reflected in this core-model slide).
-     A firearm-level random effect *is* implemented there and already used
-     by case study 2, just not for CI coverage -- see backup slide
-     "Appendix: what's left for CI coverage (Flaw E)" for what's still
-     missing on that front specifically. -->
-
 
 ::: {.notes}
 ~1.5 min. This slide is the payoff of the notation build-up — say the plain-
@@ -217,12 +176,12 @@ examiner is." Don't let the audience get lost in the categorical notation.
 ## Calibrating to real studies
 
 - Probability model above *cannot* capture every effect that arises in real data
-- Goal is to create simulated studies that resemble previously-collected results: 
+- Goal is to create simulated studies that resemble previously-collected results, not to perfectly replicate a single study
+- Some benchmarks that we used:  
     - Ames II cartridge cases (raw responses): baseline FPR, FNR, and inconclusive rates, fit by maximum likelihood
         - same-source and different-source items get *separate* inconclusive baselines: about 17% vs. 50%
     - Scurich et al (2025) blind-vs-known test inconclusive rates: 39.3% (blind) vs 56.4% (known)
     - Ames II: range of 0-62% "hard" comparison range across individual Beretta pistols
-- Reproduces the real study's decision table and the examiner-to-examiner spread in inconclusive rates; does **not** capture firearm-level differences
 
 ::: callout-warning
 Disagree with calibrating to these numbers? We have an app for that! [add link]
@@ -259,7 +218,21 @@ two defaults are fixed at plausible values (0.8, 0.5), not estimated.
 
 ## Example: 
 
-[ames II response table]
+```{r}
+ames2 <- readxl::read_xlsx(here::here("real-data/ames2.xlsx"), sheet = 3) |>
+  mutate(
+    response_3 = case_when(stringr::str_detect(`Examiner's Analysis`, "Inc") ~ "Inconclusive",
+    stringr::str_detect(`Examiner's Analysis`, "ID") ~ "Identification",
+    stringr::str_detect(`Examiner's Analysis`, "Elim") ~ "Elimination"
+    )
+  )
+
+ames2 |>
+  select(c("M_NM", "response_3")) |>
+  table() |>
+  prop.table(1) |>
+  round(2)
+```
 
 column 1: 1 study
 
@@ -282,10 +255,6 @@ column 2: 100 studies
 - Claim: this is *remediable* — both numbers come from the same raw
   responses, recomputed after the fact
 
-::: {.notes}
-~1 min. The hook is that the bounding procedure gives a range instead of one
-falsely precise number, and both ends come from the same raw responses.
-:::
 
 ## Simulation design
 
@@ -311,8 +280,6 @@ falsely precise number, and both ends come from the same raw responses.
   **1.7% → 25.4%** — the gap holds up, it's not one unlucky draw
 - The real Ames II cartridge-case responses give the same picture: FPR
   **0.9% → 51.5%**, FNR **1.8% → 25.7%**
-- [FIGURE: boxplots of reported vs. worst-case FPR/FNR across 100 studies,
-  faceted by rate — see icfis/case_study_inconclusive.qmd]
 
 ::: {.notes}
 ~2 min. Lead with the one-study numbers (concrete, easy to say out loud),
@@ -326,6 +293,10 @@ asymmetry (larger gap for false positives) comes from inconclusives being much
 more common on different-source items (about 50%) than same-source (about 23%).
 :::
 
+## Results
+
+[add simulation showing the bounds under different inconclusive tendencies]
+
 ## Why this counts as remediable
 
 - The fix required **no new data collection** — the same raw examiner-by-item
@@ -334,14 +305,7 @@ more common on different-source items (about 50%) than same-source (about 23%).
 - This is exactly the kind of flaw Chin et al. are right about: a study with
   this flaw alone can still contribute to a cumulative evidence base, *once
   reanalyzed*
-
-. . . 
-
-On the other hand: this isn't a true "solution" to the problem of inconclusives in black-box studies
-
-::: {.notes}
-~0.5 min. Land the point before moving to the harder case.
-:::
+- On the other hand, these intervals are so large that this isn't really a "solution" to the error rate problem
 
 # Case Study 2: A Non-Remediable Flaw
 
@@ -353,12 +317,17 @@ On the other hand: this isn't a true "solution" to the problem of inconclusives 
 - Chin et al.'s response: non-representative samples can still contribute to
   a cumulative literature if combined with other studies 
 
-::: {.notes}
-~1 min.
-:::
 
-## Ames II
+## Ames II (bullets)
 
+- 11 Ruger and 27 Beretta firearms were used to generate test cases
+- [how were they paired?]
+
+```{r}
+# facet by ruger/beretta
+# bars for each firearm
+# fill by decision
+```
 
 ## Two levels of variability
 
