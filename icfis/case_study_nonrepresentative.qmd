@@ -75,6 +75,15 @@ easiest_types <- type_population %>%
   arrange(type_difficulty) %>%
   slice(1:2) %>%
   pull(type_id)
+
+# Design constants for the three-beat comparison below, defined here (ahead of
+# their first use in prose) so later sections can reference them inline instead
+# of repeating literals.
+world_firearms_per_type <- 4000
+total_firearms <- 80
+n_firearms_convenience <- total_firearms / length(easiest_types)
+n_firearms_full_coverage <- total_firearms / nrow(type_population)
+items_per_examiner <- 30
 ```
 
 The two easiest types to classify are types `r paste(easiest_types, collapse = " and ")`,
@@ -91,12 +100,18 @@ Even firearms of the *same* model differ. @cuellar2024methodological cite
 a 0%–62% "hard" range across 27 otherwise-identical Beretta pistols in
 Ames II — a big enough range to take seriously as a second, additive
 source of difficulty on top of the type-level effect above. Each type's
-"world population" here has 50 individual firearms, each with its own
-difficulty offset (independent of its type's difficulty and of how common
-that type is).
+"world population" here has `r comma(world_firearms_per_type)` individual
+firearms, each with its own difficulty offset (independent of its type's
+difficulty and of how common that type is) — large enough that the
+`r n_firearms_convenience` and `r n_firearms_full_coverage` firearms drawn
+per type below (`r percent(n_firearms_convenience / world_firearms_per_type, accuracy = 0.1)`
+and `r percent(n_firearms_full_coverage / world_firearms_per_type, accuracy = 0.1)`
+of the world population, respectively) are genuinely small samples, unlike
+an earlier version of this document whose 50-firearm world population meant
+the convenience sample's 40 firearms/type covered 80% of it.
 
 ```{r firearm-population}
-firearm_population <- make_firearm_population(type_population)
+firearm_population <- make_firearm_population(type_population, firearms_per_type = world_firearms_per_type)
 
 firearm_population_summary <- firearm_population %>%
   group_by(type_id) %>%
@@ -126,7 +141,7 @@ is overall: the convenience sample spreads those 80 firearms across only
 
 A large reference simulation: items are assigned to types proportional to
 the *true* population weights, and within each item's type, to an
-individual firearm drawn from that type's full 50-firearm population
+individual firearm drawn from that type's full `r comma(world_firearms_per_type)`-firearm population
 (with replacement, since the reference is meant to approximate the full
 diversity of firearms in casework, not one study's limited draw). This is
 the estimand the talk cares about: the population-average error rate
@@ -144,6 +159,7 @@ true_reference_data <- generate_population_reference_by_firearm(
   false_positive_rate = dgp_defaults$false_positive_rate,
   false_negative_rate = dgp_defaults$false_negative_rate,
   inconclusive_rate = dgp_defaults$inconclusive_rate,
+  inconclusive_rate_same = dgp_defaults$inconclusive_rate_same,
   examiner_skill_sd = dgp_defaults$examiner_skill_sd,
   examiner_inconclusive_sd = dgp_defaults$examiner_inconclusive_sd,
   question_sd = dgp_defaults$question_sd
@@ -168,6 +184,19 @@ study size is put on equal footing). The convenience sample spreads 80
 firearms across its 2 types (40 each); the full-coverage study spreads
 the same 80 across all 8 types (10 each).
 
+**Incomplete design, matching case study 1.** Each examiner sees only
+`r items_per_examiner` of the scenario's items, assigned independently at
+random without replacement — the same mechanism
+`case_study_inconclusive.qmd` uses (`generate_sim_data_incomplete()`), now
+extended to the type/firearm structure
+(`generate_sim_data_by_type_and_firearm_incomplete()` in
+`R/simulate_dgp_types.R`). `r items_per_examiner` is held fixed across all
+three beats, so only the firearm-sampling design differs between scenarios,
+not each examiner's workload. An earlier version of this document had every
+examiner evaluate every item (fully crossed); this checks whether the story
+changes once examiners see only a fraction of the pool, as they do in a real
+study.
+
 ```{r define-scenarios}
 # Beat 1: convenience sample -- only the two easiest types.
 conv_weights <- if_else(type_population$type_id %in% easiest_types, 1, 0)
@@ -178,27 +207,29 @@ conv_weights <- if_else(type_population$type_id %in% easiest_types, 1, 0)
 # analyst reweights afterward).
 better_weights <- rep(1, nrow(type_population))
 
-total_firearms <- 80
-n_firearms_convenience <- total_firearms / length(easiest_types)
-n_firearms_full_coverage <- total_firearms / nrow(type_population)
+# total_firearms, n_firearms_convenience, n_firearms_full_coverage,
+# world_firearms_per_type, and items_per_examiner are defined earlier, in the
+# type-population chunk.
 
 n_replications <- 500
 set.seed(4042)
 replicate_seeds <- sample.int(1e6, n_replications)
 
 simulate_scenario <- function(seed, sampling_weights, n_firearms_per_type, items_per_firearm) {
-  generate_sim_data_by_type_and_firearm(
+  generate_sim_data_by_type_and_firearm_incomplete(
     seed = seed,
     type_population = type_population,
     firearm_population = firearm_population,
     sampling_weights = sampling_weights,
     n_firearms_per_type = n_firearms_per_type,
     items_per_firearm = items_per_firearm,
+    items_per_examiner = items_per_examiner,
     n_examiners = dgp_defaults$n_examiners,
     match_rate = dgp_defaults$match_rate,
     false_positive_rate = dgp_defaults$false_positive_rate,
     false_negative_rate = dgp_defaults$false_negative_rate,
     inconclusive_rate = dgp_defaults$inconclusive_rate,
+    inconclusive_rate_same = dgp_defaults$inconclusive_rate_same,
     examiner_skill_sd = dgp_defaults$examiner_skill_sd,
     examiner_inconclusive_sd = dgp_defaults$examiner_inconclusive_sd,
     question_sd = dgp_defaults$question_sd
@@ -211,7 +242,8 @@ simulate_scenario <- function(seed, sampling_weights, n_firearms_per_type, items
 `r n_replications` replicate studies, each using
 `r n_firearms_convenience` firearms from each of the two easiest types
 (`r total_firearms` firearms total, 10 items per firearm =
-`r total_firearms * 10` items total).
+`r total_firearms * 10` items in the pool, `r items_per_examiner` seen per
+examiner).
 
 ```{r beat-1, cache=TRUE, cache.extra=n_replications}
 convenience_results <- purrr::map_dfr(seq_len(n_replications), function(r) {
@@ -226,8 +258,8 @@ convenience_results <- purrr::map_dfr(seq_len(n_replications), function(r) {
 `r n_replications` replicate studies, each using
 `r n_firearms_full_coverage` firearms from every one of the eight types
 (`r total_firearms` firearms total, 4 items per firearm =
-`r total_firearms * 4` items total) — then reweighted by the *true*
-population distribution.
+`r total_firearms * 4` items in the pool, `r items_per_examiner` seen per
+examiner) — then reweighted by the *true* population distribution.
 
 ```{r beat-2, cache=TRUE, cache.extra=n_replications}
 better_study_results <- purrr::map_dfr(seq_len(n_replications), function(r) {
@@ -361,46 +393,52 @@ isn't a plausible explanation for any of the three-beat comparisons.
 
 ## Was 500 replicates actually necessary?
 
-Comparing the `r n_replications`-replicate means reported here against the
-means of just the first 100 of those replicates (what a 100-replicate run with
-the same seeds would have reported):
+```{r mc-error-comparison, results='asis'}
+# This section only has something to compare when n_replications > 100 (i.e.
+# a subset of these same replicates can stand in for "what a 100-replicate run
+# would have reported"). At n_replications == 100 exactly -- as in this
+# reduced check-in run of the incomplete-design switch -- there's no smaller
+# subset to compare against, so print a note instead of a degenerate,
+# self-vs-self comparison.
+if (n_replications > 100) {
+  first_100 <- all_results %>%
+    filter(replicate_id <= 100) %>%
+    group_by(metric, scenario) %>%
+    summarise(mean_rate_100 = mean(rate), .groups = "drop")
 
-```{r mc-error-comparison}
-first_100 <- all_results %>%
-  filter(replicate_id <= 100) %>%
-  group_by(metric, scenario) %>%
-  summarise(mean_rate_100 = mean(rate), .groups = "drop")
+  mc_comparison <- summary_table %>%
+    select(metric, scenario, mean_rate_full = mean_rate, se_rate) %>%
+    left_join(first_100, by = c("metric", "scenario")) %>%
+    mutate(shift = mean_rate_full - mean_rate_100, se_at_100 = se_rate * sqrt(n_replications / 100))
 
-mc_comparison <- summary_table %>%
-  select(metric, scenario, mean_rate_500 = mean_rate, se_rate) %>%
-  left_join(first_100, by = c("metric", "scenario")) %>%
-  mutate(shift = mean_rate_500 - mean_rate_100, se_at_100 = se_rate * sqrt(n_replications / 100))
+  cat(sprintf(
+    "Comparing the %d-replicate means reported here against the means of just the first 100 of those replicates (what a 100-replicate run with the same seeds would have reported):\n\n",
+    n_replications
+  ))
 
-knitr::kable(
-  mc_comparison %>%
-    mutate(across(c(mean_rate_100, mean_rate_500, shift), ~ percent(.x, accuracy = 0.01))) %>%
-    select(metric, scenario, mean_rate_100, mean_rate_500, shift),
-  col.names = c("Metric", "Scenario", "Mean at n=100", "Mean at n=500", "Shift")
-)
+  print(knitr::kable(
+    mc_comparison %>%
+      mutate(across(c(mean_rate_100, mean_rate_full, shift), ~ percent(.x, accuracy = 0.01))) %>%
+      select(metric, scenario, mean_rate_100, mean_rate_full, shift),
+    col.names = c("Metric", "Scenario", "Mean at n=100", sprintf("Mean at n=%d", n_replications), "Shift")
+  ))
+
+  max_shift <- max(abs(mc_comparison$shift))
+  max_shift_in_se <- max(abs(mc_comparison$shift) / mc_comparison$se_at_100)
+  true_gap_min <- summary_table %>% filter(scenario != full) %>% summarise(g = min(true_rate - mean_rate)) %>% pull(g)
+
+  cat(sprintf(
+    "\n\nThe means moved by at most %.2f percentage points between 100 and %d replicates (at most %.1f standard errors of the 100-replicate mean, which is $\\sqrt{%d} \\approx %.2f\\times$ larger than the SE at n=%d shown above) — far smaller than the bias the case study is about (the smallest gap between a convenience-sample mean and the truth is %.2f percentage points). In other words, a 100-replicate run already gives a stable answer for every conclusion this case study draws; going to %d tightens the estimate's own uncertainty but doesn't change any of the three-beat comparisons. Worth knowing before spending the extra render time on every future edit — 100 may be the better default while still iterating on the narrative, with %d reserved for a final check before the talk.\n",
+    100 * max_shift, n_replications, max_shift_in_se, n_replications / 100, sqrt(n_replications / 100), n_replications,
+    100 * true_gap_min, n_replications, n_replications
+  ))
+} else {
+  cat(sprintf(
+    "This run already uses the reduced `n_replications = %d` (see the note in the `define-scenarios` chunk above) — there's no smaller subset of it to compare against. A previous 500-replicate run of this case study (before the incomplete-design switch) found the mean estimates stable to within 0.1 percentage points at n = 100, well inside the bias the case study is about; re-run at 500 replicates for a final Monte Carlo check once the design settles.\n",
+    n_replications
+  ))
+}
 ```
-
-```{r mc-summary, include=FALSE}
-max_shift <- max(abs(mc_comparison$shift))
-max_shift_in_se <- max(abs(mc_comparison$shift) / mc_comparison$se_at_100)
-true_gap_min <- summary_table %>% filter(scenario != full) %>% summarise(g = min(true_rate - mean_rate)) %>% pull(g)
-```
-
-The means moved by at most `r sprintf("%.2f", 100 * max_shift)` percentage points between
-100 and 500 replicates (at most `r sprintf("%.1f", max_shift_in_se)` standard errors of the
-100-replicate mean, which is $\sqrt{`r n_replications / 100`} \approx `r sprintf("%.2f", sqrt(n_replications / 100))`\times$
-larger than the SE at n=500 shown above) — far smaller than the bias the case study is about
-(the smallest gap between a convenience-sample mean and the truth is
-`r sprintf("%.2f", 100 * true_gap_min)` percentage points). In other words, a
-100-replicate run already gives a stable answer for every conclusion this case study
-draws; going to 500 tightens the estimate's own uncertainty but doesn't change any of the
-three-beat comparisons. Worth knowing before spending the extra render time on every
-future edit — 100 may be the better default while still iterating on the narrative, with 500
-reserved for a final check before the talk.
 
 # Interpretation
 
@@ -409,7 +447,7 @@ rate: FPR `r pc(pick("FPR", conv)$true_rate)`, FNR `r pc(pick("FNR", conv)$true_
 
 - **The convenience sample is badly biased, in the optimistic direction.**
   Restricting the study to the two easiest types (`r n_firearms_convenience`
-  of each type's 50 firearms — `r total_firearms` total, the same total as
+  of each type's `r comma(world_firearms_per_type)` firearms — `r total_firearms` total, the same total as
   the full-coverage study below) produces FPR `r pc(pick("FPR", conv)$mean_rate)`
   and FNR `r pc(pick("FNR", conv)$mean_rate)` — roughly **`r too_low("FPR", conv)`
   and `r too_low("FNR", conv)` too low**.

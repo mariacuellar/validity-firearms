@@ -2,6 +2,10 @@
 # sampling of firearm types, Flaw B). Source R/simulate_dgp.R first --
 # this file reuses simulate_response() from it and assumes dplyr, tidyr,
 # and purrr are already loaded.
+#
+# Every generator here accepts the optional `inconclusive_rate_same` (see
+# simulate_response() in R/simulate_dgp.R); leave it NULL for a single shared
+# inconclusive baseline.
 
 # A fixed population of firearm "types" -- makes/models (e.g. Beretta
 # M9A3 vs. Glock 19), not individual firearms -- encountered in real
@@ -69,7 +73,8 @@ generate_population_reference_by_firearm <- function(seed,
                                                       inconclusive_rate,
                                                       examiner_skill_sd,
                                                       examiner_inconclusive_sd,
-                                                      question_sd) {
+                                                      question_sd,
+                                                      inconclusive_rate_same = NULL) {
   set.seed(seed)
 
   item_types <- tibble(
@@ -118,7 +123,8 @@ generate_population_reference_by_firearm <- function(seed,
         simulate_response,
         false_positive_rate = false_positive_rate,
         false_negative_rate = false_negative_rate,
-        inconclusive_rate = inconclusive_rate
+        inconclusive_rate = inconclusive_rate,
+        inconclusive_rate_same = inconclusive_rate_same
       )
     )
 }
@@ -145,7 +151,8 @@ generate_sim_data_by_type_and_firearm <- function(seed,
                                                    inconclusive_rate,
                                                    examiner_skill_sd,
                                                    examiner_inconclusive_sd,
-                                                   question_sd) {
+                                                   question_sd,
+                                                   inconclusive_rate_same = NULL) {
   set.seed(seed)
 
   included_type_ids <- type_population$type_id[sampling_weights > 0]
@@ -188,7 +195,90 @@ generate_sim_data_by_type_and_firearm <- function(seed,
         simulate_response,
         false_positive_rate = false_positive_rate,
         false_negative_rate = false_negative_rate,
-        inconclusive_rate = inconclusive_rate
+        inconclusive_rate = inconclusive_rate,
+        inconclusive_rate_same = inconclusive_rate_same
+      )
+    )
+}
+
+# Incomplete-design version of generate_sim_data_by_type_and_firearm(): the
+# same firearm/item pool as that function, but each examiner sees only
+# `items_per_examiner` of the pool's items, drawn independently at random
+# without replacement -- the same assignment mechanism as
+# generate_sim_data_incomplete() in R/simulate_dgp.R (a random incomplete
+# design, not a balanced incomplete block design) -- instead of every
+# examiner seeing every item.
+generate_sim_data_by_type_and_firearm_incomplete <- function(seed,
+                                                              type_population,
+                                                              firearm_population,
+                                                              sampling_weights,
+                                                              n_firearms_per_type,
+                                                              items_per_firearm,
+                                                              items_per_examiner,
+                                                              n_examiners,
+                                                              match_rate,
+                                                              false_positive_rate,
+                                                              false_negative_rate,
+                                                              inconclusive_rate,
+                                                              examiner_skill_sd,
+                                                              examiner_inconclusive_sd,
+                                                              question_sd,
+                                                              inconclusive_rate_same = NULL) {
+  set.seed(seed)
+
+  included_type_ids <- type_population$type_id[sampling_weights > 0]
+
+  drawn_firearms <- purrr::map_dfr(included_type_ids, function(k) {
+    candidates <- firearm_population %>% filter(type_id == k)
+    candidates %>% slice_sample(n = n_firearms_per_type)
+  })
+
+  comparison_set <- drawn_firearms %>%
+    slice(rep(seq_len(n()), each = items_per_firearm)) %>%
+    mutate(question_id = row_number()) %>%
+    left_join(type_population, by = "type_id") %>%
+    mutate(
+      ground_truth = rbinom(n(), 1, match_rate),
+      question_difficulty = type_difficulty + firearm_difficulty + rnorm(n(), mean = 0, sd = question_sd)
+    )
+
+  examiner_panel <- tibble(
+    examiner_id = paste0("E", seq_len(n_examiners)),
+    examiner_skill = rnorm(n_examiners, mean = 0, sd = examiner_skill_sd),
+    examiner_inconclusive_tendency = rnorm(n_examiners, mean = 0, sd = examiner_inconclusive_sd)
+  )
+
+  # Each examiner independently gets a random subset of the item pool,
+  # without replacement.
+  assignment <- purrr::map_dfr(examiner_panel$examiner_id, function(id) {
+    tibble(
+      examiner_id = id,
+      question_id = sample(comparison_set$question_id, size = items_per_examiner, replace = FALSE)
+    )
+  })
+
+  sim_test <- assignment %>%
+    left_join(examiner_panel, by = "examiner_id") %>%
+    left_join(comparison_set, by = "question_id") %>%
+    mutate(
+      ground_truth_label = if_else(ground_truth == 1, "same-source", "different-source"),
+      decision_challenge = question_difficulty - examiner_skill
+    ) %>%
+    arrange(examiner_id, question_id)
+
+  sim_test %>%
+    mutate(
+      response = purrr::pmap_chr(
+        list(
+          ground_truth = ground_truth,
+          decision_challenge = decision_challenge,
+          examiner_inconclusive_tendency = examiner_inconclusive_tendency
+        ),
+        simulate_response,
+        false_positive_rate = false_positive_rate,
+        false_negative_rate = false_negative_rate,
+        inconclusive_rate = inconclusive_rate,
+        inconclusive_rate_same = inconclusive_rate_same
       )
     )
 }
@@ -215,7 +305,8 @@ generate_sim_data_by_type <- function(seed,
                                       inconclusive_rate,
                                       examiner_skill_sd,
                                       examiner_inconclusive_sd,
-                                      question_sd) {
+                                      question_sd,
+                                      inconclusive_rate_same = NULL) {
   set.seed(seed)
 
   comparison_set <- tibble(
@@ -252,7 +343,8 @@ generate_sim_data_by_type <- function(seed,
         simulate_response,
         false_positive_rate = false_positive_rate,
         false_negative_rate = false_negative_rate,
-        inconclusive_rate = inconclusive_rate
+        inconclusive_rate = inconclusive_rate,
+        inconclusive_rate_same = inconclusive_rate_same
       )
     )
 }

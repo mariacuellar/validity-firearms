@@ -361,8 +361,9 @@ Build up this graph: show that there's firearm make/model variability by compari
 - Individual firearms *within* a make/model also have different difficulties
     - **Simulation:** assume a difficulty distribution for each firearm type; draw individual firearms from that distribution
 
-- 8 types $\times$ 5 of each type = 40 individual firearms used to generate test cases
-    - Ames II: used ~30
+- Every scenario below draws 80 individual firearms total, spread across
+  however many types are included
+    - Ames II: used ~38 (27 Beretta, 11 non-Beretta)
 
 ::: {.notes}
 Last bullet point: some people have misunderstood our point and think that we are asking for *every single* firearm/ammunition/examiner combination to be fully characterized with a population error rate. That's not the case: it might be possible to get an estimate of a population error rate with a relatively small number of guns, if they are chosen appropriately. 
@@ -370,12 +371,12 @@ Last bullet point: some people have misunderstood our point and think that we ar
 
 ## Three different "analysis" approaches:
 
-1. **Biased estimate.** A convenience sample restricted to only two types (21% of casework by weight), 5 firearms each 
+1. **Biased estimate.** A convenience sample restricted to only two types (21% of casework by weight), 40 firearms each (80 total)
 2. **The fix that could work.** A hypothetical better study covering all
-   eight types (5 firearms each, not in population-correct proportions)
-   with type recorded as a covariate — reweighting by the true population
-   distribution afterward — Chin et al.'s "moderator" / big-team-science
-   suggestion.
+   eight types (10 firearms each — still 80 total, not in population-correct
+   proportions) with type recorded as a covariate — reweighting by the true
+   population distribution afterward — Chin et al.'s "moderator" /
+   big-team-science suggestion.
 3. **The fix that doesn't exist.** Applying that same reweighting to the
    *actual* convenience sample from (1), which has zero data on the six
    unsampled types — 79% of the population's weight.
@@ -385,7 +386,13 @@ Last bullet point: some people have misunderstood our point and think that we ar
 (we're not claiming reweighting is impossible in principle), beat 3 is what
 makes it non-remediable *for the existing studies*. The two-level design
 (types, then firearms within type) mirrors how an actual black-box study
-is built.
+is built. Total firearm count is held equal (80) across all three beats
+on purpose — an earlier version held firearms-*per-type* equal instead (5
+each), so the convenience sample used only 10 firearms total against the
+full-coverage study's 40; equalizing the total rules out "beat 1 is just a
+smaller study" as the explanation for its bias. Each examiner also sees
+only a subset of a scenario's items (30, same as case study 1), not every
+item — an earlier version had every examiner see every item.
 :::
 
 ## Results
@@ -393,15 +400,15 @@ is built.
 500 replicate studies per scenario (checked for Monte Carlo stability
 against the first 100 replicates — the estimates moved by at most 0.03
 percentage points, so 100 would have been enough; 500 is used here as the
-final, most precise number). True population rate: **FPR 1.25%,
-FNR 2.12%**.
+final, most precise number). True population rate: **FPR 1.55%,
+FNR 2.76%**.
 
-- Convenience sample (naive): FPR **0.22%**, FNR **0.39%** — roughly
-  **5–6x too low** on both
-- Convenience sample, "reweighted": FPR **0.24%**, FNR **0.43%** — still
-  roughly **5x too low** — barely moved
-- Full-coverage study, reweighted: FPR **1.31%**, FNR **2.22%** — within
-  ~5% of truth on both — reweighting works, even with only 5 firearms
+- Convenience sample (naive): FPR **0.19%**, FNR **0.38%** — roughly
+  **7–8x too low** on both
+- Convenience sample, "reweighted": FPR **0.21%**, FNR **0.42%** — still
+  roughly **7x too low** — barely moved
+- Full-coverage study, reweighted: FPR **1.40%**, FNR **2.50%** — within
+  ~9% of truth on both — reweighting works, even with only 10 firearms
   sampled per type
 
 ::: {.notes}
@@ -529,8 +536,9 @@ Backup only.
 The individual-firearm random effect itself is **already built and in
 use** — `make_firearm_population()` in `icfis/R/simulate_dgp_types.R`
 gives each type $K$ individual firearms $k = 1, \dots, K$, each with
-$f_k \sim N(0, \sigma_F^2)$, and case study 2 draws from it (5 firearms
-per included type). What's *not* built is using that structure for CI
+$f_k \sim N(0, \sigma_F^2)$, and case study 2 draws from it (40 or 10
+firearms per included type, depending on the scenario, for the same 80
+firearms total). What's *not* built is using that structure for CI
 coverage:
 
 - Case study 2 uses the firearm layer for a **bias** demonstration
@@ -561,20 +569,22 @@ heterogeneity × examiner heterogeneity, each Low/Medium/High; 50 replicate
 studies per cell) — see `icfis/sensitivity_nonrepresentative.qmd`.
 
 - **Bias ratio scales strongly with difficulty heterogeneity**: convenience
-  sample is ~2–3x too low at Low, ~5x at Medium (the main case study's
-  defaults), ~12–14x at High
+  sample is ~3x too low at Low, ~5–8x at Medium (the main case study's
+  defaults; this grid's own Medium/Medium point lands at ~6x, at this
+  grid's coarser 50-replicate precision — the main case study's
+  500-replicate run gives ~8x), ~11–18x at High
 - **Examiner (skill) heterogeneity has no consistent effect** — much smaller
   than the range difficulty heterogeneity produces, and not always in the
   same direction
 - **The qualitative story holds at all 9 settings tested**: full-coverage
-  reweighted stays within 0.81x–1.22x of truth everywhere; convenience
-  "reweighted" never climbs out of 0.08x–0.53x
-- **Conclusion**: the specific multiplier ("5x") is not an empirical claim
+  reweighted stays within 0.79x–1.25x of truth everywhere; convenience
+  "reweighted" never climbs out of 0.06x–0.41x
+- **Conclusion**: the specific multiplier ("~8x") is not an empirical claim
   — it moves with unvalidated assumptions. The *direction* and the
   reweighting-works/fails distinction don't.
 
 ::: {.notes}
-Backup only. Pull this up if asked "isn't 5x just an artifact of your
+Backup only. Pull this up if asked "isn't 8x just an artifact of your
 parameter choices?" — yes, the number is; the direction and mechanism
 aren't. That's the whole slide in one sentence if time is short.
 :::

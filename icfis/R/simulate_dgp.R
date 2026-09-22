@@ -1,5 +1,5 @@
 # Shared data-generating process for the ICFIS talk. Sourced by icfis/app.R,
-# icfis/analysis.qmd, and the case-study documents -- this is the single
+# icfis/analysis.qmd, and the case-study documents. This is the single
 # implementation of the model; nothing else should redefine these functions.
 #
 # Requires dplyr, tidyr, and purrr to already be loaded (or namespaced) by
@@ -11,23 +11,31 @@ safe_logit <- function(p, eps = 1e-4) {
   qlogis(pmin(pmax(p, eps), 1 - eps))
 }
 
-# Response model for one examiner-item pair. See icfis/draft.qmd's
-# "Response probabilities" and "The response, formally" slides for the
-# corresponding equations.
+# Response model for one examiner-item pair.
+#
+# `inconclusive_rate` is the baseline inconclusive rate for different-source
+# items. By default it is also used for same-source items (one shared
+# baseline). Supply `inconclusive_rate_same` to give same-source items their
+# own baseline; the Ames II cartridge-case data prefer separate baselines
+# (roughly 50% different-source vs. 17% same-source -- see
+# icfis/fit_ames2.qmd). Leaving it NULL reproduces the original model exactly.
 simulate_response <- function(ground_truth,
                               decision_challenge,
                               examiner_inconclusive_tendency,
                               false_positive_rate,
                               false_negative_rate,
-                              inconclusive_rate) {
+                              inconclusive_rate,
+                              inconclusive_rate_same = NULL) {
   if (ground_truth == 1) {
     error_probability <- plogis(safe_logit(false_negative_rate) + decision_challenge)
+    baseline_inconclusive_rate <- if (is.null(inconclusive_rate_same)) inconclusive_rate else inconclusive_rate_same
   } else {
     error_probability <- plogis(safe_logit(false_positive_rate) + decision_challenge)
+    baseline_inconclusive_rate <- inconclusive_rate
   }
 
   inconclusive_probability <- plogis(
-    safe_logit(inconclusive_rate) +
+    safe_logit(baseline_inconclusive_rate) +
       0.5 * decision_challenge +
       examiner_inconclusive_tendency
   )
@@ -61,7 +69,8 @@ simulate_response <- function(ground_truth,
   }
 }
 
-# Fully-crossed design: every examiner evaluates every item.
+# Fully-crossed design: every examiner evaluates every item. See
+# simulate_response() for `inconclusive_rate` / `inconclusive_rate_same`.
 generate_sim_data <- function(seed,
                               n_examiners,
                               n_comparisons,
@@ -71,7 +80,8 @@ generate_sim_data <- function(seed,
                               inconclusive_rate,
                               examiner_skill_sd,
                               examiner_inconclusive_sd,
-                              question_sd) {
+                              question_sd,
+                              inconclusive_rate_same = NULL) {
   set.seed(seed)
 
   comparison_set <- tibble(
@@ -104,7 +114,8 @@ generate_sim_data <- function(seed,
         simulate_response,
         false_positive_rate = false_positive_rate,
         false_negative_rate = false_negative_rate,
-        inconclusive_rate = inconclusive_rate
+        inconclusive_rate = inconclusive_rate,
+        inconclusive_rate_same = inconclusive_rate_same
       )
     )
 }
@@ -124,7 +135,8 @@ generate_sim_data_incomplete <- function(seed,
                                          inconclusive_rate,
                                          examiner_skill_sd,
                                          examiner_inconclusive_sd,
-                                         question_sd) {
+                                         question_sd,
+                                         inconclusive_rate_same = NULL) {
   set.seed(seed)
 
   comparison_set <- tibble(
@@ -168,7 +180,8 @@ generate_sim_data_incomplete <- function(seed,
         simulate_response,
         false_positive_rate = false_positive_rate,
         false_negative_rate = false_negative_rate,
-        inconclusive_rate = inconclusive_rate
+        inconclusive_rate = inconclusive_rate,
+        inconclusive_rate_same = inconclusive_rate_same
       )
     )
 }
@@ -184,20 +197,31 @@ study_crosstab <- function(sim_data, replicate_id = NA) {
     mutate(replicate_id = replicate_id)
 }
 
-# Canonical defaults, retuned in icfis/analysis.qmd's "Retuning the
-# baseline rates" section against a benchmark reconstructed from
-# Cuellar et al. (2024)'s reported bounding calculations for
-# Monson, Smith, and Bajic (2023a). If these change, re-run
-# icfis/analysis.qmd's calibration and update both here and this comment.
+# Canonical defaults: maximum-likelihood fit of this model, with separate
+# same-/different-source inconclusive baselines, to the raw Ames II
+# cartridge-case responses (icfis/fit_ames2.qmd). Item and examiner-skill SD are
+# NOT identified by that study (every item was seen by one examiner), so they were
+# fixed at values inside their profile-likelihood ranges (0.8, 0.5) and the
+# remaining parameters re-estimated conditional on them. Realized crosstab and
+# examiner-level spread from these defaults match the real study (see
+# fit_ames2.qmd). `match_rate` stays at 0.5 (the real study is one-third
+# same-source; rates within ground truth are unaffected).
+#
+# The previous defaults -- one inconclusive baseline shared by both ground truths
+# (FPR 1%, FNR 2%, inconclusive 36%, examiner skill SD 0.7, examiner
+# inconclusive SD 0.35) -- came from icfis/analysis.qmd's calibration to a
+# benchmark reconstructed from Cuellar et al. (2024). To reproduce them, set
+# inconclusive_rate_same = NULL.
 dgp_defaults <- list(
   n_examiners = 50,
   n_comparisons = 100,
   match_rate = 0.5,
-  false_positive_rate = 0.01,
-  false_negative_rate = 0.02,
-  inconclusive_rate = 0.36,
-  examiner_skill_sd = 0.7,
-  examiner_inconclusive_sd = 0.35,
+  false_positive_rate = 0.006,
+  false_negative_rate = 0.011,
+  inconclusive_rate = 0.50,          # different-source
+  inconclusive_rate_same = 0.17,     # same-source
+  examiner_skill_sd = 0.5,
+  examiner_inconclusive_sd = 1.3,
   question_sd = 0.8
 )
 
