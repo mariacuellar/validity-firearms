@@ -116,9 +116,11 @@ knitr::kable(
 A real study only ever uses a handful of specific firearms per type it
 includes — Ames-II-family studies used on the order of 27–37 firearms
 total, not the full population of each model in circulation. Every
-scenario below draws only 5 specific firearms per included type, so even
-the "full-coverage" study in beat 2 only samples a small, possibly
-unrepresentative slice of each type's own difficulty range.
+scenario below draws from the same total pool of 80 firearms, so the
+comparison isolates *which types* get included, not how large the study
+is overall: the convenience sample spreads those 80 firearms across only
+2 types (40 each), while the full-coverage study spreads them across all
+8 types (10 each).
 
 # The true population-average error rate
 
@@ -142,7 +144,6 @@ true_reference_data <- generate_population_reference_by_firearm(
   false_positive_rate = dgp_defaults$false_positive_rate,
   false_negative_rate = dgp_defaults$false_negative_rate,
   inconclusive_rate = dgp_defaults$inconclusive_rate,
-  inconclusive_rate_same = dgp_defaults$inconclusive_rate_same,
   examiner_skill_sd = dgp_defaults$examiner_skill_sd,
   examiner_inconclusive_sd = dgp_defaults$examiner_inconclusive_sd,
   question_sd = dgp_defaults$question_sd
@@ -158,10 +159,14 @@ knitr::kable(
 
 # The three scenarios
 
-Every scenario now draws 5 specific firearms per included type (held
-fixed across scenarios, so the comparison isolates *which types* get
-included, not how many firearms per type) and generates several
-comparisons per firearm.
+**Total firearm count held fixed at 80 across scenarios, instead of
+firearms-per-type held fixed at 5** (an earlier version of this document
+used 5 firearms/type regardless of how many types were included, so the
+convenience sample used only 10 firearms total against the full-coverage
+study's 40 — this version checks whether the story changes once total
+study size is put on equal footing). The convenience sample spreads 80
+firearms across its 2 types (40 each); the full-coverage study spreads
+the same 80 across all 8 types (10 each).
 
 ```{r define-scenarios}
 # Beat 1: convenience sample -- only the two easiest types.
@@ -173,12 +178,15 @@ conv_weights <- if_else(type_population$type_id %in% easiest_types, 1, 0)
 # analyst reweights afterward).
 better_weights <- rep(1, nrow(type_population))
 
-n_firearms_per_type <- 5
+total_firearms <- 80
+n_firearms_convenience <- total_firearms / length(easiest_types)
+n_firearms_full_coverage <- total_firearms / nrow(type_population)
+
 n_replications <- 500
 set.seed(4042)
 replicate_seeds <- sample.int(1e6, n_replications)
 
-simulate_scenario <- function(seed, sampling_weights, items_per_firearm) {
+simulate_scenario <- function(seed, sampling_weights, n_firearms_per_type, items_per_firearm) {
   generate_sim_data_by_type_and_firearm(
     seed = seed,
     type_population = type_population,
@@ -191,7 +199,6 @@ simulate_scenario <- function(seed, sampling_weights, items_per_firearm) {
     false_positive_rate = dgp_defaults$false_positive_rate,
     false_negative_rate = dgp_defaults$false_negative_rate,
     inconclusive_rate = dgp_defaults$inconclusive_rate,
-    inconclusive_rate_same = dgp_defaults$inconclusive_rate_same,
     examiner_skill_sd = dgp_defaults$examiner_skill_sd,
     examiner_inconclusive_sd = dgp_defaults$examiner_inconclusive_sd,
     question_sd = dgp_defaults$question_sd
@@ -201,13 +208,14 @@ simulate_scenario <- function(seed, sampling_weights, items_per_firearm) {
 
 ## Beat 1: the convenience sample is biased
 
-`r n_replications` replicate studies, each using 5 firearms from each of
-the two easiest types (10 firearms, 10 items per firearm = 100 items
-total — same overall scale as before the firearm layer was added).
+`r n_replications` replicate studies, each using
+`r n_firearms_convenience` firearms from each of the two easiest types
+(`r total_firearms` firearms total, 10 items per firearm =
+`r total_firearms * 10` items total).
 
 ```{r beat-1, cache=TRUE, cache.extra=n_replications}
 convenience_results <- purrr::map_dfr(seq_len(n_replications), function(r) {
-  study_data <- simulate_scenario(replicate_seeds[r], conv_weights, items_per_firearm = 10)
+  study_data <- simulate_scenario(replicate_seeds[r], conv_weights, n_firearms_convenience, items_per_firearm = 10)
   compute_pooled_rates(study_data) %>%
     mutate(replicate_id = r, scenario = "Convenience sample (naive)")
 })
@@ -215,13 +223,15 @@ convenience_results <- purrr::map_dfr(seq_len(n_replications), function(r) {
 
 ## Beat 2: the fix that could work
 
-`r n_replications` replicate studies, each using 5 firearms from every one
-of the eight types (40 firearms, 4 items per firearm = 160 items total) —
-then reweighted by the *true* population distribution.
+`r n_replications` replicate studies, each using
+`r n_firearms_full_coverage` firearms from every one of the eight types
+(`r total_firearms` firearms total, 4 items per firearm =
+`r total_firearms * 4` items total) — then reweighted by the *true*
+population distribution.
 
 ```{r beat-2, cache=TRUE, cache.extra=n_replications}
 better_study_results <- purrr::map_dfr(seq_len(n_replications), function(r) {
-  study_data <- simulate_scenario(replicate_seeds[r], better_weights, items_per_firearm = 4)
+  study_data <- simulate_scenario(replicate_seeds[r], better_weights, n_firearms_full_coverage, items_per_firearm = 4)
   type_rates <- compute_type_level_rates(study_data)
   reweight_by_population(type_rates, type_population) %>%
     rename(rate = reweighted_rate) %>%
@@ -237,7 +247,7 @@ actually observed.
 
 ```{r beat-3, cache=TRUE, cache.extra=n_replications}
 convenience_fixed_results <- purrr::map_dfr(seq_len(n_replications), function(r) {
-  study_data <- simulate_scenario(replicate_seeds[r], conv_weights, items_per_firearm = 10)
+  study_data <- simulate_scenario(replicate_seeds[r], conv_weights, n_firearms_convenience, items_per_firearm = 10)
   type_rates <- compute_type_level_rates(study_data)
   reweight_by_population(type_rates, type_population) %>%
     rename(rate = reweighted_rate) %>%
@@ -398,16 +408,19 @@ Using the mean rates from the `r n_replications`-replication table above (true p
 rate: FPR `r pc(pick("FPR", conv)$true_rate)`, FNR `r pc(pick("FNR", conv)$true_rate)`):
 
 - **The convenience sample is badly biased, in the optimistic direction.**
-  Restricting the study to the two easiest types (and only 5 of each
-  type's 50 firearms) produces FPR `r pc(pick("FPR", conv)$mean_rate)` and FNR
-  `r pc(pick("FNR", conv)$mean_rate)` — roughly **`r too_low("FPR", conv)` and `r too_low("FNR", conv)` too
-  low**.
+  Restricting the study to the two easiest types (`r n_firearms_convenience`
+  of each type's 50 firearms — `r total_firearms` total, the same total as
+  the full-coverage study below) produces FPR `r pc(pick("FPR", conv)$mean_rate)`
+  and FNR `r pc(pick("FNR", conv)$mean_rate)` — roughly **`r too_low("FPR", conv)`
+  and `r too_low("FNR", conv)` too low**.
 - **Reweighting works when the sample has full coverage.** The
-  full-coverage study (all eight types, 5 firearms each) reaches FPR
-  `r pc(pick("FPR", full)$mean_rate)` and FNR `r pc(pick("FNR", full)$mean_rate)` once reweighted —
-  within about `r off_pct("FPR", full)` and `r off_pct("FNR", full)` of the true rate, even though it too
-  only samples 5 of each type's 50 firearms. Within-model firearm sampling adds noise (see the
-  SD column), not bias, as long as every type is represented.
+  full-coverage study (all eight types, `r n_firearms_full_coverage`
+  firearms each — the same `r total_firearms` total, just spread across
+  4x as many types) reaches FPR `r pc(pick("FPR", full)$mean_rate)` and FNR
+  `r pc(pick("FNR", full)$mean_rate)` once reweighted — within about
+  `r off_pct("FPR", full)` and `r off_pct("FNR", full)` of the true rate.
+  Within-model firearm sampling adds noise (see the SD column), not bias,
+  as long as every type is represented.
 - **The same correction fails on the actual convenience sample.**
   Reweighting the two-type convenience sample by population share moves
   the estimate only to FPR `r pc(pick("FPR", conv_fix)$mean_rate)` and FNR
@@ -415,20 +428,23 @@ rate: FPR `r pc(pick("FPR", conv)$true_rate)`, FNR `r pc(pick("FNR", conv)$true_
   `r too_low("FNR", conv_fix)` too low**, barely different from doing nothing. There's no
   information at all about the six unsampled types, which together hold
   79% of the population's weight. Reweighting can't fix that, no matter
-  how many (or how few) firearms of the *included* types were tested.
+  how many (or how few) firearms of the *included* types were tested —
+  matching the total firearm count across scenarios doesn't change this:
+  a bigger convenience sample of the wrong types is still a sample of the
+  wrong types.
 - **Spread is wide relative to the rates being estimated.** Full-coverage reweighted
   FPR has an SD of `r pc(pick("FPR", full)$sd_rate)` around a mean of `r pc(pick("FPR", full)$mean_rate)`.
-  Which specific 5 firearms got drawn for a given type is an extra source of study-to-study
-  variability on top of the between-type sampling question beats 1–3 are about — visible in
-  the boxplots' width, not just their position. (As the Monte Carlo section above shows, none of
-  this spread is an artifact of too few replications — it's the actual between-study
-  variability the design produces.)
+  Which specific `r n_firearms_full_coverage` firearms got drawn for a given type is an
+  extra source of study-to-study variability on top of the between-type sampling question
+  beats 1–3 are about — visible in the boxplots' width, not just their position. (As the
+  Monte Carlo section above shows, none of this spread is an artifact of too few
+  replications — it's the actual between-study variability the design produces.)
 
 # Why this counts as non-remediable
 
 Nothing about the *analysis* is broken here — the reweighting procedure in
 beat 2 is statistically valid and works, even with the added within-model
-noise from only sampling 5 firearms per type. What fails in beat 3 is
+noise from sampling only a fraction of each type's firearms. What fails in beat 3 is
 specific to the convenience sample's *design*: it never observed most of
 the population it claims to generalize to, at the type level. No amount
 of reanalysis of that particular dataset can fix a positivity violation

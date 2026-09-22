@@ -305,7 +305,8 @@ more common on different-source items (about 50%) than same-source (about 23%).
 - This is exactly the kind of flaw Chin et al. are right about: a study with
   this flaw alone can still contribute to a cumulative evidence base, *once
   reanalyzed*
-- On the other hand, these intervals are so large that this isn't really a "solution" to the error rate problem
+- On the other hand, these intervals are so large that this isn't really a "solution"
+    - More research is needed: "forced choice" reporting, blind test cases, Hawthorne effect, etc. 
 
 # Case Study 2: A Non-Remediable Flaw
 
@@ -324,10 +325,33 @@ more common on different-source items (about 50%) than same-source (about 23%).
 - [how were they paired?]
 
 ```{r}
+#| fig-width: 10
+#| fig-height: 5
+ames2 |>
+  pivot_longer(c(Gun_1, Gun_2), names_to = "index", values_to = "individual_firearm") |>
+  mutate(individual_firearm = fct_reorder(
+    individual_firearm, response_3 == "Inconclusive", .fun = sum, .desc = TRUE, .na_rm = FALSE
+  )) |>
+  ggplot(aes(x = individual_firearm, fill = response_3)) + 
+  geom_bar(position = "fill") + 
+  facet_grid(cols = vars(Ber_NonBer), rows = vars(M_NM), scales = "free_x") + 
+  scale_fill_viridis_d(option = "plasma", end = .8)
 # facet by ruger/beretta
 # bars for each firearm
 # fill by decision
+
+ames2 |>
+  pivot_longer(c(Gun_1, Gun_2), names_to = "index", values_to = "individual_firearm") |>
+  group_by(Ber_NonBer, M_NM) |>
+  summarize(
+    pct_inc = mean(response_3 == "Inconclusive", na.rm = TRUE),
+    pct_id = mean(response_3 == "Identification", na.rm = TRUE))
+  
 ```
+
+::: {.notes}
+Build up this graph: show that there's firearm make/model variability by comparing Ber/NonBer and then highlight the individual firearm variability
+:::
 
 ## Two levels of variability
 
@@ -335,10 +359,14 @@ more common on different-source items (about 50%) than same-source (about 23%).
     - **Simulation:** choose 8 types
 
 - Individual firearms *within* a make/model also have different difficulties
-    - **Simulation:** assume a difficulty distribution for each firearm type; draw 5 firearms from that distribution
+    - **Simulation:** assume a difficulty distribution for each firearm type; draw individual firearms from that distribution
 
 - 8 types $\times$ 5 of each type = 40 individual firearms used to generate test cases
     - Ames II: used ~30
+
+::: {.notes}
+Last bullet point: some people have misunderstood our point and think that we are asking for *every single* firearm/ammunition/examiner combination to be fully characterized with a population error rate. That's not the case: it might be possible to get an estimate of a population error rate with a relatively small number of guns, if they are chosen appropriately. 
+:::
 
 ## Three different "analysis" approaches:
 
@@ -390,9 +418,7 @@ well-designed study (full type coverage) still needs enough firearms
 - No statistical procedure applied to *this* dataset can recover the
   population-average estimand — reweighting is valid and
   works, even accounting for within-model firearm sampling noise; the same
-  procedure applied to the convenience sample fails, not from a math
-  error, but because 79% of the population was never observed at the type
-  level
+  procedure applied to the convenience sample fails, because 79% of the population was never observed 
 - Fixing it requires **new data** collected under a design that
   characterizes the target population — not a different analysis of the
   same responses
@@ -402,6 +428,8 @@ well-designed study (full type coverage) still needs enough firearms
 :::
 
 # Conclusion
+
+## Flowchart, again
 
 ## Takeaways
 
