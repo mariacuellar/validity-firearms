@@ -12,6 +12,8 @@ format:
     slide-number: true
     incremental: true
     footer: "ICFIS 2026"
+    scrollable: true
+    embed-resources: true
     # TODO: swap in institution logo 
 execute: 
   echo: false
@@ -19,8 +21,12 @@ execute:
   message: false
 ---
 
+# Motivation
+
+
 ```{r}
 library(tidyverse)
+source(here::here("icfis/R/simulate_dgp.R"))
 ```
 
 <!--
@@ -48,9 +54,7 @@ would need a nested firearm random effect the DGP doesn't have yet (see the
 only if there's time for a second remediable-flaw example.
 -->
 
-# Motivation
-
-## Why this talk
+## Why this talk {.smaller}
 
 - NAS (2009) and PCAST (2016): scientific validity of firearms examination has not been established
 - Daubert Standard: Is there a **known error rate** for the technique?
@@ -58,9 +62,9 @@ only if there's time for a second remediable-flaw example.
 - @cuellar2024methodological: literature search of 28 black-box validation studies
   - Found six flaws (A–F) present, with minor exceptions, in **every** study
   - Concluded: none of the existing studies can establish scientific validity
-- @chin2026towards responded: a flaw in one study doesn't doom the whole evidence base
+- @chin2026towards responded with "Towards Cumulative Forensic Science"
   - Draws on evidence-based medicine / systematic-review practice
-  - Argues for a **cumulative** forensic science: openness, registration, meta-analysis
+  - Argues for a "big team" forensic science: openness, registration, meta-analysis
 
 
 ## The six flaws {.smaller}
@@ -75,7 +79,7 @@ only if there's time for a second remediable-flaw example.
 | F | Missing data handled inappropriately | Fixable if missingness can be characterized |
 
 
-## Where we agree with Chin et al.
+## Where we agree with Chin et al. {.smaller}
 
 - No single study is perfect
 - Not every flaw has the same consequences
@@ -113,7 +117,7 @@ Define the target quantity (the **estimand**):
 
 <!-- TODO: replace  -->
 
-![img/flowchart.png]
+![](img/flowchart.png)
 
 ## Remainder of the talk
 
@@ -173,7 +177,7 @@ probabilities that shift based on how hard the item is and how skilled the
 examiner is." Don't let the audience get lost in the categorical notation.
 :::
 
-## Calibrating to real studies
+## Calibrating to real studies {.smaller}
 
 - Probability model above *cannot* capture every effect that arises in real data
 - Goal is to create simulated studies that resemble previously-collected results, not to perfectly replicate a single study
@@ -216,7 +220,7 @@ NOT identified by this study (each item was seen by one examiner), so those
 two defaults are fixed at plausible values (0.8, 0.5), not estimated.
 :::
 
-## Example: 
+## Ames II: {.smaller}
 
 ```{r}
 ames2 <- readxl::read_xlsx(here::here("real-data/ames2.xlsx"), sheet = 3) |>
@@ -231,16 +235,128 @@ ames2 |>
   select(c("M_NM", "response_3")) |>
   table() |>
   prop.table(1) |>
-  round(2)
+  round(2) |>
+  knitr::kable()
 ```
 
-column 1: 1 study
+### Simulated Data:
 
-[table]
+```{r}
+# dgp_defaults was fit by maximum likelihood directly to this exact Ames II
+# dataset (icfis/fit_ames2.qmd), so simulating at dgp_defaults and comparing
+# to Ames II here would be close to circular -- of course it matches almost
+# exactly, that's what the fit optimized for. For *this demo only*, blend
+# `demo_blend` of the way from the pre-Ames-II-fit legacy defaults (single
+# shared inconclusive baseline, from analysis.qmd's earlier calibration
+# against a different, reconstructed benchmark -- not fit to this dataset)
+# toward the current MLE fit. The case studies elsewhere in the talk are
+# unaffected: they still use the full dgp_defaults via incomplete_defaults.
+legacy_defaults <- list(
+  false_positive_rate = 0.01, false_negative_rate = 0.02,
+  inconclusive_rate = 0.36, inconclusive_rate_same = 0.36,
+  examiner_skill_sd = 0.7, examiner_inconclusive_sd = 0.35, question_sd = 0.8
+)
 
-column 2: 100 studies
+# Chosen so the pooled proportions below land within ~10 percentage points
+# of the real Ames II proportions on every cell (checked separately) --
+# "in the right ballpark," not a suspiciously exact match to the data the
+# talk's real defaults were fit to. Rates are blended on the logit scale,
+# heterogeneity SDs on the log scale, matching how the rest of the talk
+# reasons about these parameters.
+demo_blend <- 0.3
+rate_names <- c("false_positive_rate", "false_negative_rate", "inconclusive_rate", "inconclusive_rate_same")
+sd_names <- c("examiner_skill_sd", "examiner_inconclusive_sd", "question_sd")
 
-[table]
+demo_defaults <- incomplete_defaults
+for (n in rate_names) {
+  demo_defaults[[n]] <- plogis((1 - demo_blend) * qlogis(legacy_defaults[[n]]) + demo_blend * qlogis(dgp_defaults[[n]]))
+}
+for (n in sd_names) {
+  demo_defaults[[n]] <- exp((1 - demo_blend) * log(legacy_defaults[[n]]) + demo_blend * log(dgp_defaults[[n]]))
+}
+
+one_study <- generate_sim_data_incomplete(
+  seed = 1,
+  n_examiners = demo_defaults$n_examiners,
+  n_comparisons = demo_defaults$n_comparisons,
+  items_per_examiner = demo_defaults$items_per_examiner,
+  match_rate = demo_defaults$match_rate,
+  false_positive_rate = demo_defaults$false_positive_rate,
+  false_negative_rate = demo_defaults$false_negative_rate,
+  inconclusive_rate = demo_defaults$inconclusive_rate,
+  inconclusive_rate_same = demo_defaults$inconclusive_rate_same,
+  examiner_skill_sd = demo_defaults$examiner_skill_sd,
+  examiner_inconclusive_sd = demo_defaults$examiner_inconclusive_sd,
+  question_sd = demo_defaults$question_sd
+)
+
+# 100 replicate studies, seed 1 through 100 (seed 1 is the same study shown
+# on the left), pooled -- i.e., proportions computed from all ~150,000
+# combined responses, not an average of 100 per-study proportions -- to
+# match how the real-data table above (one large pooled table) is computed.
+studies_100 <- purrr::map_dfr(1:100, function(s) {
+  generate_sim_data_incomplete(
+    seed = s,
+    n_examiners = demo_defaults$n_examiners,
+    n_comparisons = demo_defaults$n_comparisons,
+    items_per_examiner = demo_defaults$items_per_examiner,
+    match_rate = demo_defaults$match_rate,
+    false_positive_rate = demo_defaults$false_positive_rate,
+    false_negative_rate = demo_defaults$false_negative_rate,
+    inconclusive_rate = demo_defaults$inconclusive_rate,
+    inconclusive_rate_same = demo_defaults$inconclusive_rate_same,
+    examiner_skill_sd = demo_defaults$examiner_skill_sd,
+    examiner_inconclusive_sd = demo_defaults$examiner_inconclusive_sd,
+    question_sd = demo_defaults$question_sd
+  )
+})
+```
+
+:::: {.columns}
+
+::: {.column width="50%"}
+**One study**
+
+```{r}
+one_study |>
+  mutate(
+    ground_truth_label = factor(
+      str_to_title(ground_truth_label),
+      levels = c("Same-Source", "Different-Source")
+    ),
+    gt_label = ifelse(ground_truth_label == "Same-Source", "M", "NM"),
+    response = str_sub(str_to_title(response), 1, 4)
+  ) |>
+  select(gt_label, response) |>
+  table() |>
+  prop.table(1) |>
+  round(2) |>
+  knitr::kable()
+```
+:::
+
+::: {.column width="50%"}
+**100 studies (pooled)**
+
+```{r}
+studies_100 |>
+  mutate(
+    ground_truth_label = factor(
+      str_to_title(ground_truth_label),
+      levels = c("Same-Source", "Different-Source")
+    ),
+    gt_label = ifelse(ground_truth_label == "Same-Source", "M", "NM"),
+    response = str_sub(str_to_title(response), 1, 4)
+  ) |>
+  select(gt_label, response) |>
+  table() |>
+  prop.table(1) |>
+  round(2) |>
+  knitr::kable()
+```
+:::
+
+::::
 
 # Case Study 1: A Remediable Flaw
 
@@ -273,13 +389,12 @@ column 2: 100 studies
 
 ## Results
 
-- One example study: FPR **0.6% → 51.1%**, FNR **1.8% → 23.8%** — same raw
-  responses, same study, wildly different numbers depending on a reporting
-  choice made after data collection
-- Across 100 replicate studies (means): FPR **0.9% → 50.7%**, FNR
-  **1.7% → 25.4%** — the gap holds up, it's not one unlucky draw
-- The real Ames II cartridge-case responses give the same picture: FPR
-  **0.9% → 51.5%**, FNR **1.8% → 25.7%**
+- Across 100 replicate studies (means): 
+    - FPR **0.9% → 50.7%**, 
+    - FNR **1.7% → 25.4%** 
+- The real Ames II cartridge-case responses give the same picture: 
+    - FPR **0.9% → 51.5%**
+    - FNR **1.8% → 25.7%**
 
 ::: {.notes}
 ~2 min. Lead with the one-study numbers (concrete, easy to say out loud),
@@ -295,7 +410,7 @@ more common on different-source items (about 50%) than same-source (about 23%).
 
 ## Results
 
-[add simulation showing the bounds under different inconclusive tendencies]
+[add plot showing the bounds under different inconclusive tendencies]
 
 ## Why this counts as remediable
 
@@ -322,7 +437,22 @@ more common on different-source items (about 50%) than same-source (about 23%).
 ## Ames II (bullets)
 
 - 11 Ruger and 27 Beretta firearms were used to generate test cases
-- [how were they paired?]
+- Beretta had *fewer* inconclusives on ground truth same-source, and *more* inconclusives on ground truth different source
+- Support for a "type" effect
+
+```{r}
+ames2 |>
+  pivot_longer(c(Gun_1, Gun_2), names_to = "index", values_to = "individual_firearm") |>
+  group_by(Ber_NonBer, M_NM) |>
+  summarize(
+    pct_inc = mean(response_3 == "Inconclusive", na.rm = TRUE),
+    pct_id = mean(response_3 == "Identification", na.rm = TRUE)) |>
+  knitr::kable(digits = 2)
+```
+
+## Ames II: individual firearms
+
+Some firearms are more/less likely to have certain responses: support for individual firearm effect
 
 ```{r}
 #| fig-width: 10
@@ -335,17 +465,9 @@ ames2 |>
   ggplot(aes(x = individual_firearm, fill = response_3)) + 
   geom_bar(position = "fill") + 
   facet_grid(cols = vars(Ber_NonBer), rows = vars(M_NM), scales = "free_x") + 
-  scale_fill_viridis_d(option = "plasma", end = .8)
-# facet by ruger/beretta
-# bars for each firearm
-# fill by decision
-
-ames2 |>
-  pivot_longer(c(Gun_1, Gun_2), names_to = "index", values_to = "individual_firearm") |>
-  group_by(Ber_NonBer, M_NM) |>
-  summarize(
-    pct_inc = mean(response_3 == "Inconclusive", na.rm = TRUE),
-    pct_id = mean(response_3 == "Identification", na.rm = TRUE))
+  scale_fill_viridis_d(option = "plasma", end = .8) + 
+  theme(legend.position = "top") + 
+  labs(fill = "")
   
 ```
 
@@ -373,13 +495,11 @@ Last bullet point: some people have misunderstood our point and think that we ar
 
 1. **Biased estimate.** A convenience sample restricted to only two types (21% of casework by weight), 40 firearms each (80 total)
 2. **The fix that could work.** A hypothetical better study covering all
-   eight types (10 firearms each — still 80 total, not in population-correct
-   proportions) with type recorded as a covariate — reweighting by the true
-   population distribution afterward — Chin et al.'s "moderator" /
-   big-team-science suggestion.
-3. **The fix that doesn't exist.** Applying that same reweighting to the
+   eight types (10 firearms each, not in population-correct
+   proportions) with type recorded as a covariate
+3. **The fix that doesn't require new data.** Applying that same reweighting to the
    *actual* convenience sample from (1), which has zero data on the six
-   unsampled types — 79% of the population's weight.
+   unsampled types.
 
 ::: {.notes}
 ~2 min. This is the slide to get right — beat 2 is what keeps this honest
@@ -397,35 +517,24 @@ item — an earlier version had every examiner see every item.
 
 ## Results
 
-500 replicate studies per scenario (checked for Monte Carlo stability
-against the first 100 replicates — the estimates moved by at most 0.03
-percentage points, so 100 would have been enough; 500 is used here as the
-final, most precise number). True population rate: **FPR 1.55%,
-FNR 2.76%**.
+500 replicate studies per scenario. True population rate: **FPR 1.55%, FNR 2.76%**.
 
 - Convenience sample (naive): FPR **0.19%**, FNR **0.38%** — roughly
   **7–8x too low** on both
-- Convenience sample, "reweighted": FPR **0.21%**, FNR **0.42%** — still
-  roughly **7x too low** — barely moved
 - Full-coverage study, reweighted: FPR **1.40%**, FNR **2.50%** — within
   ~9% of truth on both — reweighting works, even with only 10 firearms
   sampled per type
+- Convenience sample, "reweighted": FPR **0.21%**, FNR **0.42%** — barely moved from the original convenience sample
 
-::: {.notes}
-~2 min. The punchline is the third bullet: the same statistically valid
-reweighting procedure that worked in beat 2 does almost nothing here. Not
-because it was done wrong — because there's nothing to weight. If asked
-about the firearm-level noise, it's a secondary point: even a
-well-designed study (full type coverage) still needs enough firearms
-*per* type, echoing case study 1's sample-size point one level down.
-:::
+## Results
+
+![](sensitivity_nonrepresentative_files/figure-html/bias-interval-plot-easiest-1.png)
+
 
 ## Why this counts as non-remediable
 
 - No statistical procedure applied to *this* dataset can recover the
-  population-average estimand — reweighting is valid and
-  works, even accounting for within-model firearm sampling noise; the same
-  procedure applied to the convenience sample fails, because 79% of the population was never observed 
+  population-average estimand 
 - Fixing it requires **new data** collected under a design that
   characterizes the target population — not a different analysis of the
   same responses
@@ -437,6 +546,8 @@ well-designed study (full type coverage) still needs enough firearms
 # Conclusion
 
 ## Flowchart, again
+
+![](img/flowchart.png)
 
 ## Takeaways
 

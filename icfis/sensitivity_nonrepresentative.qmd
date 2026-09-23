@@ -51,7 +51,7 @@ Two factors, three levels each:
 - **Difficulty heterogeneity** (Low / Medium / High): scales both
   `type_difficulty_sd` and `firearm_difficulty_sd` together by 0.5x / 1x
   (the case study's current values) / 1.5x. Medium approximately reproduces the
-  case study's numbers (a smaller reference simulation and 50 rather than 500
+  case study's numbers (a smaller reference simulation and 200 rather than 500
   replicates, so not exactly).
 - **Examiner heterogeneity** (Low / Medium / High): scales
   `examiner_skill_sd` by 0.5x / 1x (the talk's canonical default) / 2x.
@@ -63,6 +63,12 @@ total_firearms <- 80
 n_firearms_convenience <- total_firearms / 2   # 2 easiest types
 n_firearms_full_coverage <- total_firearms / 8 # all 8 types
 items_per_examiner <- 30
+
+# Replicates per cell for the grid below. Raised from an earlier 50 (enough
+# for stable means, per the main case study's own Monte Carlo check) because
+# percentile intervals need more replicates per cell to not be noisy at the
+# extremes.
+n_replications_grid <- 200
 ```
 
 ```{r design-matrix}
@@ -107,18 +113,24 @@ their difficulty *magnitude* changes.
 
 For each of the 9 cells, this builds a fresh type/firearm population at
 that cell's heterogeneity settings, computes the true population-average
-rate, and runs the same three-beat comparison as the main case study —
-equal 80 total firearms per scenario (40/type for the 2-type convenience
-sample, 10/type for the 8-type full-coverage study), an incomplete design
-(`r items_per_examiner` items/examiner), and a `r comma(world_firearms_per_type)`-firearm
-world population per type — at 50 replicate studies per beat (this is a
-sensitivity survey, not a final number; the Monte Carlo error section in
-`case_study_nonrepresentative.qmd` already showed 100 replicates barely
-differs from 500 for the mean, so 50 is enough to see the pattern here).
+rate, and runs the same design as the main case study — equal 80 total
+firearms per scenario, an incomplete design (`r items_per_examiner`
+items/examiner), and a `r comma(world_firearms_per_type)`-firearm world
+population per type. Each cell now runs **five** scenarios (up from three):
+the original always-easiest-two convenience sample (naive and
+"reweighted") and full-coverage (reweighted), plus two new ones matching
+`case_study_nonrepresentative.qmd`'s "Robustness check" section --
+**a convenience-sized (2-type) sample where the two included types are
+drawn uniformly at random each replicate**, naive and "reweighted".
+
+Bumped from 50 to `r n_replications_grid` replicate studies per cell:
+50 was enough to see the *mean* pattern (as the main case study's own
+Monte Carlo check confirms), but percentile intervals need more replicates
+per cell to be anything but noisy at the extremes.
 
 ```{r run-grid-functions}
 run_cell <- function(type_difficulty_sd, firearm_difficulty_sd, examiner_skill_sd,
-                     n_replications = 50, seed_base) {
+                     n_replications, seed_base) {
   type_population <- make_type_population(type_difficulty_sd = type_difficulty_sd)
   firearm_population <- make_firearm_population(
     type_population, firearms_per_type = world_firearms_per_type, firearm_difficulty_sd = firearm_difficulty_sd
@@ -169,24 +181,56 @@ run_cell <- function(type_difficulty_sd, firearm_difficulty_sd, examiner_skill_s
     )
   }
 
-  convenience_results <- map_dfr(seeds, function(s) {
-    compute_pooled_rates(simulate_one(s, conv_weights, n_firearms_convenience, 10)) %>%
-      mutate(scenario = "Convenience sample (naive)")
-  })
-  better_results <- map_dfr(seeds, function(s) {
+  # Full coverage doesn't depend on which 2 types a convenience sample would
+  # pick, so it's computed once per cell and shared by both convenience
+  # designs below (rather than duplicated, as an earlier version did).
+  full_coverage_results <- map_dfr(seeds, function(s) {
     reweight_by_population(compute_type_level_rates(simulate_one(s, better_weights, n_firearms_full_coverage, 4)), type_population) %>%
       rename(rate = reweighted_rate) %>%
       mutate(scenario = "Full-coverage study (reweighted)")
   })
-  convenience_fixed_results <- map_dfr(seeds, function(s) {
+
+  # Always the two easiest types (the main case study's design).
+  easiest_naive <- map_dfr(seeds, function(s) {
+    compute_pooled_rates(simulate_one(s, conv_weights, n_firearms_convenience, 10)) %>%
+      mutate(scenario = "Convenience sample (naive)")
+  })
+  easiest_reweighted <- map_dfr(seeds, function(s) {
     reweight_by_population(compute_type_level_rates(simulate_one(s, conv_weights, n_firearms_convenience, 10)), type_population) %>%
       rename(rate = reweighted_rate) %>%
       mutate(scenario = "Convenience sample (\"reweighted\")")
   })
 
-  bind_rows(convenience_results, better_results, convenience_fixed_results) %>%
+  # A different random pair of the two included types each replicate,
+  # independent of difficulty -- see case_study_nonrepresentative.qmd's
+  # "Robustness check" section. A separate seed stream (offset by 1e7) so it
+  # never overlaps `seeds`, which still governs everything about a given
+  # replicate's examiners/items/responses.
+  pair_seeds <- (seed_base + 1e7) + seq_len(n_replications)
+  random_pairs <- map(pair_seeds, function(s) {
+    set.seed(s)
+    sample(type_population$type_id, 2)
+  })
+  random_pair_weights <- map(random_pairs, function(t) if_else(type_population$type_id %in% t, 1, 0))
+
+  random_pair_results <- map_dfr(seq_len(n_replications), function(i) {
+    study_data <- simulate_one(seeds[i], random_pair_weights[[i]], n_firearms_convenience, 10)
+    naive <- compute_pooled_rates(study_data) %>% mutate(scenario = "Random pair (naive)")
+    reweighted <- reweight_by_population(compute_type_level_rates(study_data), type_population) %>%
+      rename(rate = reweighted_rate) %>%
+      mutate(scenario = "Random pair (\"reweighted\")")
+    bind_rows(naive, reweighted)
+  })
+
+  bind_rows(full_coverage_results, easiest_naive, easiest_reweighted, random_pair_results) %>%
     group_by(metric, scenario) %>%
-    summarise(mean_rate = mean(rate), .groups = "drop") %>%
+    summarise(
+      mean_rate = mean(rate),
+      sd_rate = sd(rate),
+      q025 = quantile(rate, 0.025),
+      q975 = quantile(rate, 0.975),
+      .groups = "drop"
+    ) %>%
     left_join(true_rates %>% rename(true_rate = rate), by = "metric")
 }
 ```
@@ -197,7 +241,7 @@ grid_results <- design_matrix %>%
     row_id = row_number(),
     results = pmap(
       list(type_difficulty_sd, firearm_difficulty_sd, examiner_skill_sd, row_id),
-      function(td, fd, es, rid) run_cell(td, fd, es, n_replications = 50, seed_base = 5000 * rid)
+      function(td, fd, es, rid) run_cell(td, fd, es, n_replications = n_replications_grid, seed_base = 5000 * rid)
     )
   ) %>%
   select(difficulty_scenario, examiner_scenario, results) %>%
@@ -208,7 +252,9 @@ grid_results <- design_matrix %>%
       levels = c(
         "Convenience sample (naive)",
         "Full-coverage study (reweighted)",
-        "Convenience sample (\"reweighted\")"
+        "Convenience sample (\"reweighted\")",
+        "Random pair (naive)",
+        "Random pair (\"reweighted\")"
       )
     ),
     metric = factor(metric, levels = c("FPR", "FNR")),
@@ -225,11 +271,14 @@ knitr::kable(
   grid_results %>%
     mutate(
       mean_rate = percent(mean_rate, accuracy = 0.01),
+      q025 = percent(q025, accuracy = 0.01),
+      q975 = percent(q975, accuracy = 0.01),
       true_rate = percent(true_rate, accuracy = 0.01),
       ratio_to_truth = sprintf("%.2fx", ratio_to_truth)
     ) %>%
+    select(difficulty_scenario, examiner_scenario, scenario, metric, mean_rate, q025, q975, true_rate, ratio_to_truth) %>%
     arrange(metric, scenario, difficulty_scenario, examiner_scenario),
-  col.names = c("Difficulty", "Examiner", "Scenario", "Metric", "Mean rate", "True rate", "Ratio to truth")
+  col.names = c("Difficulty", "Examiner", "Scenario", "Metric", "Mean rate", "2.5th pctile", "97.5th pctile", "True rate", "Ratio to truth")
 )
 ```
 
@@ -246,7 +295,7 @@ ggplot(convenience_ratios, aes(x = examiner_scenario, y = difficulty_scenario, f
   scale_fill_viridis_c(name = "Naive rate /\ntrue rate", option = "magma", direction = -1) +
   labs(
     title = "How much does the convenience sample's bias ratio move across the grid?",
-    subtitle = "Each cell: mean naive rate / true population rate, 50 replicate studies",
+    subtitle = sprintf("Each cell: mean naive rate / true population rate, %d replicate studies", n_replications_grid),
     x = "Examiner heterogeneity",
     y = "Difficulty heterogeneity (type + firearm, scaled together)"
   ) +
@@ -257,8 +306,11 @@ ggplot(convenience_ratios, aes(x = examiner_scenario, y = difficulty_scenario, f
 ## Does reweighting still work (beat 2) and still fail (beat 3) across the whole grid?
 
 ```{r reweighting-robustness-plot, fig.width=10, fig.height=6}
+# Keep this to the original two lines (full-coverage vs. always-easiest-two
+# reweighted) -- the new random-pair scenarios get their own dedicated plot
+# below rather than silently showing up here too.
 reweighting_check <- grid_results %>%
-  filter(scenario != "Convenience sample (naive)")
+  filter(scenario %in% c("Full-coverage study (reweighted)", "Convenience sample (\"reweighted\")"))
 
 ggplot(reweighting_check, aes(x = examiner_scenario, y = ratio_to_truth, color = scenario, group = scenario)) +
   geom_hline(yintercept = 1, linetype = "dashed", color = "grey50") +
@@ -276,6 +328,90 @@ ggplot(reweighting_check, aes(x = examiner_scenario, y = ratio_to_truth, color =
   theme_minimal() +
   theme(legend.position = "bottom")
 ```
+
+## Bias vs. variance, with 95% intervals: the biased sample vs. a random-but-convenience sample
+
+The plots above show only means. These two add a **95% interval** (the
+2.5th-97.5th percentile of `rate - true_rate` across the
+`r n_replications_grid` replicate studies in each cell) around each point
+-- one for the always-easiest-two convenience sample ("the biased sample"),
+one for the random-pair design ("the random but convenience sample"),
+both against the same full-coverage reference.
+
+```{r bias-interval-colors, include=FALSE}
+# One shared color per scenario label, used by both plots below, so (e.g.)
+# "Full-coverage study (reweighted)" is the same color in both -- ggplot's
+# default discrete palette would otherwise reassign colors by whichever
+# levels survive each plot's own filter, making green mean different things
+# in the two plots.
+scenario_colors <- c(
+  "Convenience sample (naive)"          = "#D55E00",
+  "Convenience sample (\"reweighted\")" = "#0072B2",
+  "Full-coverage study (reweighted)"    = "#009E73",
+  "Random pair (naive)"                 = "#CC79A7",
+  "Random pair (\"reweighted\")"        = "#E69F00"
+)
+```
+
+```{r bias-interval-plot-easiest, fig.width=10, fig.height=7}
+easiest_plot_data <- grid_results %>%
+  filter(scenario %in% c(
+    "Convenience sample (naive)",
+    "Full-coverage study (reweighted)",
+    "Convenience sample (\"reweighted\")"
+  )) %>%
+  mutate(diff = mean_rate - true_rate, diff_lo = q025 - true_rate, diff_hi = q975 - true_rate)
+
+ggplot(easiest_plot_data, aes(x = examiner_scenario, y = diff, color = scenario)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "grey50") +
+  geom_pointrange(aes(ymin = diff_lo, ymax = diff_hi), position = position_dodge(width = 0.5), size = 0.4) +
+  facet_grid(metric ~ difficulty_scenario) +
+  scale_y_continuous(labels = percent_format(accuracy = 1)) +
+  scale_color_manual(values = scenario_colors) +
+  labs(
+    title = "The biased sample: always the two easiest types",
+    subtitle = sprintf("Point: mean rate - true rate, %d replicate studies. Bars: 95%% interval of individual studies", n_replications_grid),
+    x = "Examiner heterogeneity", y = "Mean rate - true rate", color = NULL
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+```{r bias-interval-plot-random, fig.width=10, fig.height=7}
+random_plot_data <- grid_results %>%
+  filter(scenario %in% c(
+    "Random pair (naive)",
+    "Full-coverage study (reweighted)",
+    "Random pair (\"reweighted\")"
+  )) %>%
+  mutate(diff = mean_rate - true_rate, diff_lo = q025 - true_rate, diff_hi = q975 - true_rate)
+
+ggplot(random_plot_data, aes(x = examiner_scenario, y = diff, color = scenario)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "grey50") +
+  geom_pointrange(aes(ymin = diff_lo, ymax = diff_hi), position = position_dodge(width = 0.5), size = 0.4) +
+  facet_grid(metric ~ difficulty_scenario) +
+  scale_y_continuous(labels = percent_format(accuracy = 1)) +
+  scale_color_manual(values = scenario_colors) +
+  labs(
+    title = "The random-but-convenience sample: 2 random types, not always the easiest",
+    subtitle = sprintf("Point: mean rate - true rate, %d replicate studies. Wider bars than above, centered nearer zero", n_replications_grid),
+    x = "Examiner heterogeneity", y = "Mean rate - true rate", color = NULL
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+The contrast between the two plots is the point this pair of figures is
+for: the biased-sample points sit consistently below the dashed
+zero line with narrow bars (**precisely wrong**), while the random-pair
+points scatter around zero with bars several times wider (**imprecisely
+close to right**) -- across every cell of the grid, not just the one
+setting the main case study and `case_study_nonrepresentative.qmd`'s
+"Robustness check" section report.
+
+*(Faceted by both metrics here; for a slide, filter `grid_results` to
+`metric == "FPR"` (or `"FNR"`) first to match a single-row layout like the
+one sketched for this request.)*
 
 # Interpretation
 

@@ -287,6 +287,131 @@ convenience_fixed_results <- purrr::map_dfr(seq_len(n_replications), function(r)
 })
 ```
 
+## Step by step: what does `reweight_by_population()` actually do?
+
+Beats 2 and 3's "reweighted" numbers come from calling the exact same two
+functions -- `compute_type_level_rates()` then `reweight_by_population()`
+(both in `R/simulate_dgp_types.R`) -- on differently-sampled data. Walking
+through one concrete replicate (the first of the `r n_replications` above,
+for each beat) shows why the same formula succeeds in beat 2 and fails in
+beat 3.
+
+**Step 1: `compute_type_level_rates()`** groups a study's raw
+examiner-by-item responses by `(type_id, ground_truth_label)` and computes
+each *type's own* FPR (identifications $\div$ that type's different-source
+items) and FNR (eliminations $\div$ that type's same-source items).
+
+**Step 2: `reweight_by_population()`** takes whichever types appear in that
+table, looks up their `population_weight`, and renormalizes those weights
+to sum to 1 *over just the observed types* -- then returns the weighted
+average of the per-type rates using those renormalized weights.
+
+```r
+reweight_by_population <- function(type_rates, type_population) {
+  observed_types <- type_rates %>% distinct(type_id) %>% pull(type_id)
+  weights <- type_population %>%
+    filter(type_id %in% observed_types) %>%
+    mutate(renormalized_weight = population_weight / sum(population_weight))
+  type_rates %>%
+    left_join(weights %>% select(type_id, renormalized_weight), by = "type_id") %>%
+    group_by(metric) %>%
+    summarise(reweighted_rate = sum(rate * renormalized_weight), .groups = "drop")
+}
+```
+
+That renormalization line is the whole story.
+
+### Beat 2's version: all 8 types observed
+
+```{r walkthrough-beat2}
+example_full <- simulate_scenario(replicate_seeds[1], better_weights, n_firearms_full_coverage, items_per_firearm = 4)
+example_full_rates <- compute_type_level_rates(example_full)
+
+knitr::kable(
+  example_full_rates %>% arrange(metric, type_id) %>% mutate(rate = percent(rate, accuracy = 0.01)),
+  col.names = c("Type", "Metric", "Rate", "n"),
+  caption = "Step 1: per-type rates, full-coverage study"
+)
+
+example_full_weights <- type_population %>%
+  filter(type_id %in% unique(example_full_rates$type_id)) %>%
+  mutate(renormalized_weight = population_weight / sum(population_weight))
+
+knitr::kable(
+  example_full_weights %>%
+    select(type_id, population_weight, renormalized_weight) %>%
+    mutate(across(c(population_weight, renormalized_weight), ~ percent(.x, accuracy = 0.1))),
+  col.names = c("Type", "True population weight", "Renormalized weight"),
+  caption = "Step 2a: renormalizing over all 8 observed types"
+)
+
+knitr::kable(
+  reweight_by_population(example_full_rates, type_population) %>%
+    mutate(reweighted_rate = percent(reweighted_rate, accuracy = 0.01)),
+  col.names = c("Metric", "Reweighted rate"),
+  caption = "Step 2b: weighted average"
+)
+```
+
+Because all 8 types are observed and their true weights already sum to
+100%, dividing by that sum changes nothing -- renormalizing is a no-op. The
+weighted average is therefore a legitimate stratified estimate of the
+population-average rate (this single replicate is noisier than the
+`r n_replications`-replicate mean reported below, since several types have
+zero errors in this one draw).
+
+### Beat 3's version: only the 2 convenience types observed
+
+```{r walkthrough-beat3}
+example_conv <- simulate_scenario(replicate_seeds[1], conv_weights, n_firearms_convenience, items_per_firearm = 10)
+example_conv_rates <- compute_type_level_rates(example_conv)
+
+knitr::kable(
+  example_conv_rates %>% arrange(metric, type_id) %>% mutate(rate = percent(rate, accuracy = 0.01)),
+  col.names = c("Type", "Metric", "Rate", "n"),
+  caption = "Step 1: per-type rates, convenience sample"
+)
+
+example_conv_weights <- type_population %>%
+  filter(type_id %in% unique(example_conv_rates$type_id)) %>%
+  mutate(renormalized_weight = population_weight / sum(population_weight))
+
+knitr::kable(
+  example_conv_weights %>%
+    select(type_id, population_weight, renormalized_weight) %>%
+    mutate(across(c(population_weight, renormalized_weight), ~ percent(.x, accuracy = 0.1))),
+  col.names = c("Type", "True population weight", "Renormalized weight"),
+  caption = "Step 2a: renormalizing over only the 2 observed types"
+)
+
+knitr::kable(
+  reweight_by_population(example_conv_rates, type_population) %>%
+    mutate(reweighted_rate = percent(reweighted_rate, accuracy = 0.01)),
+  col.names = c("Metric", "Reweighted rate"),
+  caption = "Step 2b: weighted average"
+)
+
+weight_before <- percent(example_conv_weights$population_weight, accuracy = 1)
+weight_after <- percent(example_conv_weights$renormalized_weight, accuracy = 1)
+conv_type_ids <- example_conv_weights$type_id
+```
+
+`reweight_by_population()` has no way to know 6 other types exist. It just
+divides each observed type's true weight by their combined share
+(`r percent(sum(example_conv_weights$population_weight), accuracy = 1)`), so
+type `r conv_type_ids[1]`'s weight goes from `r weight_before[1]` to
+`r weight_after[1]`, and type `r conv_type_ids[2]`'s from `r weight_before[2]`
+to `r weight_after[2]` -- silently treating those two types as if they
+*are* the entire population.
+
+The formula is identical in both cases. What differs is entirely what
+`observed_types` contains: when coverage is complete, "renormalize over
+what's observed" recovers the true population weights exactly; when
+coverage is partial, the same line of code answers a different question --
+not "what's the population-average rate?" but "what's the average rate if
+the population were only these two types?" -- with nothing in the code or
+the output flagging that substitution.
+
 # Results
 
 ```{r combine-results}
@@ -491,6 +616,172 @@ change that conclusion, it just makes the simulation's design closer to
 how an actual black-box study is built (a handful of types, a handful of
 firearms per type, many comparisons per firearm).
 
+# Robustness check: does this require the convenience sample to be systematically biased?
+
+Beats 1 and 3's convenience sample always uses the two *easiest* types --
+by construction, the most optimistic possible convenience sample, mimicking
+a lab that happened to have easy-to-classify firearms on hand. That's a
+real-world scenario worth taking seriously, but it leaves an open question:
+is the ~7-8x bias found above a property of covering *only 2 of 8 types*,
+or specifically a property of *which* two types get left out? This section
+re-runs beats 1 and 3 with the two included types chosen **uniformly at
+random** each replicate, independent of difficulty, instead of always the
+two easiest -- same 2-type, 80-total-firearm, incomplete design as before,
+nothing else changed.
+
+```{r random-pairs, cache=TRUE, cache.extra=n_replications}
+# A fresh, independent random stream for which two types are "observed"
+# each replicate -- does not touch replicate_seeds (which still governs the
+# examiners/items/responses within a study) or any of beats 1-3 above.
+set.seed(7053)
+pair_seeds <- sample.int(1e6, n_replications)
+
+random_pairs <- purrr::map(pair_seeds, function(s) {
+  set.seed(s)
+  sample(type_population$type_id, 2)
+})
+random_pair_weights <- purrr::map(random_pairs, function(types) if_else(type_population$type_id %in% types, 1, 0))
+random_pair_pop_weight <- purrr::map_dbl(random_pairs, function(types) {
+  sum(type_population$population_weight[type_population$type_id %in% types])
+})
+n_matched_easiest <- sum(purrr::map_lgl(random_pairs, function(t) setequal(t, easiest_types)))
+
+# One simulated study per replicate feeds both the naive and reweighted
+# estimator (unlike beats 1/3 above, which each independently regenerate
+# the same data under the same seed -- this is just a compute-saving choice
+# for this section's two extra simulations, not a substantive difference).
+random_pair_results <- purrr::map_dfr(seq_len(n_replications), function(r) {
+  study_data <- simulate_scenario(replicate_seeds[r], random_pair_weights[[r]], n_firearms_convenience, items_per_firearm = 10)
+  naive <- compute_pooled_rates(study_data) %>% mutate(scenario = "Random pair (naive)")
+  reweighted <- reweight_by_population(compute_type_level_rates(study_data), type_population) %>%
+    rename(rate = reweighted_rate) %>%
+    mutate(scenario = "Random pair (\"reweighted\")")
+  bind_rows(naive, reweighted) %>%
+    mutate(replicate_id = r, pop_weight_covered = random_pair_pop_weight[r])
+}) %>%
+  mutate(
+    scenario = factor(scenario, levels = c("Random pair (naive)", "Random pair (\"reweighted\")")),
+    metric = factor(metric, levels = c("FPR", "FNR"))
+  )
+
+random_pair_summary <- random_pair_results %>%
+  group_by(metric, scenario) %>%
+  summarise(mean_rate = mean(rate), sd_rate = sd(rate), .groups = "drop") %>%
+  left_join(
+    true_reference_rates %>% rename(true_rate = rate) %>% mutate(metric = factor(metric, levels = c("FPR", "FNR"))),
+    by = "metric"
+  ) %>%
+  mutate(ratio_to_truth = mean_rate / true_rate)
+```
+
+Out of `r n_replications` replicates, the random draw happened to land on
+exactly the "easiest two" pair (`r paste(sort(easiest_types), collapse = ", ")`)
+`r n_matched_easiest` times -- most replicates test a genuinely different,
+non-adversarial pair of types.
+
+## Results
+
+```{r random-pairs-table}
+knitr::kable(
+  bind_rows(
+    summary_table %>% filter(scenario %in% c(conv, conv_fix)) %>% select(metric, scenario, mean_rate, sd_rate, true_rate),
+    random_pair_summary %>% select(metric, scenario, mean_rate, sd_rate, true_rate)
+  ) %>%
+    mutate(scenario = as.character(scenario), ratio_to_truth = mean_rate / true_rate) %>%
+    mutate(
+      across(c(mean_rate, sd_rate, true_rate), ~ percent(.x, accuracy = 0.01)),
+      ratio_to_truth = sprintf("%.2fx", ratio_to_truth)
+    ),
+  col.names = c("Metric", "Scenario", sprintf("Mean (%d studies)", n_replications), "SD", "True rate", "Ratio to truth")
+)
+```
+
+```{r random-pairs-plot, fig.width=9, fig.height=5}
+ggplot(
+  bind_rows(
+    all_results %>% filter(scenario %in% c(conv, conv_fix)) %>% select(metric, scenario, rate) %>% mutate(scenario = as.character(scenario)),
+    random_pair_results %>% select(metric, scenario, rate) %>% mutate(scenario = as.character(scenario))
+  ) %>%
+    mutate(scenario = factor(scenario, levels = c(conv, conv_fix, "Random pair (naive)", "Random pair (\"reweighted\")"))),
+  aes(x = scenario, y = rate)
+) +
+  geom_boxplot(outlier.size = 0.4) +
+  geom_hline(data = true_reference_plot, aes(yintercept = rate), color = "#D55E00", linetype = "dashed", linewidth = 1) +
+  facet_wrap(~ metric, scales = "free_y") +
+  scale_y_continuous(labels = percent_format(accuracy = 1)) +
+  labs(
+    title = "Always the two easiest types vs. a random pair of types",
+    subtitle = "Dashed line: true population rate. Random-pair estimates are centered nearer the truth but far more variable.",
+    x = NULL, y = "Rate"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 20, hjust = 1))
+```
+
+## Does how much population weight the pair covers predict accuracy?
+
+```{r random-pairs-coverage-plot, fig.width=9, fig.height=4.5}
+coverage_check <- random_pair_results %>%
+  filter(scenario == "Random pair (\"reweighted\")") %>%
+  left_join(true_reference_rates %>% rename(true_rate = rate), by = "metric") %>%
+  mutate(ratio = rate / true_rate)
+
+ggplot(coverage_check, aes(x = pop_weight_covered, y = ratio)) +
+  geom_point(alpha = 0.4) +
+  geom_hline(yintercept = 1, linetype = "dashed", color = "grey50") +
+  facet_wrap(~ metric) +
+  scale_x_continuous(labels = percent_format(accuracy = 1)) +
+  scale_y_continuous(labels = label_number(suffix = "x")) +
+  labs(
+    title = "Random-pair reweighted rate vs. true rate, by how much population weight the pair covered",
+    subtitle = "Each point: one replicate study. Dashed line at 1x = perfect recovery.",
+    x = "Population weight covered by the random pair", y = "Reweighted rate / true rate"
+  ) +
+  theme_minimal()
+```
+
+```{r random-pairs-helpers, include=FALSE}
+rp_naive <- "Random pair (naive)"
+rp_reweighted <- "Random pair (\"reweighted\")"
+rp_pick <- function(m, sc) random_pair_summary %>% filter(metric == m, scenario == sc)
+cor_by_metric <- coverage_check %>% group_by(metric) %>% summarise(r = cor(pop_weight_covered, ratio), .groups = "drop")
+```
+
+## Interpretation
+
+- **On average across many random-pair studies, both estimators are close
+  to unbiased.** Naive: `r sprintf("%.2fx", rp_pick("FPR", rp_naive)$ratio_to_truth)`
+  the true rate for FPR, `r sprintf("%.2fx", rp_pick("FNR", rp_naive)$ratio_to_truth)`
+  for FNR. "Reweighted": `r sprintf("%.2fx", rp_pick("FPR", rp_reweighted)$ratio_to_truth)`
+  and `r sprintf("%.2fx", rp_pick("FNR", rp_reweighted)$ratio_to_truth)`. This is a sharp
+  contrast with the always-easiest-two design's `r too_low("FPR", conv)` /
+  `r too_low("FNR", conv)` bias above -- confirming that bias comes specifically from
+  *which* types the convenience sample always includes, not merely from covering only 2 of 8.
+- **But any single random-pair study is wildly imprecise.** The reweighted
+  estimator's SD (`r pc(rp_pick("FPR", rp_reweighted)$sd_rate)` for FPR) is comparable to
+  its own mean (`r pc(rp_pick("FPR", rp_reweighted)$mean_rate)`) -- unlike the always-easiest-two
+  design, which is precisely wrong rather than imprecisely right. A single random-2-type
+  study's reweighted estimate is essentially uninformative about the population rate,
+  even though the *procedure* is unbiased in expectation.
+- **How much population weight the random pair happens to cover doesn't
+  predict how close it lands to the truth**
+  (correlation `r sprintf("%.2f", cor_by_metric$r[cor_by_metric$metric == "FPR"])` for FPR,
+  `r sprintf("%.2f", cor_by_metric$r[cor_by_metric$metric == "FNR"])` for FNR --
+  see the scatterplot above). What matters is not how much of the population's *weight*
+  a sample happens to cover, but whether the *selection* of what gets covered is related to
+  the outcome being measured.
+- **This sharpens, rather than undermines, the non-remediable claim.** The
+  failure mode isn't "2 of 8 types is too few observations" in the
+  abstract -- a genuinely random 2-of-8 sample is (on average) fine, just
+  imprecise, the way any small random sample is. The failure is that real
+  black-box studies don't pick types at random: they use whatever firearms
+  the lab has on hand, which is exactly the kind of *non-ignorable*
+  selection (correlated with the outcome) that reweighting cannot detect
+  or correct from the data alone. `reweight_by_population()` runs
+  identically either way and cannot tell the two situations apart --
+  nothing in a study's own responses reveals whether its type selection
+  was haphazard-but-random or haphazard-and-convenient.
+
 # Next steps
 
 - Swap the updated numbers into `icfis/draft.qmd`'s Case Study 2 slides.
@@ -503,7 +794,9 @@ firearms per type, many comparisons per firearm).
   else specific — worth a sensitivity check once there's time.
 - If useful, add a version of beat 3 using *partial* type coverage (e.g.,
   4 of 8 types, not just the 2 easiest) to show the bias shrinking
-  gradually as coverage improves, rather than only the two extremes.
+  gradually as coverage improves, rather than only the two extremes --
+  distinct from the random-pairs check above, which holds the *number* of
+  types fixed at 2 and varies only *which* two.
 
 # References
 
