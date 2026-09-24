@@ -57,11 +57,14 @@ only if there's time for a second remediable-flaw example.
 ## Why this talk {.smaller}
 
 - NAS (2009) and PCAST (2016): scientific validity of firearms examination has not been established
-- Daubert Standard: Is there a **known error rate** for the technique?
+- US Context: 
+    - Daubert Standard: Is there a **known error rate** for the technique?
 - Recent large-scale black-box validation studies have attempted to remedy this (Ames I and II, Hicklin et al)
+
+## Why this talk? {.smaller}
 - @cuellar2024methodological: literature search of 28 black-box validation studies
   - Found six flaws (A–F) present, with minor exceptions, in **every** study
-  - Concluded: none of the existing studies can establish scientific validity
+  - Concluded: the body of existing studies cannot establish scientific validity
 - @chin2026towards responded with "Towards Cumulative Forensic Science"
   - Draws on evidence-based medicine / systematic-review practice
   - Argues for a "big team" forensic science: openness, registration, meta-analysis
@@ -78,6 +81,15 @@ only if there's time for a second remediable-flaw example.
 | E | Invalid or nonexistent uncertainty measures | Fixable if raw responses available |
 | F | Missing data handled inappropriately | Fixable if missingness can be characterized |
 
+## Swiss cheese or bagels? 
+
+[add images] 
+
+<!--
+The "Swiss cheese model" says that multiple imperfect studies, when combined, can still produce valid results. 
+
+We argue that these studies are like a set of bagels: they all share the same flaws, and so there's no way to combine them to establish validity
+-->
 
 ## Where we agree with Chin et al. {.smaller}
 
@@ -88,30 +100,20 @@ only if there's time for a second remediable-flaw example.
 - Imperfect studies are still useful!
 - We should not discourage data collection just because a study has flaws 
 
-## Main point of disagreement: 
+## 
 
 > The problem is not simply that the wrong quantity was reported. The problem is that the data needed to estimate the relevant quantity were never collected in the first place.
 
-- Some flaws (B, C) operate on **study design and sampling**, not analysis
-- No amount of reanalysis recovers information that was never observed
-- **Claim of this talk:** the six flaws split into two qualitatively different
-  buckets — remediable (fixable via reanalysis) and non-remediable (fixable
-  only with new data)
+## What does it mean for a flaw to be "remediable"? 
 
+- Define the target quantity (the **estimand**)
+::: .callout-note
+The population-average error rate (P(Error|Same Source) and P(Error|Different Source)), under casework-representative firearms, ammunition, examiners, and testing conditions.
+:::
 
-# The Remediable / Non-Remediable Distinction
+- A flaw is **remediable** if, given the raw examiner-by-item responses, the estimand can still be estimated correctly (possibly with extra assumptions/new analyses)
 
-## What "remediable" means here
-
-Define the target quantity (the **estimand**):
-
-> the population-average error rate (FPR / FNR), under casework-representative firearms, ammunition, examiners, and testing conditions
-
-- **Remediable**: given the raw examiner-by-item responses, the estimand can
-  still be validly estimated (possibly with extra assumptions / new analysis)
-- **Non-remediable**: the sampled data cannot support the estimand, *regardless*
-  of what analysis is applied to them
-
+- A flaw is **non-remediable** if the sampled data cannot recover the estimand, *regardless* of what analysis is applied to them
 
 ## Flowchart: sorting the six flaws
 
@@ -121,16 +123,17 @@ Define the target quantity (the **estimand**):
 
 ## Remainder of the talk
 
-1. Remediable flaw example
+1. Simulation Framework 
 
-2. Non-remediable flaw example
+2. Remediable flaw example: Inconclusives
+
+3. Non-remediable flaw example: Non-representative samples
 
 ## Approach: simulation study
 
 - We can't go back and observe the "true" error rate for the 28 studies
 - A simulation with a **known estimand** lets us show what each flaw does to a study's conclusions
 - Same generative model powers both case studies
-
 
 
 ## Data generating model
@@ -368,7 +371,7 @@ studies_100 |>
 - @cuellar2024methodological recommend a bounding procedure instead: recode
   every inconclusive as an identification, then as an elimination, and
   report **both** recomputed error rates as a range
-- Claim: this is *remediable* — both numbers come from the same raw
+- Claim: this flaw is *remediable* — both numbers come from the same raw
   responses, recomputed after the fact
 
 
@@ -410,7 +413,66 @@ more common on different-source items (about 50%) than same-source (about 23%).
 
 ## Results
 
-[add plot showing the bounds under different inconclusive tendencies]
+[build this up: raw numbers, add the X's, add the intervals]
+
+```{r inconclusive-bounds-figure}
+#| fig-width: 9
+#| fig-height: 6
+# Data: icfis/data/inconclusive_bounds.csv, written by icfis/case_study_inconclusive.qmd
+# ("Before and after reporting bounds"): means over 100 simulated studies per setting.
+bounds_data <- read_csv(here::here("icfis/data/inconclusive_bounds.csv"), show_col_types = FALSE) |>
+  mutate(
+    setting = fct_reorder(setting, scale),
+    rate = factor(rate, levels = c("False positive rate", "False negative rate"))
+  )
+
+panel_levels <- c("No bounds on inconclusives", "With bounds on inconclusives")
+x_label <- "True rate if inconclusives leaning toward error were errors (Ames II)"
+
+points_long <- bounds_data |>
+  select(setting, rate, Reported = reported, !!x_label := truth_low) |>
+  pivot_longer(c(Reported, all_of(x_label)), names_to = "measure", values_to = "value") |>
+  crossing(panel = panel_levels) |>
+  mutate(panel = factor(panel, levels = panel_levels))
+
+brackets <- bounds_data |> mutate(panel = factor(panel_levels[2], levels = panel_levels))
+
+ggplot(points_long, aes(x = setting)) +
+  geom_errorbar(
+    data = brackets, aes(ymin = reported, ymax = worst_case),
+    width = 0.18, linewidth = 0.9, color = "#0072B2"
+  ) +
+  geom_point(aes(y = value, shape = measure, color = measure), size = 3.5, stroke = 1.4) +
+  facet_grid(panel ~ rate) +
+  scale_shape_manual(values = setNames(c(16, 4), c("Reported", x_label))) +
+  scale_color_manual(values = setNames(c("#0072B2", "#D55E00"), c("Reported", x_label))) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  labs(
+    title = "Reported rates understate the true rate; bounds show what could be hidden",
+    subtitle = "Blue brackets: reported to worst case (every inconclusive an error)",
+    x = "Baseline inconclusive rate (different-source / same-source)",
+    y = "Error rate", shape = NULL, color = NULL
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(legend.position = "bottom")
+```
+
+::: {.notes}
+Figure code is in this slide's chunk; data are icfis/data/inconclusive_bounds.csv, written
+by icfis/case_study_inconclusive.qmd ("Before and after reporting bounds"). x-axis: overall inconclusive rate, scaled 0.3x / 0.6x / 1x from the
+Ames II fit. Dot = reported rate (barely moves). Blue bracket = reported to worst
+case, the only thing a study can claim without further assumptions.
+
+The X is a *scenario* true rate: the DGP has no forced-choice decision, so we use
+the examiners' own Ames II subcategories as a proxy. Among different-source
+inconclusives, 12% lean toward identification (Inc-A, the error direction); among
+same-source, 7% lean toward elimination (Inc-C). X = reported + that share x the
+inconclusive share, i.e. the true rate if only the inconclusives leaning toward
+the error had been errors. That is a floor: undetermined (Inc-B) inconclusives
+(44% / 41% of them) could also come out wrong, so h could be as high as 57% / 48%.
+These are examiners' labels, not verified forced choices. Ames II recorded them; most studies don't, so most studies can't
+be analyzed this way.
+:::
 
 ## Why this counts as remediable
 

@@ -226,6 +226,172 @@ benchmark check). That agreement is by construction — the defaults were fit to
 those responses — so it shows the simulation is realistic, not independent
 evidence.
 
+# Before and after reporting bounds: a sweep over the inconclusive baseline
+
+The data for the talk's before/after-bounds figure (the plotting code lives in
+`icfis/draft.qmd`, which reads the CSV saved below). The x-axis is the study's overall
+inconclusive rate, varied by scaling both inconclusive baselines
+(different-source and same-source) by 0.3, 0.6, and 1x their current values --
+15% / 5%, 30% / 10%, and the Ames II fit's 50% / 17%. Everything else stays at
+the current defaults, and each setting is 100 simulated studies under the
+incomplete design.
+
+The **true error rate** is not something the DGP defines: nothing in the model
+says what an inconclusive would have been had the examiner been forced to
+decide. Define `h` as the share of inconclusives that would have been errors if
+the examiner had been forced to call them, so true rate = reported + `h` x
+(worst case - reported). `h` cannot be estimated from a typical study's
+responses, and the bracket from reported to worst case contains the true rate
+for *any* `h` between 0 and 1, so the bracket is what a study can claim without
+assuming `h`.
+
+Ames II happens to record more than "inconclusive": examiners reported the AFTE
+subcategories Inc-A (leans toward identification), Inc-B (undetermined), and
+Inc-C (leans toward elimination). Read as a forced-choice proxy, a response that
+leans toward the *error* would have become an error, an undetermined one is
+somewhere in between, and one that leans toward the correct call would not. That
+gives a range for `h` for each error rate -- from "only the responses leaning
+toward the error" (all undetermined ones come out right) to "those plus every
+undetermined one" -- with a midpoint that splits the undetermined ones 50/50.
+
+```{r ames-leanings}
+ames_inc <- readxl::read_xlsx(here::here("real-data/ames2.xlsx"), sheet = "Cartridge Cases") |>
+  transmute(
+    analysis = .data[["Examiner's Analysis"]],
+    truth = if_else(M_NM == "M", "same-source", "different-source")
+  ) |>
+  filter(stringr::str_detect(analysis, "Inc")) |>
+  mutate(lean = case_when(
+    stringr::str_detect(analysis, "Inc-A") & !stringr::str_detect(analysis, "Inc-C") ~ "A",
+    stringr::str_detect(analysis, "Inc-C") & !stringr::str_detect(analysis, "Inc-A") ~ "C",
+    stringr::str_detect(analysis, "Inc-B") & !stringr::str_detect(analysis, "Inc-C") ~ "B",
+    TRUE ~ "mixed/unspecified"
+  ))
+
+n_unspecified <- sum(ames_inc$lean == "mixed/unspecified")
+ames_inc <- filter(ames_inc, lean != "mixed/unspecified")
+
+# Error direction: a different-source item leaning toward identification (A), or a
+# same-source item leaning toward elimination (C).
+h_tbl <- ames_inc |>
+  group_by(truth) |>
+  summarise(
+    n_inc = n(),
+    toward_error = mean(lean == if_else(first(truth) == "different-source", "A", "C")),
+    undetermined = mean(lean == "B"),
+    .groups = "drop"
+  ) |>
+  transmute(
+    rate = factor(if_else(truth == "different-source", "False positive rate", "False negative rate"),
+                  levels = c("False positive rate", "False negative rate")),
+    n_inc, toward_error, undetermined,
+    h_low = toward_error,
+    h_mid = toward_error + 0.5 * undetermined,
+    h_high = toward_error + undetermined
+  ) |>
+  arrange(rate)
+
+knitr::kable(
+  h_tbl |> mutate(across(c(toward_error, undetermined, h_low, h_mid, h_high), ~ percent(.x, accuracy = 0.1))),
+  col.names = c("Rate", "Inconclusives (n)", "Lean toward error", "Undetermined",
+                "h low", "h midpoint", "h high")
+)
+```
+
+(`r n_unspecified` responses with mixed or unspecified subcategories are dropped.)
+These leanings are examiners' own labels, not verified forced choices; see the
+comparison with forced-choice designs in the talk notes.
+
+```{r inconclusive-sweep, cache=TRUE}
+ir_scales <- c(0.3, 0.6, 1)
+n_sweep_reps <- 100
+
+sweep_settings <- tibble(
+  scale = ir_scales,
+  ir_diff = scale * incomplete_defaults$inconclusive_rate,
+  ir_same = scale * incomplete_defaults$inconclusive_rate_same,
+  setting = sprintf("%.0f%% / %.0f%%", 100 * ir_diff, 100 * ir_same)
+)
+
+sweep_results <- sweep_settings |>
+  mutate(results = pmap(list(ir_diff, ir_same, seq_along(scale)), function(ir_d, ir_s, k) {
+    map_dfr(seq_len(n_sweep_reps), function(r) {
+      study <- generate_sim_data_incomplete(
+        seed = 1000 * k + r,
+        n_examiners = incomplete_defaults$n_examiners,
+        n_comparisons = incomplete_defaults$n_comparisons,
+        items_per_examiner = incomplete_defaults$items_per_examiner,
+        match_rate = incomplete_defaults$match_rate,
+        false_positive_rate = incomplete_defaults$false_positive_rate,
+        false_negative_rate = incomplete_defaults$false_negative_rate,
+        inconclusive_rate = ir_d,
+        inconclusive_rate_same = ir_s,
+        examiner_skill_sd = incomplete_defaults$examiner_skill_sd,
+        examiner_inconclusive_sd = incomplete_defaults$examiner_inconclusive_sd,
+        question_sd = incomplete_defaults$question_sd
+      )
+      compute_reported_and_worst_case(study) |> mutate(replicate = r)
+    })
+  })) |>
+  select(setting, results) |>
+  unnest(results)
+
+sweep_summary <- sweep_results |>
+  group_by(setting, rate, method) |>
+  summarise(value = mean(value), .groups = "drop") |>
+  pivot_wider(names_from = method, values_from = value) |>
+  rename(reported = Reported, worst_case = `Worst case`) |>
+  mutate(
+    inc_share = worst_case - reported,
+    setting = factor(setting, levels = sweep_settings$setting),
+    rate = factor(rate, levels = c("False positive rate", "False negative rate"))
+  ) |>
+  left_join(select(h_tbl, rate, h_low, h_mid, h_high), by = "rate") |>
+  mutate(
+    truth_low = reported + h_low * inc_share,
+    truth = reported + h_mid * inc_share,
+    truth_high = reported + h_high * inc_share
+  )
+
+knitr::kable(
+  sweep_summary |>
+    arrange(rate, setting) |>
+    mutate(across(c(reported, inc_share, truth_low, truth, truth_high, worst_case), ~ percent(.x, accuracy = 0.1))) |>
+    select(setting, rate, reported, inc_share, truth_low, truth, truth_high, worst_case),
+  col.names = c("Setting (diff. / same-source inconclusive baseline)", "Rate", "Reported",
+                "Inconclusive share", "True (low)", "True (midpoint)", "True (high)", "Worst case")
+)
+```
+
+```{r save-figure-data}
+# Data behind the talk's figure. `truth_low` is the value plotted as the X (reported +
+# h_low x inconclusive share); the other columns are the rest of the table above.
+figure_data <- sweep_summary |>
+  mutate(setting = as.character(setting)) |>
+  left_join(select(sweep_settings, setting, scale), by = "setting") |>
+  arrange(rate, scale) |>
+  select(rate, setting, scale, reported, worst_case, inc_share, h_low, h_mid, h_high,
+         truth_low, truth, truth_high)
+
+dir.create(here::here("icfis/data"), showWarnings = FALSE, recursive = TRUE)
+write.csv(figure_data, here::here("icfis/data/inconclusive_bounds.csv"), row.names = FALSE)
+```
+
+```{r sweep-summary-values, include=FALSE}
+sw <- function(r, s, col) sweep_summary |> filter(rate == r, setting == s) |> pull({{ col }})
+lo <- levels(sweep_summary$setting)[1]
+hi <- levels(sweep_summary$setting)[3]
+```
+
+Across the sweep the reported rates barely move (false positive rate
+`r percent(sw("False positive rate", lo, reported), accuracy = 0.1)` to
+`r percent(sw("False positive rate", hi, reported), accuracy = 0.1)`), but the
+inconclusive share rises from `r percent(sw("False positive rate", lo, inc_share), accuracy = 1)` to
+`r percent(sw("False positive rate", hi, inc_share), accuracy = 1)` of different-source
+comparisons, so the worst case -- and the gap between reported and
+(assumed) true rate -- grows with it. A study reporting only the dot cannot tell
+these settings apart; a study reporting the bracket can.
+
 # Why this is remediable
 
 Nothing above required a new study. The same 1,500 raw responses per
