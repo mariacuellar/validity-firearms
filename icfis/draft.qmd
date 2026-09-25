@@ -1,6 +1,6 @@
 ---
-title: "Remediable and Non-Remediable Flaws in Firearms Validity Studies"
-subtitle: "A response to Chin et al. (2026)"
+title: "Remediable and Non-Remediable Flaws in Forensic Validation Studies"
+subtitle: ""
 author:
   - name: "Amanda Luby"
   - name: "Maria Cuellar"
@@ -8,11 +8,10 @@ date: last-modified
 bibliography: ../output/paper/references.bib
 format:
   revealjs:
-    theme: simple
+    theme: [default, icfis-viridis.scss]
     slide-number: true
     incremental: true
     footer: "ICFIS 2026"
-    scrollable: true
     embed-resources: true
     # TODO: swap in institution logo 
 execute: 
@@ -20,8 +19,6 @@ execute:
   warning: false
   message: false
 ---
-
-# Motivation
 
 
 ```{r}
@@ -54,14 +51,14 @@ would need a nested firearm random effect the DGP doesn't have yet (see the
 only if there's time for a second remediable-flaw example.
 -->
 
-## Why this talk {.smaller}
+## Why this talk
 
 - NAS (2009) and PCAST (2016): scientific validity of firearms examination has not been established
 - US Context: 
     - Daubert Standard: Is there a **known error rate** for the technique?
 - Recent large-scale black-box validation studies have attempted to remedy this (Ames I and II, Hicklin et al)
 
-## Why this talk? {.smaller}
+## Why this talk
 - @cuellar2024methodological: literature search of 28 black-box validation studies
   - Found six flaws (A–F) present, with minor exceptions, in **every** study
   - Concluded: the body of existing studies cannot establish scientific validity
@@ -72,6 +69,7 @@ only if there's time for a second remediable-flaw example.
 
 ## The six flaws {.smaller}
 
+::: {.striped}
 | Flaw | Description | Cuellar et al. framing |
 |---|---|---|
 | A | Inadequate sample size | Exacerbates the other flaws |
@@ -80,10 +78,35 @@ only if there's time for a second remediable-flaw example.
 | D | Inconclusives treated as correct or ignored | Fixable if raw responses available |
 | E | Invalid or nonexistent uncertainty measures | Fixable if raw responses available |
 | F | Missing data handled inappropriately | Fixable if missingness can be characterized |
+: {tbl-colwidths="[8,50,42]"}
+:::
 
-## Swiss cheese or bagels? 
+## Swiss cheese or bagels?
 
-[add images] 
+
+:::: {.columns}
+
+::: {.column width="60%" .fragment .center}
+
+<br>
+
+<br>
+
+<br>
+
+![](img/swiss-cheese.png)
+
+:::
+
+::: {.column width="40%" .fragment}
+
+![](img/bagel.png)
+
+:::
+
+::::
+
+
 
 <!--
 The "Swiss cheese model" says that multiple imperfect studies, when combined, can still produce valid results. 
@@ -91,7 +114,7 @@ The "Swiss cheese model" says that multiple imperfect studies, when combined, ca
 We argue that these studies are like a set of bagels: they all share the same flaws, and so there's no way to combine them to establish validity
 -->
 
-## Where we agree with Chin et al. {.smaller}
+## Where we agree with Chin et al.
 
 - No single study is perfect
 - Not every flaw has the same consequences
@@ -100,14 +123,15 @@ We argue that these studies are like a set of bagels: they all share the same fl
 - Imperfect studies are still useful!
 - We should not discourage data collection just because a study has flaws 
 
-## 
+## {.center}
 
 > The problem is not simply that the wrong quantity was reported. The problem is that the data needed to estimate the relevant quantity were never collected in the first place.
 
 ## What does it mean for a flaw to be "remediable"? 
 
 - Define the target quantity (the **estimand**)
-::: .callout-note
+
+::: {.definition .fragment}
 The population-average error rate (P(Error|Same Source) and P(Error|Different Source)), under casework-representative firearms, ammunition, examiners, and testing conditions.
 :::
 
@@ -117,9 +141,7 @@ The population-average error rate (P(Error|Same Source) and P(Error|Different So
 
 ## Flowchart: sorting the six flaws
 
-<!-- TODO: replace  -->
-
-![](img/flowchart.png)
+{{< include img/_flowchart.qmd >}}
 
 ## Remainder of the talk
 
@@ -148,11 +170,11 @@ The population-average error rate (P(Error|Same Source) and P(Error|Different So
 
 Target estimand: overall population FPR or FNR or IR
 
-A harder item or a weaker examiner makes the challenge larger, which pushes up both the chance of an error and the chance of an inconclusive call on the log-odds scale: 
+The chance of an error and the chance of an inconclusive call on the log-odds scale are both shifted by $c_{ij}$
 
-$\pi_{ij}^{err} = P(\text{error}) = \text{expit}[\text{logit}(\text{FPR or FNR}) + c_{ij}]$
+$$\pi_{ij}^{err} = P(\text{error}) = \text{expit}[\text{logit}(\text{FPR or FNR}) + c_{ij}]$$
 
-$\pi_{ij}^{inc} = P(\text{Inconclusive}) = \text{expit}[\text{logit}(\text{IR}_{G_i}) + 0.5 \cdot c_{ij} + \tau_j]$
+$$\pi_{ij}^{inc} = P(\text{Inconclusive}) = \text{expit}[\text{logit}(\text{IR}_{G_i}) + 0.5 \cdot c_{ij} + \tau_j]$$
 
 The baseline inconclusive rate $\text{IR}_{G_i}$ can differ for same-source and different-source items.
 
@@ -164,9 +186,9 @@ $e(\cdot)$ denotes an error and $c(\cdot)$ denotes a correct response. $G_i$ ind
 $$
 R_{ij} \mid G_i, c_{ij}, \tau_j \;\sim\; 
 \begin{cases}
-e(G_i) & \text{w.p. } \pi^{err}_{ij} \\
-\text{inconclusive} & \text{w.p. } \pi^{inc}_{ij} \\
-c(G_i) & \text{w.p. } 1 - \pi^{err}_{ij} - \pi^{inc}_{ij}
+e(G_i) & \pi^{err}_{ij} \\
+\text{inconclusive} & \pi^{inc}_{ij} \\
+c(G_i) & 1 - \pi^{err}_{ij} - \pi^{inc}_{ij}
 \end{cases}
 $$
 
@@ -183,15 +205,15 @@ examiner is." Don't let the audience get lost in the categorical notation.
 ## Calibrating to real studies {.smaller}
 
 - Probability model above *cannot* capture every effect that arises in real data
-- Goal is to create simulated studies that resemble previously-collected results, not to perfectly replicate a single study
+- Goal is to create simulated studies that resemble previously-collected results
 - Some benchmarks that we used:  
     - Ames II cartridge cases (raw responses): baseline FPR, FNR, and inconclusive rates, fit by maximum likelihood
         - same-source and different-source items get *separate* inconclusive baselines: about 17% vs. 50%
     - Scurich et al (2025) blind-vs-known test inconclusive rates: 39.3% (blind) vs 56.4% (known)
     - Ames II: range of 0-62% "hard" comparison range across individual Beretta pistols
 
-::: callout-warning
-Disagree with calibrating to these numbers? We have an app for that! [add link]
+::: {.comment .fragment}
+Disagree with these numbers? We have an app for that! [add link]
 :::
 
 <!--
@@ -245,6 +267,9 @@ ames2 |>
 ### Simulated Data:
 
 ```{r}
+#| cache: true
+
+
 # dgp_defaults was fit by maximum likelihood directly to this exact Ames II
 # dataset (icfis/fit_ames2.qmd), so simulating at dgp_defaults and comparing
 # to Ames II here would be close to circular -- of course it matches almost
@@ -315,10 +340,7 @@ studies_100 <- purrr::map_dfr(1:100, function(s) {
 })
 ```
 
-:::: {.columns}
 
-::: {.column width="50%"}
-**One study**
 
 ```{r}
 one_study |>
@@ -336,38 +358,15 @@ one_study |>
   round(2) |>
   knitr::kable()
 ```
-:::
 
-::: {.column width="50%"}
-**100 studies (pooled)**
-
-```{r}
-studies_100 |>
-  mutate(
-    ground_truth_label = factor(
-      str_to_title(ground_truth_label),
-      levels = c("Same-Source", "Different-Source")
-    ),
-    gt_label = ifelse(ground_truth_label == "Same-Source", "M", "NM"),
-    response = str_sub(str_to_title(response), 1, 4)
-  ) |>
-  select(gt_label, response) |>
-  table() |>
-  prop.table(1) |>
-  round(2) |>
-  knitr::kable()
-```
-:::
-
-::::
 
 # Case Study 1: A Remediable Flaw
 
 ## Setup: inconclusive handling (Flaw D)
 
-- Black-box studies handle inconclusive responses inconsistently — excluded,
-  folded into "correct," or otherwise treated as if they don't affect the
-  error rate
+[add table]
+
+- Black-box studies handle inconclusive responses inconsistently
 - @cuellar2024methodological recommend a bounding procedure instead: recode
   every inconclusive as an identification, then as an elimination, and
   report **both** recomputed error rates as a range
@@ -377,7 +376,7 @@ studies_100 |>
 
 ## Simulation design
 
-- Same DGP as earlier, at the Ames II-calibrated defaults, under an incomplete design (50 examiners, 30 of 300 items each)
+- Same DGP as earlier, under an incomplete design (50 examiners, 30 of 300 items each)
 - For each simulated study, compute both numbers from the same raw
   responses:
   - **Reported**: identifications / all different-source cases (and the
@@ -426,8 +425,8 @@ bounds_data <- read_csv(here::here("icfis/data/inconclusive_bounds.csv"), show_c
     rate = factor(rate, levels = c("False positive rate", "False negative rate"))
   )
 
-panel_levels <- c("No bounds on inconclusives", "With bounds on inconclusives")
-x_label <- "True rate if inconclusives leaning toward error were errors (Ames II)"
+panel_levels <- c("No bounds", "With bounds")
+x_label <- "True rate"
 
 points_long <- bounds_data |>
   select(setting, rate, Reported = reported, !!x_label := truth_low) |>
@@ -448,9 +447,9 @@ ggplot(points_long, aes(x = setting)) +
   scale_color_manual(values = setNames(c("#0072B2", "#D55E00"), c("Reported", x_label))) +
   scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
   labs(
-    title = "Reported rates understate the true rate; bounds show what could be hidden",
-    subtitle = "Blue brackets: reported to worst case (every inconclusive an error)",
-    x = "Baseline inconclusive rate (different-source / same-source)",
+    title = "",
+    subtitle = "",
+    x = "Baseline inconclusive rates",
     y = "Error rate", shape = NULL, color = NULL
   ) +
   theme_minimal(base_size = 13) +
@@ -476,10 +475,8 @@ be analyzed this way.
 
 ## Why this counts as remediable
 
-- The fix required **no new data collection** — the same raw examiner-by-item
-  responses already support both numbers; only how they're summarized
-  changed
-- This is exactly the kind of flaw Chin et al. are right about: a study with
+- The fix required **no new data collection**. Only how they're summarized changed
+- A study with
   this flaw alone can still contribute to a cumulative evidence base, *once
   reanalyzed*
 - On the other hand, these intervals are so large that this isn't really a "solution"
@@ -519,17 +516,32 @@ Some firearms are more/less likely to have certain responses: support for indivi
 ```{r}
 #| fig-width: 10
 #| fig-height: 5
-ames2 |>
+ames2_long <- ames2 |>
   pivot_longer(c(Gun_1, Gun_2), names_to = "index", values_to = "individual_firearm") |>
   mutate(individual_firearm = fct_reorder(
     individual_firearm, response_3 == "Inconclusive", .fun = sum, .desc = TRUE, .na_rm = FALSE
-  )) |>
+  ))
+
+# Overall % inconclusive within each facet (pooled over responses). `%in%`
+# rather than `==` so the ~1% missing responses stay in the denominator,
+# matching the bars (geom_bar counts NA as its own fill category).
+pct_inc <- ames2_long |>
+  group_by(Ber_NonBer, M_NM) |>
+  summarize(pct_inc = mean(response_3 %in% "Inconclusive"), .groups = "drop")
+
+ames2_long |>
   ggplot(aes(x = individual_firearm, fill = response_3)) + 
   geom_bar(position = "fill") + 
+  geom_hline(data = pct_inc, aes(yintercept = pct_inc), linetype = "dotted", linewidth = .8, col = "white") +
+  # geom_label(
+  #   data = pct_inc,
+  #   aes(x = Inf, y = pct_inc, label = paste0("avg: ", scales::percent(pct_inc, accuracy = 1))),
+  #   inherit.aes = FALSE, hjust = 1, fill = "white", fontface = "bold", size = 3.5
+  # ) +
   facet_grid(cols = vars(Ber_NonBer), rows = vars(M_NM), scales = "free_x") + 
   scale_fill_viridis_d(option = "plasma", end = .8) + 
   theme(legend.position = "top") + 
-  labs(fill = "")
+  labs(fill = "", y = "Proportion of responses")
   
 ```
 
@@ -553,7 +565,7 @@ Build up this graph: show that there's firearm make/model variability by compari
 Last bullet point: some people have misunderstood our point and think that we are asking for *every single* firearm/ammunition/examiner combination to be fully characterized with a population error rate. That's not the case: it might be possible to get an estimate of a population error rate with a relatively small number of guns, if they are chosen appropriately. 
 :::
 
-## Three different "analysis" approaches:
+## Three different "study" approaches:
 
 1. **Biased estimate.** A convenience sample restricted to only two types (21% of casework by weight), 40 firearms each (80 total)
 2. **The fix that could work.** A hypothetical better study covering all
@@ -577,6 +589,7 @@ only a subset of a scenario's items (30, same as case study 1), not every
 item — an earlier version had every examiner see every item.
 :::
 
+<!-- 
 ## Results
 
 500 replicate studies per scenario. True population rate: **FPR 1.55%, FNR 2.76%**.
@@ -587,10 +600,76 @@ item — an earlier version had every examiner see every item.
   ~9% of truth on both — reweighting works, even with only 10 firearms
   sampled per type
 - Convenience sample, "reweighted": FPR **0.21%**, FNR **0.42%** — barely moved from the original convenience sample
+ -->
 
-## Results
+## Reweighting the convenience sample doesn't work
 
-![](sensitivity_nonrepresentative_files/figure-html/bias-interval-plot-easiest-1.png)
+```{r nonrep-bias-figure}
+#| fig-width: 11
+#| fig-height: 6
+# Data: icfis/data/sensitivity_nonrepresentative_grid.csv, written by
+# icfis/sensitivity_nonrepresentative.qmd (`grid_results`): one row per
+# heterogeneity setting x scenario x metric, summarizing `n_studies` simulated studies.
+nonrep_grid <- read_csv(here::here("icfis/data/sensitivity_nonrepresentative_grid.csv"), show_col_types = FALSE)
+
+nonrep_scenarios <- c(
+  "Convenience sample (naive)",
+  "Convenience sample (\"reweighted\")",
+  "Full-coverage study (reweighted)"
+)
+nonrep_colors <- c(
+  "Convenience sample (naive)"          = "#D55E00",
+  "Convenience sample (\"reweighted\")" = "#0072B2",
+  "Full-coverage study (reweighted)"    = "#009E73"
+)
+
+nonrep_grid |>
+  filter(scenario %in% nonrep_scenarios) |>
+  mutate(
+    scenario = factor(scenario, levels = nonrep_scenarios),
+    difficulty_scenario = factor(difficulty_scenario, levels = c("Low", "Medium", "High")),
+    examiner_scenario = factor(examiner_scenario, levels = c("Low", "Medium", "High")),
+    metric = factor(metric, levels = c("FPR", "FNR")),
+    diff = mean_rate - true_rate,          # bias: estimate minus the true population rate
+    diff_lo = q025 - true_rate,            # 2.5th-97.5th percentile across individual studies
+    diff_hi = q975 - true_rate
+  ) |>
+  ggplot(aes(x = examiner_scenario, y = diff, color = scenario)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "grey50") +
+  geom_pointrange(
+    aes(ymin = diff_lo, ymax = diff_hi),
+    position = position_dodge(width = 0.5), size = 0.5
+  ) +
+  facet_grid(
+    metric ~ difficulty_scenario,
+    labeller = labeller(difficulty_scenario = function(x) paste("Difficulty:", x))
+  ) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  scale_color_manual(values = nonrep_colors) +
+  labs(
+    x = "Examiner heterogeneity",
+    y = "Estimated rate - true rate",
+    color = NULL,
+    subtitle = paste0(
+      "Points: mean over ", unique(nonrep_grid$n_studies), " simulated studies. ",
+      "Bars: 95% interval across individual studies."
+    )
+  ) +
+  theme_minimal(base_size = 15) +
+  theme(legend.position = "bottom")
+```
+
+::: {.notes}
+Figure code is in this slide's chunk; data are icfis/data/sensitivity_nonrepresentative_grid.csv,
+written by icfis/sensitivity_nonrepresentative.qmd. Each panel is one setting of how much
+firearm types/individual firearms differ in difficulty (columns) and how much examiners
+differ (x-axis); rows are FPR and FNR. y = estimated rate minus the true population rate,
+so 0 (dashed) is perfect. Red = convenience sample, no correction; blue = the same
+sample reweighted by population share (sits right on top of red: reweighting can't
+help, there is no data on most of the population); green = a study covering all eight
+types, reweighted (centered on zero, though noisy). Bars are where 95% of individual
+studies land.
+:::
 
 
 ## Why this counts as non-remediable
@@ -609,16 +688,16 @@ item — an earlier version had every examiner see every item.
 
 ## Flowchart, again
 
-![](img/flowchart.png)
+{{< include img/_flowchart.qmd >}}
 
 ## Takeaways
 
 - Not all six flaws are alike — sorting them by *remediable vs. non-remediable*
   clarifies exactly where Chin et al.'s cumulative-science argument applies
 - **Remediable** (A, D, E, and F with assumptions): reanalysis of existing
-  data can recover a valid estimate 
+  data, or combining data from multiple studies, can recover a valid estimate 
 - **Non-remediable** (B, C): the target quantity was never within reach of
-  the sampled data — no reanalysis fixes this
+  the sampled data 
 
 ::: {.notes}
 ~1 min.
@@ -639,9 +718,11 @@ item — an earlier version had every examiner see every item.
 
 ## Thank you
 
-- Amanda Luby 
-- Maria Cuellar
+::: {.nonincremental}
+- Amanda Luby `aluby@carleton.edu`
+- Maria Cuellar `mcuellar@sas.upenn.edu`
 - Code and simulations: `github.com/mariacuellar/validity-firearms`
+:::
 
 <!-- TODO: confirm repo URL / visibility before the talk -->
 

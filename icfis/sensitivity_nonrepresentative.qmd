@@ -262,6 +262,17 @@ grid_results <- design_matrix %>%
   )
 ```
 
+```{r save-grid-results}
+# Saved so slides (icfis/draft.qmd) can draw figures from this grid without
+# re-running it. Deliberately not part of the cached `run-grid` chunk above,
+# so the file is re-written on every render. CSV rather than RDS so it's
+# readable/diffable; factor levels are re-set by whoever reads it.
+dir.create(here::here("icfis", "data"), showWarnings = FALSE, recursive = TRUE)
+grid_results %>%
+  mutate(n_studies = n_replications_grid) %>%
+  readr::write_csv(here::here("icfis", "data", "sensitivity_nonrepresentative_grid.csv"))
+```
+
 # Results
 
 ## Full table

@@ -1,0 +1,121 @@
+```{=html}
+<svg class="bbflow" viewBox="-2 -2 1004 420" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Black-box study pipeline: seven steps from defining the estimand to reporting results, with flaws A to C arising upstream in study design and flaws D to F arising downstream in analysis.">
+<style>
+  .bbflow { width: 100%; height: auto; font-family: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif; }
+  .bbflow .ttl  { font-family: "Space Grotesk", "Helvetica Neue", Arial, sans-serif; font-weight: 600; font-size: 18px; fill: #0F1419; }
+  .bbflow .num  { font-family: "IBM Plex Mono", Menlo, monospace; font-weight: 500; font-size: 12px; letter-spacing: 0.06em; }
+  .bbflow .dsc  { font-size: 13.5px; fill: #5B6470; }
+  .bbflow .band { font-family: "IBM Plex Mono", Menlo, monospace; font-weight: 600; font-size: 12.5px; letter-spacing: 0.08em; fill: #FFFFFF; }
+  .bbflow .bsub { font-family: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif; font-size: 12.5px; fill: #FFFFFF; opacity: 0.85; }
+  .bbflow .let  { font-family: "IBM Plex Mono", Menlo, monospace; font-weight: 600; font-size: 14px; fill: #FFFFFF; }
+</style>
+<defs>
+  <marker id="bb-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#0F1419"/></marker>
+  <marker id="bb-arr-up" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#440154"/></marker>
+  <marker id="bb-arr-dn" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#21918C"/></marker>
+<!-- Step icons (32x32 line drawings; stroke color comes from the <use> element) -->
+  <symbol id="bb-i-target" viewBox="0 0 32 32"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="14" cy="18" r="11"/><circle cx="14" cy="18" r="6.5"/><circle cx="14" cy="18" r="2" fill="currentColor"/><path d="M14 18 L27 5"/><path d="M23 5 H27 V9"/></g></symbol>
+  <symbol id="bb-i-people" viewBox="0 0 32 32"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="16" cy="10" r="4"/><path d="M8.5 25 a7.5 7.5 0 0 1 15 0"/><circle cx="7" cy="13" r="3"/><path d="M1.5 25 a5.5 5.5 0 0 1 7 -5.3"/><circle cx="25" cy="13" r="3"/><path d="M30.5 25 a5.5 5.5 0 0 0 -7 -5.3"/></g></symbol>
+  <symbol id="bb-i-scales" viewBox="0 0 32 32"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4 V27"/><path d="M10 28 H22"/><path d="M5 8 H27"/><circle cx="16" cy="5" r="1.5" fill="currentColor"/><path d="M5 8 L1.5 17 M5 8 L8.5 17"/><path d="M1 17 a4 3 0 0 0 8 0 Z"/><path d="M27 8 L23.5 17 M27 8 L30.5 17"/><path d="M23 17 a4 3 0 0 0 8 0 Z"/></g></symbol>
+  <symbol id="bb-i-box" viewBox="0 0 32 32"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M16 3 L29 9.5 V22.5 L16 29 L3 22.5 V9.5 Z"/><path d="M3 9.5 L16 16 L29 9.5"/><path d="M16 16 V29"/></g><path d="M16 16 L29 9.5 V22.5 L16 29 Z" fill="currentColor" opacity="0.25"/></symbol>
+  <symbol id="bb-i-clipboard" viewBox="0 0 32 32"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="5" width="20" height="25" rx="2"/><rect x="11" y="2.5" width="10" height="5" rx="1.5"/><path d="M10 14 l2 2 l3.5 -3.5"/><path d="M18.5 14.5 H22"/><path d="M10 22 l2 2 l3.5 -3.5"/><path d="M18.5 22.5 H22"/></g></symbol>
+  <symbol id="bb-i-bars" viewBox="0 0 32 32"><g fill="currentColor"><rect x="5" y="18" width="5.5" height="10" rx="1"/><rect x="13.25" y="12" width="5.5" height="16" rx="1"/><rect x="21.5" y="4" width="5.5" height="24" rx="1"/></g><path d="M3 29.5 H29" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="bb-i-doc" viewBox="0 0 32 32"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3 H20 L26 9 V29 H7 Z"/><path d="M20 3 V9 H26"/><path d="M11 14 H22 M11 18.5 H22 M11 23 H18"/></g></symbol>
+</defs>
+
+<!-- ===== Band: upstream / downstream ===== -->
+<rect x="0" y="0" width="576" height="44" rx="4" fill="#440154"/>
+<text class="band" x="14" y="19">UPSTREAM · STUDY DESIGN &amp; DATA GENERATION</text>
+<text class="bsub" x="14" y="36">Non-remediable flaws: A–C</text>
+<path d="M584 0 H976 L1000 22 L976 44 H584 Z" fill="#2C728E"/>
+<text class="band" x="598" y="19">DOWNSTREAM · DATA ANALYSIS</text>
+<text class="bsub" x="598" y="36">Partially remediable flaws: D–F</text>
+
+<!-- ===== Row 1: study steps ===== -->
+<g><rect x="0" y="64" width="124" height="132" rx="6" fill="#F6F2F8" stroke="#440154" stroke-width="1.5"/>
+<text class="num" x="12" y="86" fill="#440154">01</text>
+<use href="#bb-i-target" x="38.0" y="86" width="48" height="48" color="#440154"/>
+<text class="ttl" x="62.0" y="161" text-anchor="middle" style="font-size:16px">Define</text><text class="ttl" x="62.0" y="180" text-anchor="middle" style="font-size:16px">estimand</text>
+</g>
+<line x1="127" y1="130.0" x2="143" y2="130.0" stroke="#0F1419" stroke-width="1.5" marker-end="url(#bb-arr)"/>
+<g><rect x="146" y="64" width="124" height="132" rx="6" fill="#F6F2F8" stroke="#440154" stroke-width="1.5"/>
+<text class="num" x="158" y="86" fill="#440154">02</text>
+<use href="#bb-i-people" x="184.0" y="86" width="48" height="48" color="#440154"/>
+<text class="ttl" x="208.0" y="161" text-anchor="middle" style="font-size:16px">Construct</text><text class="ttl" x="208.0" y="180" text-anchor="middle" style="font-size:16px">sample</text>
+</g>
+<line x1="273" y1="130.0" x2="289" y2="130.0" stroke="#0F1419" stroke-width="1.5" marker-end="url(#bb-arr)"/>
+<g><rect x="292" y="64" width="124" height="132" rx="6" fill="#F6F2F8" stroke="#440154" stroke-width="1.5"/>
+<text class="num" x="304" y="86" fill="#440154">03</text>
+<use href="#bb-i-scales" x="330.0" y="86" width="48" height="48" color="#440154"/>
+<text class="ttl" x="354.0" y="161" text-anchor="middle" style="font-size:16px">Create test</text><text class="ttl" x="354.0" y="180" text-anchor="middle" style="font-size:16px">conditions</text>
+</g>
+<line x1="419" y1="130.0" x2="435" y2="130.0" stroke="#0F1419" stroke-width="1.5" marker-end="url(#bb-arr)"/>
+<g><rect x="438" y="64" width="124" height="132" rx="6" fill="#F6F2F8" stroke="#440154" stroke-width="1.5"/>
+<text class="num" x="450" y="86" fill="#440154">04</text>
+<use href="#bb-i-box" x="476.0" y="86" width="48" height="48" color="#440154"/>
+<text class="ttl" x="500.0" y="161" text-anchor="middle" style="font-size:16px">Examiners</text><text class="ttl" x="500.0" y="180" text-anchor="middle" style="font-size:16px">decide</text>
+</g>
+<line x1="565" y1="130.0" x2="581" y2="130.0" stroke="#0F1419" stroke-width="1.5" marker-end="url(#bb-arr)"/>
+<g><rect x="584" y="64" width="124" height="132" rx="6" fill="#EEF6F5" stroke="#21918C" stroke-width="1.5"/>
+<text class="num" x="596" y="86" fill="#2C728E">05</text>
+<use href="#bb-i-clipboard" x="622.0" y="86" width="48" height="48" color="#2C728E"/>
+<text class="ttl" x="646.0" y="161" text-anchor="middle" style="font-size:16px">Record</text><text class="ttl" x="646.0" y="180" text-anchor="middle" style="font-size:16px">outcomes</text>
+</g>
+<line x1="711" y1="130.0" x2="727" y2="130.0" stroke="#0F1419" stroke-width="1.5" marker-end="url(#bb-arr)"/>
+<g><rect x="730" y="64" width="124" height="132" rx="6" fill="#EEF6F5" stroke="#21918C" stroke-width="1.5"/>
+<text class="num" x="742" y="86" fill="#2C728E">06</text>
+<use href="#bb-i-bars" x="768.0" y="86" width="48" height="48" color="#2C728E"/>
+<text class="ttl" x="792.0" y="161" text-anchor="middle" style="font-size:16px">Analyze</text><text class="ttl" x="792.0" y="180" text-anchor="middle" style="font-size:16px">data</text>
+</g>
+<line x1="857" y1="130.0" x2="873" y2="130.0" stroke="#0F1419" stroke-width="1.5" marker-end="url(#bb-arr)"/>
+<g><rect x="876" y="64" width="124" height="132" rx="6" fill="#EEF6F5" stroke="#21918C" stroke-width="1.5"/>
+<text class="num" x="888" y="86" fill="#2C728E">07</text>
+<use href="#bb-i-doc" x="914.0" y="86" width="48" height="48" color="#2C728E"/>
+<text class="ttl" x="938.0" y="161" text-anchor="middle" style="font-size:16px">Report</text><text class="ttl" x="938.0" y="180" text-anchor="middle" style="font-size:16px">results</text>
+</g>
+
+<!-- ===== Row 2: flaws A–F (dashed line = the step where each flaw arises) ===== -->
+<path d="M208.0 198 V234 H85.0 V269" fill="none" stroke="#440154" stroke-width="1.4" stroke-dasharray="4 4" marker-end="url(#bb-arr-up)"/>
+<path d="M208.0 198 V234 H271.0 V269" fill="none" stroke="#440154" stroke-width="1.4" stroke-dasharray="4 4" marker-end="url(#bb-arr-up)"/>
+<path d="M354.0 198 V234 H457.0 V269" fill="none" stroke="#440154" stroke-width="1.4" stroke-dasharray="4 4" marker-end="url(#bb-arr-up)"/>
+<path d="M646.0 198 V234 H629.0 V269" fill="none" stroke="#21918C" stroke-width="1.4" stroke-dasharray="4 4" marker-end="url(#bb-arr-dn)"/>
+<path d="M792.0 198 V234 H780.0 V269" fill="none" stroke="#21918C" stroke-width="1.4" stroke-dasharray="4 4" marker-end="url(#bb-arr-dn)"/>
+<path d="M792.0 198 V234 H931.0 V269" fill="none" stroke="#21918C" stroke-width="1.4" stroke-dasharray="4 4" marker-end="url(#bb-arr-dn)"/>
+<g><rect x="0" y="272" width="170" height="140" rx="6" fill="#FFFFFF" stroke="#440154" stroke-width="1.5"/>
+<rect x="12" y="284" width="24" height="24" rx="4" fill="#440154"/><text class="let" x="24" y="301" text-anchor="middle">A</text>
+<text class="ttl" x="12" y="334" style="font-size:16px">Inadequate</text><text class="ttl" x="12" y="353" style="font-size:16px">sample size</text>
+<text class="dsc" x="12" y="378">Too few items, cases,</text>
+<text class="dsc" x="12" y="395">or examiners</text>
+</g>
+<g><rect x="186" y="272" width="170" height="140" rx="6" fill="#FFFFFF" stroke="#440154" stroke-width="1.5"/>
+<rect x="198" y="284" width="24" height="24" rx="4" fill="#440154"/><text class="let" x="210" y="301" text-anchor="middle">B</text>
+<text class="ttl" x="198" y="334" style="font-size:16px">Non-representative</text><text class="ttl" x="198" y="353" style="font-size:16px">samples</text>
+<text class="dsc" x="198" y="378">Items, firearms, and</text>
+<text class="dsc" x="198" y="395">examiners ≠ casework</text>
+</g>
+<g><rect x="372" y="272" width="170" height="140" rx="6" fill="#FFFFFF" stroke="#440154" stroke-width="1.5"/>
+<rect x="384" y="284" width="24" height="24" rx="4" fill="#440154"/><text class="let" x="396" y="301" text-anchor="middle">C</text>
+<text class="ttl" x="384" y="334" style="font-size:16px">Non-representative</text><text class="ttl" x="384" y="353" style="font-size:16px">test conditions</text>
+<text class="dsc" x="384" y="378">Artificial tasks,</text>
+<text class="dsc" x="384" y="395">known-test effects</text>
+</g>
+<g><rect x="560" y="272" width="138" height="140" rx="6" fill="#FFFFFF" stroke="#21918C" stroke-width="1.5"/>
+<rect x="572" y="284" width="24" height="24" rx="4" fill="#2C728E"/><text class="let" x="584" y="301" text-anchor="middle">D</text>
+<text class="ttl" x="572" y="334" style="font-size:16px">Inconclusive</text><text class="ttl" x="572" y="353" style="font-size:16px">decisions</text>
+<text class="dsc" x="572" y="378">Excluded, or</text>
+<text class="dsc" x="572" y="395">counted as correct</text>
+</g>
+<g><rect x="711" y="272" width="138" height="140" rx="6" fill="#FFFFFF" stroke="#21918C" stroke-width="1.5"/>
+<rect x="723" y="284" width="24" height="24" rx="4" fill="#2C728E"/><text class="let" x="735" y="301" text-anchor="middle">E</text>
+<text class="ttl" x="723" y="334" style="font-size:16px">Invalid</text><text class="ttl" x="723" y="353" style="font-size:16px">uncertainty</text>
+<text class="dsc" x="723" y="378">Intervals missing</text>
+<text class="dsc" x="723" y="395">or too narrow</text>
+</g>
+<g><rect x="862" y="272" width="138" height="140" rx="6" fill="#FFFFFF" stroke="#21918C" stroke-width="1.5"/>
+<rect x="874" y="284" width="24" height="24" rx="4" fill="#2C728E"/><text class="let" x="886" y="301" text-anchor="middle">F</text>
+<text class="ttl" x="874" y="334" style="font-size:16px">Missing</text><text class="ttl" x="874" y="353" style="font-size:16px">data</text>
+<text class="dsc" x="874" y="378">Dropped without a</text>
+<text class="dsc" x="874" y="395">principled plan</text>
+</g>
+</svg>
+```
