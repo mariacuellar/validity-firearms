@@ -414,9 +414,7 @@ more common on different-source items (about 50%) than same-source (about 23%).
 
 [build this up: raw numbers, add the X's, add the intervals]
 
-```{r inconclusive-bounds-figure}
-#| fig-width: 9
-#| fig-height: 6
+```{r inconclusive-bounds-data}
 # Data: icfis/data/inconclusive_bounds.csv, written by icfis/case_study_inconclusive.qmd
 # ("Before and after reporting bounds"): means over 100 simulated studies per setting.
 bounds_data <- read_csv(here::here("icfis/data/inconclusive_bounds.csv"), show_col_types = FALSE) |>
@@ -436,7 +434,8 @@ points_long <- bounds_data |>
 
 brackets <- bounds_data |> mutate(panel = factor(panel_levels[2], levels = panel_levels))
 
-ggplot(points_long, aes(x = setting)) +
+# Alternative version with all three layers as facet rows; not shown on the slide.
+p_final <- ggplot(points_long, aes(x = setting)) +
   geom_errorbar(
     data = brackets, aes(ymin = reported, ymax = worst_case),
     width = 0.18, linewidth = 0.9, color = "#0072B2"
@@ -455,6 +454,80 @@ ggplot(points_long, aes(x = setting)) +
   theme_minimal(base_size = 13) +
   theme(legend.position = "bottom")
 ```
+
+::: {.r-stack}
+
+```{r inconclusive-bounds-1-reported}
+#| fig-width: 9
+#| fig-height: 6
+#| classes: fragment
+points_long |>
+  filter(measure == "Reported") |>
+  ggplot(aes(x = setting)) +
+  geom_point(aes(y = value, shape = measure, color = measure), size = 3.5, stroke = 1.4) +
+  facet_grid( ~ rate) +
+  scale_shape_manual(values = setNames(c(16, 4), c("Reported", x_label))) +
+  scale_color_viridis_d(end = .75) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1), limits = c(0,.15)) +
+  labs(
+    title = "",
+    subtitle = "",
+    x = "Baseline inconclusive rates",
+    y = "Error rate", shape = NULL, color = NULL
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(legend.position = "bottom")
+```
+
+```{r inconclusive-bounds-2-true-rate}
+#| fig-width: 9
+#| fig-height: 6
+#| classes: fragment
+points_long |>
+  filter(panel == "No bounds") |>
+  ggplot(aes(x = setting)) +
+  geom_point(aes(y = value, shape = measure, color = measure), size = 3.5, stroke = 1.4) +
+  facet_grid( ~ rate) +
+  scale_shape_manual(values = setNames(c(16, 4), c("Reported", x_label))) +
+  scale_color_viridis_d(end = .75) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1), limits = c(0,.15)) +
+  labs(
+    title = "",
+    subtitle = "",
+    x = "Baseline inconclusive rates",
+    y = "Error rate", shape = NULL, color = NULL
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(legend.position = "bottom")
+```
+
+```{r inconclusive-bounds-3-bounds}
+#| fig-width: 9
+#| fig-height: 6
+#| classes: fragment
+points_long |>
+  filter(panel == "With bounds") |>
+  ggplot(aes(x = setting)) +
+  geom_errorbar(
+    data = brackets, aes(ymin = reported, ymax = worst_case),
+    width = 0.18, linewidth = 0.9, color = "#0072B2"
+  ) +
+  geom_point(aes(y = value, shape = measure, color = measure), size = 3.5, stroke = 1.4) +
+  facet_grid( ~ rate) +
+  scale_shape_manual(values = setNames(c(16, 4), c("Reported", x_label))) +
+  scale_color_viridis_d(end = .75) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1), limits = c(0,.55)) +
+  labs(
+    title = "",
+    subtitle = "",
+    x = "Baseline inconclusive rates",
+    y = "Error rate", shape = NULL, color = NULL
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(legend.position = "bottom")
+```
+
+:::
 
 ::: {.notes}
 Figure code is in this slide's chunk; data are icfis/data/inconclusive_bounds.csv, written
@@ -539,7 +612,7 @@ ames2_long |>
   #   inherit.aes = FALSE, hjust = 1, fill = "white", fontface = "bold", size = 3.5
   # ) +
   facet_grid(cols = vars(Ber_NonBer), rows = vars(M_NM), scales = "free_x") + 
-  scale_fill_viridis_d(option = "plasma", end = .8) + 
+  scale_fill_viridis_d(end = .8) + 
   theme(legend.position = "top") + 
   labs(fill = "", y = "Proportion of responses")
   
