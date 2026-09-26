@@ -364,7 +364,38 @@ one_study |>
 
 ## Setup: inconclusive handling (Flaw D)
 
-[add table]
+```{=html}
+<style>
+  table.decision-table { width: 85%; margin: 0 auto 0.9em auto; border-collapse: separate;
+                         border-spacing: 6px; text-align: center; font-size: 0.7em; }
+  table.decision-table th, table.decision-table td { border: none; padding: 0.35em 0.6em; }
+  .reveal table.decision-table thead th { font-weight: bold; border-bottom: none; }
+  table.decision-table tbody th { text-align: right; font-weight: bold; white-space: nowrap; }
+  table.decision-table td { color: white; font-weight: bold; border-radius: 4px; }
+  table.decision-table td.correct      { background: #1e6b3a; } /* dark green  */
+  table.decision-table td.incorrect    { background: #8b1a1a; } /* dark red    */
+  table.decision-table td.inconclusive { background: #9c7a00; } /* dark yellow */
+</style>
+<table class="decision-table">
+  <thead>
+    <tr><th></th><th>Identification</th><th>Inconclusive</th><th>Elimination</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th scope="row">Same-source (SS)</th>
+      <td class="correct">Correct</td>
+      <td class="inconclusive">Inconclusive</td>
+      <td class="incorrect">False negative</td>
+    </tr>
+    <tr>
+      <th scope="row">Different-source (DS)</th>
+      <td class="incorrect">False positive</td>
+      <td class="inconclusive">Inconclusive</td>
+      <td class="correct">Correct</td>
+    </tr>
+  </tbody>
+</table>
+```
 
 - Black-box studies handle inconclusive responses inconsistently
 - @cuellar2024methodological recommend a bounding procedure instead: recode
@@ -389,7 +420,7 @@ one_study |>
 ~1.5 min.
 :::
 
-## Results
+<!-- ## Results
 
 - Across 100 replicate studies (means): 
     - FPR **0.9% → 50.7%**, 
@@ -408,13 +439,15 @@ simulation's defaults were fit to those responses. The point is that the
 simulated gap is the size of the gap in an actual published study. The
 asymmetry (larger gap for false positives) comes from inconclusives being much
 more common on different-source items (about 50%) than same-source (about 23%).
-:::
+::: -->
 
 ## Results
 
-[build this up: raw numbers, add the X's, add the intervals]
-
 ```{r inconclusive-bounds-data}
+#| fig-width: 8
+#| fig-height: 3
+
+
 # Data: icfis/data/inconclusive_bounds.csv, written by icfis/case_study_inconclusive.qmd
 # ("Before and after reporting bounds"): means over 100 simulated studies per setting.
 bounds_data <- read_csv(here::here("icfis/data/inconclusive_bounds.csv"), show_col_types = FALSE) |>
@@ -459,7 +492,7 @@ p_final <- ggplot(points_long, aes(x = setting)) +
 
 ```{r inconclusive-bounds-1-reported}
 #| fig-width: 9
-#| fig-height: 6
+#| fig-height: 4
 #| classes: fragment
 points_long |>
   filter(measure == "Reported") |>
@@ -481,7 +514,7 @@ points_long |>
 
 ```{r inconclusive-bounds-2-true-rate}
 #| fig-width: 9
-#| fig-height: 6
+#| fig-height: 4
 #| classes: fragment
 points_long |>
   filter(panel == "No bounds") |>
@@ -503,7 +536,7 @@ points_long |>
 
 ```{r inconclusive-bounds-3-bounds}
 #| fig-width: 9
-#| fig-height: 6
+#| fig-height: 4
 #| classes: fragment
 points_long |>
   filter(panel == "With bounds") |>
@@ -691,9 +724,9 @@ nonrep_scenarios <- c(
   "Full-coverage study (reweighted)"
 )
 nonrep_colors <- c(
-  "Convenience sample (naive)"          = "#D55E00",
-  "Convenience sample (\"reweighted\")" = "#0072B2",
-  "Full-coverage study (reweighted)"    = "#009E73"
+  "Convenience sample (naive)"          = "#440154FF",
+  "Convenience sample (\"reweighted\")" = "#2A788EFF",
+  "Full-coverage study (reweighted)"    = "#7AD151FF"
 )
 
 nonrep_grid |>
@@ -888,7 +921,7 @@ effect itself — it is; what's missing is the CI-coverage simulation loop
 on top of it.
 :::
 
-## Appendix: is the "5x" just an artifact of our parameters? {.smaller}
+<!-- ## Appendix: is the "5x" just an artifact of our parameters? {.smaller}
 
 Case study 2's `type_difficulty_sd`, `firearm_difficulty_sd`, and
 `examiner_skill_sd` are uncalibrated. Checked a 3×3 grid (difficulty
@@ -915,3 +948,4 @@ Backup only. Pull this up if asked "isn't 8x just an artifact of your
 parameter choices?" — yes, the number is; the direction and mechanism
 aren't. That's the whole slide in one sentence if time is short.
 :::
+ -->

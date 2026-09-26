@@ -29,7 +29,7 @@ $rule:       #DDE2E7;   // hairlines
 // Fonts -----------------------------------------------------------------------
 $font-family-sans-serif:    unquote('"IBM Plex Sans", "Helvetica Neue", Arial, sans-serif');
 $font-family-monospace:     unquote('"IBM Plex Mono", Menlo, Consolas, monospace');
-$presentation-heading-font: unquote('"Space Grotesk", "Helvetica Neue", Arial, sans-serif');
+$presentation-heading-font: unquote('"IBM Plex Sans", "Helvetica Neue", Arial, sans-serif');
 $mono: $font-family-monospace;
 
 // Core revealjs variables -----------------------------------------------------
@@ -86,8 +86,8 @@ $callout-color-important: $v-purple;
     margin-bottom: 1.4em;
     // hard stops -> five discrete swatches, like a legend
     background: linear-gradient(90deg,
-      #440154 0 20%, #3B528B 20% 40%, #21918C 40% 60%,
-      #5EC962 60% 80%, #FDE725 80% 100%);
+      #440154 0 25%, #3B528B 25% 50%, #21918C 50% 75%,
+      #5EC962 75% 100%);
   }
 
   .title {
