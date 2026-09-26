@@ -2,3 +2,10 @@
 .Rhistory
 .RData
 .Ruserdata
+
+# Rendered output, caches, and OS/R junk
+.DS_Store
+Rplots.pdf
+icfis/*.html
+icfis/*_cache/
+icfis/*_files/

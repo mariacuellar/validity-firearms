@@ -1,24 +1,23 @@
 /*-- scss:defaults --*/
 
 // ---------------------------------------------------------------------------
-// ICFIS 2026 revealjs theme -- viridis / technical
-// White base, cool near-black type, accents from viridis (option "D"),
-// matching ggplot's scale_*_viridis_d() / scale_*_viridis_c() defaults.
-//   viridis(5): #440154 #3B528B #21918C #5EC962 #FDE725
-//   viridis(3): #440154 #21918C #FDE725
+// ICFIS 2026 revealjs theme -- Saguaro (NatParksPalettes) / technical
+// Same layout, type and components as icfis-viridis.scss; only the colors differ.
+//   NatParksPalettes::natparks.pals("Saguaro", n = 4):
+//     #127088 (blue)   #C85729 (burnt orange)   #92874B (olive)   #CD8A39 (amber)
 // Space Grotesk (headings) + IBM Plex Sans (body) + IBM Plex Mono (labels, numbers)
-// Use with:  theme: [default, icfis-viridis.scss]
+// Use with:  theme: [default, icfis-saguaro.scss]
 // ---------------------------------------------------------------------------
 
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 
 // Palette ---------------------------------------------------------------------
-$v-purple:   #440154;   // viridis 0.00 -- big numbers, dark slides
-$v-indigo:   #3B528B;   // viridis 0.25 -- small accent text, links, labels
-$v-teal:     #21918C;   // viridis 0.50 -- bold emphasis, bullets
-$v-green:    #5EC962;   // viridis 0.75 -- graphics only (too light for text)
-$v-yellow:   #FDE725;   // viridis 1.00 -- highlights; text only on dark slides
-$viridis-gradient: linear-gradient(90deg, #440154, #3B528B, #21918C, #5EC962, #FDE725);
+$s-blue:     #127088;   // Saguaro 1 -- links, labels, small accent text
+$s-orange:   #C85729;   // Saguaro 2 -- bold emphasis, bullets
+$s-olive:    #92874B;   // Saguaro 3 -- graphics only (too light for text)
+$s-amber:    #CD8A39;   // Saguaro 4 -- highlights; text only on dark slides
+$s-dark:     darken($s-blue, 12%);   // deep blue -- big numbers, code, dark slides
+$saguaro-gradient: linear-gradient(90deg, #127088, #C85729, #92874B, #CD8A39);
 
 $ink:        #0F1419;   // body text: cool near-black
 $ink-muted:  #5B6470;   // labels, footer, captions
@@ -35,8 +34,8 @@ $mono: $font-family-monospace;
 // Core revealjs variables -----------------------------------------------------
 $body-bg:    $paper;
 $body-color: $ink;
-$link-color: $v-indigo;
-$selection-bg: rgba($v-yellow, 0.6);
+$link-color: $s-blue;
+$selection-bg: rgba($s-amber, 0.6);
 
 $presentation-font-size-root: 32px;
 $presentation-line-height: 1.4;
@@ -50,16 +49,16 @@ $presentation-h1-font-size: 2.4em;
 $presentation-h2-font-size: 1.5em;
 $presentation-h3-font-size: 0.75em;
 
-$presentation-list-bullet-color: $v-teal;
+$presentation-list-bullet-color: $s-orange;
 $presentation-title-slide-text-align: left;
 
 $code-block-bg: $wash;
-$code-color: $v-purple;
+$code-color: $s-dark;
 
-$callout-color-note: $v-indigo;
-$callout-color-tip: $v-teal;
-$callout-color-warning: $v-green;
-$callout-color-important: $v-purple;
+$callout-color-note: $s-blue;
+$callout-color-tip: $s-olive;
+$callout-color-warning: $s-amber;
+$callout-color-important: $s-dark;
 
 
 /*-- scss:rules --*/
@@ -73,7 +72,7 @@ $callout-color-important: $v-purple;
 }
 
 // ---------------------------------------------------------------------------
-// Title slide: viridis swatch strip above the title, mono metadata
+// Title slide: Saguaro swatch strip above the title, mono metadata
 // ---------------------------------------------------------------------------
 #title-slide {
   text-align: left;
@@ -84,10 +83,10 @@ $callout-color-important: $v-purple;
     width: 7.5em;
     height: 0.45em;
     margin-bottom: 1.4em;
-    // hard stops -> five discrete swatches, like a legend
+    // hard stops -> four discrete swatches, like a legend
     background: linear-gradient(90deg,
-      #440154 0 25%, #3B528B 25% 50%, #21918C 50% 75%,
-      #5EC962 75% 100%);
+      #127088 0 25%, #C85729 25% 50%, #92874B 50% 75%,
+      #CD8A39 75% 100%);
   }
 
   .title {
@@ -101,7 +100,7 @@ $callout-color-important: $v-purple;
     font-family: $font-family-sans-serif;
     font-weight: 400;
     font-size: 1.05em;
-    color: $v-indigo;
+    color: $s-blue;
     margin-bottom: 1.6em;
   }
   .quarto-title-authors {
@@ -141,7 +140,7 @@ $callout-color-important: $v-purple;
       font-weight: 500;
       letter-spacing: 0.05em;
       text-align: left;
-      color: $v-teal;
+      color: $s-orange;
       margin-bottom: 0.6em;
   }
 }
@@ -160,7 +159,7 @@ $callout-color-important: $v-purple;
 // ### headings become small mono labels ("SIMULATED DATA")
 .reveal .slide h3 {
   @include mono-label;
-  color: $v-indigo;
+  color: $s-blue;
   margin-top: 1em;
 }
 
@@ -168,7 +167,7 @@ $callout-color-important: $v-purple;
 // Body text, emphasis, lists
 // ---------------------------------------------------------------------------
 .reveal strong {
-  color: $v-teal;
+  color: $s-orange;
   font-weight: 600;
 }
 
@@ -182,11 +181,11 @@ $callout-color-important: $v-purple;
 .reveal ol > li::marker {
   font-family: $mono;
   font-weight: 500;
-  color: $v-teal;
+  color: $s-orange;
 }
 
 .reveal a {
-  color: $v-indigo;
+  color: $s-blue;
   text-decoration: underline;
   text-decoration-thickness: 1px;
   text-underline-offset: 0.18em;
@@ -195,7 +194,7 @@ $callout-color-important: $v-purple;
 .reveal code {
   font-family: $mono;
   background: $wash;
-  color: $v-purple;
+  color: $s-dark;
   padding: 0.05em 0.35em;
   border-radius: 3px;
   font-size: 0.82em;
@@ -209,14 +208,14 @@ $callout-color-important: $v-purple;
 //   0.9% → 50.7% [false positive rate, reported vs. worst case]{.label}
 //   :::
 // ---------------------------------------------------------------------------
-.reveal .pop    { color: $v-teal;   font-weight: 600; }
-.reveal .good   { color: $v-teal;   font-weight: 600; }
-.reveal .bad    { color: $v-purple; font-weight: 600; }
+.reveal .pop    { color: $s-orange;   font-weight: 600; }
+.reveal .good   { color: $s-blue;     font-weight: 600; }
+.reveal .bad    { color: $s-orange;   font-weight: 600; }
 .reveal .muted  { color: $ink-muted; }
 .reveal .mono   { font-family: $mono; }
 
 .reveal .hl {
-  background: linear-gradient(transparent 58%, rgba($v-yellow, 0.75) 58%);
+  background: linear-gradient(transparent 58%, rgba($s-amber, 0.75) 58%);
   padding: 0 0.1em;
 }
 
@@ -228,7 +227,7 @@ $callout-color-important: $v-purple;
   padding: 0.25em 0.6em;
   border: 1px solid currentColor;
   border-radius: 999px;
-  color: $v-indigo;
+  color: $s-blue;
   vertical-align: middle;
 }
 
@@ -237,7 +236,7 @@ $callout-color-important: $v-purple;
   font-size: 1.9em;
   font-weight: 600;
   letter-spacing: -0.03em;
-  color: $v-purple;
+  color: $s-dark;
   line-height: 1.1;
   margin: 0.3em 0;
   font-variant-numeric: tabular-nums;
@@ -253,7 +252,7 @@ $callout-color-important: $v-purple;
 }
 
 .reveal .fragment.highlight-pop.visible {
-  color: $v-teal;
+  color: $s-orange;
   font-weight: 600;
 }
 
@@ -290,7 +289,7 @@ $callout-color-important: $v-purple;
   tbody td:first-child {
     font-family: $mono;
     font-weight: 600;
-    color: $v-purple;
+    color: $s-dark;
   }
 }
 
@@ -321,7 +320,7 @@ $callout-color-important: $v-purple;
 }
 
 // ---------------------------------------------------------------------------
-// Block quote: large grotesk, viridis edge
+// Block quote: large grotesk, Saguaro edge
 // ---------------------------------------------------------------------------
 .reveal blockquote {
   width: 88%;
@@ -330,7 +329,7 @@ $callout-color-important: $v-purple;
   background: none;
   box-shadow: none;
   border-left: 5px solid;
-  border-image: linear-gradient(180deg, #440154, #21918C, #FDE725) 1;
+  border-image: linear-gradient(180deg, #127088, #C85729, #CD8A39) 1;
   font-family: $presentation-heading-font;
   font-style: normal;
   font-weight: 500;
@@ -361,7 +360,7 @@ $callout-color-important: $v-purple;
   .column > p > strong:only-child {
     @include mono-label;
     font-size: 0.6em;
-    color: $v-indigo;
+    color: $s-blue;
   }
 }
 
@@ -392,10 +391,10 @@ $callout-color-important: $v-purple;
 
 .reveal .progress {
   height: 3px;
-  span { background: $viridis-gradient; }
+  span { background: $saguaro-gradient; }
 }
 
-.reveal .controls { color: $v-indigo; }
+.reveal .controls { color: $s-blue; }
 
 // ---------------------------------------------------------------------------
 // References
@@ -408,23 +407,23 @@ $callout-color-important: $v-purple;
 }
 
 // ---------------------------------------------------------------------------
-// Dark slide: {.inverse background-color="#440154"} on any ## or # header
+// Dark slide: {.inverse background-color="#0B4352"} on any ## or # header
 // ---------------------------------------------------------------------------
 .reveal .slides section.inverse {
   h1, h2, p, li, blockquote, td { color: $paper; }
   h3, .footer { color: rgba($paper, 0.7); }
-  strong, .pop { color: $v-yellow; }
-  ul li::marker { color: $v-green; }
+  strong, .pop { color: $s-amber; }
+  ul li::marker { color: $s-olive; }
 }
 .reveal .slides section.title-slide.level1.inverse {
   h1 { color: $paper; }
-  &[data-kicker]::before { color: $v-green; }
+  &[data-kicker]::before { color: $s-olive; }
 }
 
 // reveal adds .has-dark-background to .reveal on dark slides: lighten the chrome
 .reveal.has-dark-background {
   .footer, .slide-number, .slide-number a { color: rgba($paper, 0.65); }
-  .controls { color: $v-green; }
+  .controls { color: $s-olive; }
 }
 
 .reveal .slide .definition {
@@ -434,8 +433,8 @@ $callout-color-important: $v-purple;
   padding-bottom: 3px;
   margin-bottom: 6px;
   margin-top: 6px;
-  border-left: solid 5px { color: $v-teal; };
-  background-color: #21918b1d;
+  border-left: solid 5px { color: $s-orange; };
+  background-color: rgba($s-orange, 0.11);
 }
 
 .reveal .slide .comment {
@@ -445,14 +444,14 @@ $callout-color-important: $v-purple;
   padding-bottom: 3px;
   margin-bottom: 6px;
   margin-top: 6px;
-  border-left: solid 5px { color: $v-purple; };
-  background-color: #43015421;
+  border-left: solid 5px { color: $s-dark; };
+  background-color: rgba($s-dark, 0.13);
 }
 
-// Mirror image of .comment: indigo instead of purple, with the rule on the
-// right edge and everything right-aligned. The tint is $v-indigo at ~13%
-// opacity (same strength as .comment's #43015421); for a solid indigo box
-// use `background-color: $v-indigo; color: white;` instead.
+// Mirror image of .comment: lighter blue instead of deep blue, with the rule on
+// the right edge and everything right-aligned. The tint is $s-blue at ~13%
+// opacity (same strength as .comment's); for a solid box use
+// `background-color: $s-blue; color: white;` instead.
 .reveal .slide .comment-right {
   padding-right: 10px;
   padding-left: 10px;
@@ -461,8 +460,8 @@ $callout-color-important: $v-purple;
   margin-bottom: 6px;
   margin-top: 6px;
   text-align: right;
-  border-right: solid 5px { color: $v-indigo; };
-  background-color: rgba($v-indigo, 0.13);
+  border-right: solid 5px { color: $s-blue; };
+  background-color: rgba($s-blue, 0.13);
 
   // keep lists right-aligned too (bullets sit inline with the text)
   ul, ol {

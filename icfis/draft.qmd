@@ -8,7 +8,7 @@ date: last-modified
 bibliography: ../output/paper/references.bib
 format:
   revealjs:
-    theme: [default, icfis-viridis.scss]
+    theme: [default, icfis-saguaro.scss]
     slide-number: true
     incremental: true
     footer: "ICFIS 2026"
@@ -24,6 +24,16 @@ execute:
 ```{r}
 library(tidyverse)
 source(here::here("icfis/R/simulate_dgp.R"))
+
+# Deck color scheme: Saguaro from NatParksPalettes (n = 4). Keep in sync with
+# icfis-saguaro.scss. To go back to viridis, point `theme:` at icfis-viridis.scss
+# and restore the figure colors from git history (they used viridis scales).
+# The first four are the n = 4 palette; "red" and "green" are Saguaro's extra two.
+# The three-category figures use blue / amber / green: the best 3-color subset of
+# Saguaro under simulated color-blindness (worst-case delta-E 26.7, vs 11.5 for the
+# original blue / orange / olive, whose orange and olive merged for red-green CVD).
+saguaro <- as.character(NatParksPalettes::natparks.pals("Saguaro", n = 6))
+names(saguaro) <- c("blue", "orange", "olive", "amber", "red", "green")
 ```
 
 <!--
@@ -51,14 +61,15 @@ would need a nested firearm random effect the DGP doesn't have yet (see the
 only if there's time for a second remediable-flaw example.
 -->
 
-## Why this talk
+## Big-picture context
 
 - NAS (2009) and PCAST (2016): scientific validity of firearms examination has not been established
 - US Context: 
     - Daubert Standard: Is there a **known error rate** for the technique?
 - Recent large-scale black-box validation studies have attempted to remedy this (Ames I and II, Hicklin et al)
 
-## Why this talk
+## Motivation for this project
+
 - @cuellar2024methodological: literature search of 28 black-box validation studies
   - Found six flaws (A–F) present, with minor exceptions, in **every** study
   - Concluded: the body of existing studies cannot establish scientific validity
@@ -66,20 +77,6 @@ only if there's time for a second remediable-flaw example.
   - Draws on evidence-based medicine / systematic-review practice
   - Argues for a "big team" forensic science: openness, registration, meta-analysis
 
-
-## The six flaws {.smaller}
-
-::: {.striped}
-| Flaw | Description | Cuellar et al. framing |
-|---|---|---|
-| A | Inadequate sample size | Exacerbates the other flaws |
-| B | Non-representative sample (examiners, firearms, ammunition) | Damages the data |
-| C | Non-representative testing conditions (contextual bias, known-test effects) | Damages the data |
-| D | Inconclusives treated as correct or ignored | Fixable if raw responses available |
-| E | Invalid or nonexistent uncertainty measures | Fixable if raw responses available |
-| F | Missing data handled inappropriately | Fixable if missingness can be characterized |
-: {tbl-colwidths="[8,50,42]"}
-:::
 
 ## Swiss cheese or bagels?
 
@@ -114,6 +111,24 @@ The "Swiss cheese model" says that multiple imperfect studies, when combined, ca
 We argue that these studies are like a set of bagels: they all share the same flaws, and so there's no way to combine them to establish validity
 -->
 
+## The six flaws
+
+::: {.striped}
+| Flaw | Description | Cuellar et al. framing |
+|---|---|---|
+| A | Inadequate sample size | Exacerbates the other flaws |
+| B | Non-representative sample (examiners, firearms, ammunition) | Damages the data |
+| C | Non-representative testing conditions | Damages the data |
+| D | Inconclusives treated as correct or ignored | Fixable if raw responses available |
+| E | Invalid or nonexistent uncertainty measures | Fixable if raw responses available |
+| F | Missing data handled inappropriately | Fixable if missingness can be characterized |
+: {tbl-colwidths="[8,50,42]"}
+:::
+
+::: notes
+Go through these relatively quickly
+:::
+
 ## Where we agree with Chin et al.
 
 - No single study is perfect
@@ -143,6 +158,10 @@ The population-average error rate (P(Error|Same Source) and P(Error|Different So
 
 {{< include img/_flowchart.qmd >}}
 
+::: notes
+Talk through first row/data collection process first. Then make flaws appear and talk about them very briefly. Then, add the top layer
+:::
+
 ## Remainder of the talk
 
 1. Simulation Framework 
@@ -157,8 +176,48 @@ The population-average error rate (P(Error|Same Source) and P(Error|Different So
 - A simulation with a **known estimand** lets us show what each flaw does to a study's conclusions
 - Same generative model powers both case studies
 
+::: {.fragment}
+
+```{=html}
+<style>
+  table.decision-table { width: 85%; margin: 0 auto 0.9em auto; border-collapse: separate;
+                         border-spacing: 6px; text-align: center; font-size: 0.7em; }
+  table.decision-table th, table.decision-table td { border: none; padding: 0.35em 0.6em; }
+  .reveal table.decision-table thead th { font-weight: bold; border-bottom: none; }
+  table.decision-table tbody th { text-align: right; font-weight: bold; white-space: nowrap; }
+  table.decision-table td { color: white; font-weight: bold; border-radius: 4px; }
+  table.decision-table td.correct      { background: #1e6b3a; } /* dark green  */
+  table.decision-table td.incorrect    { background: #8b1a1a; } /* dark red    */
+  table.decision-table td.inconclusive { background: #9c7a00; } /* dark yellow */
+</style>
+<table class="decision-table">
+  <thead>
+    <tr><th></th><th>Identification</th><th>Inconclusive</th><th>Elimination</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th scope="row">Same-source (SS)</th>
+      <td class="correct">Correct</td>
+      <td class="inconclusive">Inconclusive</td>
+      <td class="incorrect">False negative</td>
+    </tr>
+    <tr>
+      <th scope="row">Different-source (DS)</th>
+      <td class="incorrect">False positive</td>
+      <td class="inconclusive">Inconclusive</td>
+      <td class="correct">Correct</td>
+    </tr>
+  </tbody>
+</table>
+```
+
+:::
 
 ## Data generating model
+
+::: {.definition}
+Target estimand: overall population FPR or FNR or IR is **fixed** for each simulation
+:::
 
 - Each item $i$ has a latent difficulty $d_i \sim N(0, \sigma_d^2)$
 - Each examiner $j$ has a latent skill $s_j \sim N(0, \sigma_s^2)$ **and** a latent tendency to call items inconclusive $\tau_j \sim N(0, \sigma_\tau^2)$
@@ -168,11 +227,12 @@ The population-average error rate (P(Error|Same Source) and P(Error|Different So
 
 ## Response probabilities {.smaller}
 
-Target estimand: overall population FPR or FNR or IR
 
-The chance of an error and the chance of an inconclusive call on the log-odds scale are both shifted by $c_{ij}$
+$P(\text{Error})$ and $P(\text{Inconclusive})$ are both shifted by $c_{ij}$
 
 $$\pi_{ij}^{err} = P(\text{error}) = \text{expit}[\text{logit}(\text{FPR or FNR}) + c_{ij}]$$
+
+$P(\text{Inconclusive})$ is also shifted by $\tau_j$
 
 $$\pi_{ij}^{inc} = P(\text{Inconclusive}) = \text{expit}[\text{logit}(\text{IR}_{G_i}) + 0.5 \cdot c_{ij} + \tau_j]$$
 
@@ -204,39 +264,33 @@ examiner is." Don't let the audience get lost in the categorical notation.
 
 ## Calibrating to real studies {.smaller}
 
+$$
+R_{ij} \mid G_i, c_{ij}, \tau_j \;\sim\; 
+\begin{cases}
+e(G_i) & \pi^{err}_{ij} \\
+\text{inconclusive} & \pi^{inc}_{ij} \\
+c(G_i) & 1 - \pi^{err}_{ij} - \pi^{inc}_{ij}
+\end{cases}
+$$
+
 - Probability model above *cannot* capture every effect that arises in real data
 - Goal is to create simulated studies that resemble previously-collected results
-- Some benchmarks that we used:  
-    - Ames II cartridge cases (raw responses): baseline FPR, FNR, and inconclusive rates, fit by maximum likelihood
+- We used Ames II to benchmark most parameters:  
+    - Cartridge cases (raw responses): baseline FPR, FNR, and inconclusive rates, fit by maximum likelihood
         - same-source and different-source items get *separate* inconclusive baselines: about 17% vs. 50%
-    - Scurich et al (2025) blind-vs-known test inconclusive rates: 39.3% (blind) vs 56.4% (known)
-    - Ames II: range of 0-62% "hard" comparison range across individual Beretta pistols
+    - $\sigma_s$, $\sigma_d$, and $\sigma_\tau$ are based on ..... 
+    - [todo: How $h$ was set]
 
 ::: {.comment .fragment}
 Disagree with these numbers? We have an app for that! [add link]
 :::
 
 <!--
-Previous calibration (before the raw Ames II data were available): a single
-inconclusive baseline shared by same- and different-source items, tuned
-against a benchmark reconstructed from @cuellar2024methodological's bounding
-algebra for Monson, Smith, and Bajic (2023a) -- see icfis/analysis.qmd. That
-version could not reproduce the same-source vs. different-source
-inconclusive asymmetry (a ~13-point residual gap in opposite directions);
-the maximum-likelihood fit to the raw data (icfis/fit_ames2.qmd) removes it.
+
 -->
 
 ::: {.notes}
-~1.5 min. This slide doubles as a credibility signal — show the audience
-you're not hand-waving the parameters, *and* that you know exactly where
-the model still falls short. The baselines are fit by maximum likelihood
-to the raw Ames II cartridge-case responses (icfis/fit_ames2.qmd); simulated
-studies at these defaults match all six cells of the real decision table to
-within about a point, and the SD across examiners of inconclusive rates
-(0.24 real, 0.24 simulated).
-
-If pressed on "how well calibrated is this, really?": good on the response
-distribution and examiner spread. Known misses: (1) firearm-level variation
+Known misses: (1) firearm-level variation
 -- real same-source inconclusive rates range from 3% to 70% across the 38
 firearms, more than the model produces (backup slide candidate); (2) an
 examiner's inconclusive tendency behaves differently on same- vs.
@@ -245,25 +299,26 @@ NOT identified by this study (each item was seen by one examiner), so those
 two defaults are fixed at plausible values (0.8, 0.5), not estimated.
 :::
 
-## Ames II: {.smaller}
+## Calibrating to real studies: gut check 
 
 ```{r}
-ames2 <- readxl::read_xlsx(here::here("real-data/ames2.xlsx"), sheet = 3) |>
-  mutate(
-    response_3 = case_when(stringr::str_detect(`Examiner's Analysis`, "Inc") ~ "Inconclusive",
-    stringr::str_detect(`Examiner's Analysis`, "ID") ~ "Identification",
-    stringr::str_detect(`Examiner's Analysis`, "Elim") ~ "Elimination"
-    )
-  )
+# Pre-computed from the Ames II data by R/prepare_ames2_slide_data.R
+ames2_counts <- readr::read_csv(here::here("icfis/data/ames2_firearm_counts.csv"), show_col_types = FALSE)
 
-ames2 |>
-  select(c("M_NM", "response_3")) |>
-  table() |>
-  prop.table(1) |>
+# Real-study response proportions (missing/unsuitable responses excluded)
+ames2_counts |>
+  filter(response != "NA") |>
+  group_by(m_nm, response) |>
+  summarize(n = sum(n), .groups = "drop_last") |>
+  mutate(p = n / sum(n)) |>
+  select(-n) |>
+  pivot_wider(names_from = response, values_from = p, values_fill = 0) |>
+  column_to_rownames("m_nm") |>
   round(2) |>
   knitr::kable()
 ```
 
+::: {.fragment}
 ### Simulated Data:
 
 ```{r}
@@ -359,6 +414,7 @@ one_study |>
   knitr::kable()
 ```
 
+:::
 
 # Case Study 1: A Remediable Flaw
 
@@ -414,6 +470,7 @@ one_study |>
     same-source analog for the false negative rate)
   - **Worst case**: recode every inconclusive as the error-favoring label,
     recompute
+- Compare to the "true" error rate ([ADD EXPLANATION])
 - Repeat across 100 replicate studies
 
 ::: {.notes}
@@ -458,6 +515,7 @@ bounds_data <- read_csv(here::here("icfis/data/inconclusive_bounds.csv"), show_c
 
 panel_levels <- c("No bounds", "With bounds")
 x_label <- "True rate"
+bounds_cols <- setNames(c(saguaro[["blue"]], saguaro[["orange"]]), c("Reported", x_label))
 
 points_long <- bounds_data |>
   select(setting, rate, Reported = reported, !!x_label := truth_low) |>
@@ -471,12 +529,12 @@ brackets <- bounds_data |> mutate(panel = factor(panel_levels[2], levels = panel
 p_final <- ggplot(points_long, aes(x = setting)) +
   geom_errorbar(
     data = brackets, aes(ymin = reported, ymax = worst_case),
-    width = 0.18, linewidth = 0.9, color = "#0072B2"
+    width = 0.18, linewidth = 0.9, color = saguaro[["blue"]]
   ) +
   geom_point(aes(y = value, shape = measure, color = measure), size = 3.5, stroke = 1.4) +
   facet_grid(panel ~ rate) +
   scale_shape_manual(values = setNames(c(16, 4), c("Reported", x_label))) +
-  scale_color_manual(values = setNames(c("#0072B2", "#D55E00"), c("Reported", x_label))) +
+  scale_color_manual(values = bounds_cols) +
   scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
   labs(
     title = "",
@@ -491,8 +549,8 @@ p_final <- ggplot(points_long, aes(x = setting)) +
 ::: {.r-stack}
 
 ```{r inconclusive-bounds-1-reported}
-#| fig-width: 9
-#| fig-height: 4
+#| fig-width: 12
+#| fig-height: 6
 #| classes: fragment
 points_long |>
   filter(measure == "Reported") |>
@@ -500,7 +558,7 @@ points_long |>
   geom_point(aes(y = value, shape = measure, color = measure), size = 3.5, stroke = 1.4) +
   facet_grid( ~ rate) +
   scale_shape_manual(values = setNames(c(16, 4), c("Reported", x_label))) +
-  scale_color_viridis_d(end = .75) +
+  scale_color_manual(values = bounds_cols) +
   scale_y_continuous(labels = scales::percent_format(accuracy = 1), limits = c(0,.15)) +
   labs(
     title = "",
@@ -508,13 +566,13 @@ points_long |>
     x = "Baseline inconclusive rates",
     y = "Error rate", shape = NULL, color = NULL
   ) +
-  theme_minimal(base_size = 13) +
+  theme_minimal(base_size = 18) +
   theme(legend.position = "bottom")
 ```
 
 ```{r inconclusive-bounds-2-true-rate}
-#| fig-width: 9
-#| fig-height: 4
+#| fig-width: 12
+#| fig-height: 6
 #| classes: fragment
 points_long |>
   filter(panel == "No bounds") |>
@@ -522,7 +580,7 @@ points_long |>
   geom_point(aes(y = value, shape = measure, color = measure), size = 3.5, stroke = 1.4) +
   facet_grid( ~ rate) +
   scale_shape_manual(values = setNames(c(16, 4), c("Reported", x_label))) +
-  scale_color_viridis_d(end = .75) +
+  scale_color_manual(values = bounds_cols) +
   scale_y_continuous(labels = scales::percent_format(accuracy = 1), limits = c(0,.15)) +
   labs(
     title = "",
@@ -530,25 +588,25 @@ points_long |>
     x = "Baseline inconclusive rates",
     y = "Error rate", shape = NULL, color = NULL
   ) +
-  theme_minimal(base_size = 13) +
+  theme_minimal(base_size = 18) +
   theme(legend.position = "bottom")
 ```
 
 ```{r inconclusive-bounds-3-bounds}
-#| fig-width: 9
-#| fig-height: 4
+#| fig-width: 12
+#| fig-height: 6
 #| classes: fragment
 points_long |>
   filter(panel == "With bounds") |>
   ggplot(aes(x = setting)) +
   geom_errorbar(
     data = brackets, aes(ymin = reported, ymax = worst_case),
-    width = 0.18, linewidth = 0.9, color = "#0072B2"
+    width = 0.18, linewidth = 0.9, color = saguaro[["blue"]]
   ) +
   geom_point(aes(y = value, shape = measure, color = measure), size = 3.5, stroke = 1.4) +
   facet_grid( ~ rate) +
   scale_shape_manual(values = setNames(c(16, 4), c("Reported", x_label))) +
-  scale_color_viridis_d(end = .75) +
+  scale_color_manual(values = bounds_cols) +
   scale_y_continuous(labels = scales::percent_format(accuracy = 1), limits = c(0,.55)) +
   labs(
     title = "",
@@ -556,18 +614,13 @@ points_long |>
     x = "Baseline inconclusive rates",
     y = "Error rate", shape = NULL, color = NULL
   ) +
-  theme_minimal(base_size = 13) +
+  theme_minimal(base_size = 18) +
   theme(legend.position = "bottom")
 ```
 
 :::
 
 ::: {.notes}
-Figure code is in this slide's chunk; data are icfis/data/inconclusive_bounds.csv, written
-by icfis/case_study_inconclusive.qmd ("Before and after reporting bounds"). x-axis: overall inconclusive rate, scaled 0.3x / 0.6x / 1x from the
-Ames II fit. Dot = reported rate (barely moves). Blue bracket = reported to worst
-case, the only thing a study can claim without further assumptions.
-
 The X is a *scenario* true rate: the DGP has no forced-choice decision, so we use
 the examiners' own Ames II subcategories as a proxy. Among different-source
 inconclusives, 12% lean toward identification (Inc-A, the error direction); among
@@ -599,21 +652,25 @@ be analyzed this way.
   a cumulative literature if combined with other studies 
 
 
-## Ames II (bullets)
+## Ames II (Cartridge Cases)
 
 - 11 Ruger and 27 Beretta firearms were used to generate test cases
+
+```{r}
+#| classes: fragment
+ames2_counts |>
+  mutate(Type = ifelse(ber == "Non_Ber", "Ruger", ber)) |>
+  filter(response != "NA") |>
+  group_by(Type, m_nm) |>
+  summarize(pct_inc = sum(n[response == "Inconclusive"]) / sum(n), .groups = "drop") |>
+  pivot_wider(names_from = "m_nm", values_from = "pct_inc") |>
+  knitr::kable(digits = 3)
+```
+
 - Beretta had *fewer* inconclusives on ground truth same-source, and *more* inconclusives on ground truth different source
 - Support for a "type" effect
 
-```{r}
-ames2 |>
-  pivot_longer(c(Gun_1, Gun_2), names_to = "index", values_to = "individual_firearm") |>
-  group_by(Ber_NonBer, M_NM) |>
-  summarize(
-    pct_inc = mean(response_3 == "Inconclusive", na.rm = TRUE),
-    pct_id = mean(response_3 == "Identification", na.rm = TRUE)) |>
-  knitr::kable(digits = 2)
-```
+
 
 ## Ames II: individual firearms
 
@@ -622,32 +679,34 @@ Some firearms are more/less likely to have certain responses: support for indivi
 ```{r}
 #| fig-width: 10
 #| fig-height: 5
-ames2_long <- ames2 |>
-  pivot_longer(c(Gun_1, Gun_2), names_to = "index", values_to = "individual_firearm") |>
-  mutate(individual_firearm = fct_reorder(
-    individual_firearm, response_3 == "Inconclusive", .fun = sum, .desc = TRUE, .na_rm = FALSE
-  ))
+ames2_long <- ames2_counts |>
+  mutate(firearm = fct_reorder(firearm, firearm_order),
+         response = na_if(response, "NA"))
 
-# Overall % inconclusive within each facet (pooled over responses). `%in%`
-# rather than `==` so the ~1% missing responses stay in the denominator,
-# matching the bars (geom_bar counts NA as its own fill category).
+# Overall % inconclusive within each facet (pooled over responses). Missing
+# responses ("NA") stay in the denominator, matching the bars, which show
+# them as their own grey category.
 pct_inc <- ames2_long |>
-  group_by(Ber_NonBer, M_NM) |>
-  summarize(pct_inc = mean(response_3 %in% "Inconclusive"), .groups = "drop")
+  group_by(ber, m_nm) |>
+  summarize(pct_inc = sum(n[response %in% "Inconclusive"]) / sum(n), .groups = "drop")
 
 ames2_long |>
-  ggplot(aes(x = individual_firearm, fill = response_3)) + 
-  geom_bar(position = "fill") + 
+  ggplot(aes(x = firearm, y = n, fill = response)) + 
+  geom_col(position = "fill") + 
   geom_hline(data = pct_inc, aes(yintercept = pct_inc), linetype = "dotted", linewidth = .8, col = "white") +
   # geom_label(
   #   data = pct_inc,
   #   aes(x = Inf, y = pct_inc, label = paste0("avg: ", scales::percent(pct_inc, accuracy = 1))),
   #   inherit.aes = FALSE, hjust = 1, fill = "white", fontface = "bold", size = 3.5
   # ) +
-  facet_grid(cols = vars(Ber_NonBer), rows = vars(M_NM), scales = "free_x") + 
-  scale_fill_viridis_d(end = .8) + 
+  facet_grid(cols = vars(ber), rows = vars(m_nm), scales = "free_x") + 
+  scale_fill_manual(
+    values = c(Elimination = saguaro[["blue"]], Identification = saguaro[["amber"]], Inconclusive = saguaro[["green"]]),
+    na.value = "grey85"
+  ) + 
+  theme_minimal(base_size = 18) +
   theme(legend.position = "top") + 
-  labs(fill = "", y = "Proportion of responses")
+  labs(fill = "", x = "individual_firearm", y = "Proportion of responses")
   
 ```
 
@@ -658,7 +717,7 @@ Build up this graph: show that there's firearm make/model variability by compari
 ## Two levels of variability
 
 - Different firearm makes/models have different baseline difficulties
-    - **Simulation:** choose 8 types
+    - **Simulation:** simulate baseline/mean for 8 types.
 
 - Individual firearms *within* a make/model also have different difficulties
     - **Simulation:** assume a difficulty distribution for each firearm type; draw individual firearms from that distribution
@@ -673,12 +732,14 @@ Last bullet point: some people have misunderstood our point and think that we ar
 
 ## Three different "study" approaches:
 
-1. **Biased estimate.** A convenience sample restricted to only two types (21% of casework by weight), 40 firearms each (80 total)
-2. **The fix that could work.** A hypothetical better study covering all
+Casework "population" of firearms: 8 types at different proportions
+
+1. **Convenience sample:** test cases are drawn from two firearm types (21% of casework by weight), 40 firearms each (80 total)
+2. **Cluster sample + reweighting:** A hypothetical alternative study covering all
    eight types (10 firearms each, not in population-correct
    proportions) with type recorded as a covariate
-3. **The fix that doesn't require new data.** Applying that same reweighting to the
-   *actual* convenience sample from (1), which has zero data on the six
+3. **Reweighting the convenience sample:** Applying reweighting to the
+    convenience sample from (1), which has zero data on the six
    unsampled types.
 
 ::: {.notes}
@@ -724,9 +785,9 @@ nonrep_scenarios <- c(
   "Full-coverage study (reweighted)"
 )
 nonrep_colors <- c(
-  "Convenience sample (naive)"          = "#440154FF",
-  "Convenience sample (\"reweighted\")" = "#2A788EFF",
-  "Full-coverage study (reweighted)"    = "#7AD151FF"
+  "Convenience sample (naive)"          = saguaro[["amber"]],
+  "Convenience sample (\"reweighted\")" = saguaro[["green"]],
+  "Full-coverage study (reweighted)"    = saguaro[["blue"]]
 )
 
 nonrep_grid |>
@@ -780,7 +841,7 @@ studies land.
 
 ## Why this counts as non-remediable
 
-- No statistical procedure applied to *this* dataset can recover the
+- No statistical procedure applied to the convenience samples can recover the
   population-average estimand 
 - Fixing it requires **new data** collected under a design that
   characterizes the target population — not a different analysis of the
@@ -798,9 +859,9 @@ studies land.
 
 ## Takeaways
 
-- Not all six flaws are alike — sorting them by *remediable vs. non-remediable*
-  clarifies exactly where Chin et al.'s cumulative-science argument applies
-- **Remediable** (A, D, E, and F with assumptions): reanalysis of existing
+- Not all six flaws have the same consequences
+    - sorting by *remediable vs. non-remediable* clarifies where the "cumulative-science" argument applies
+- **Remediable** (maybe A, D, E, and F with assumptions): reanalysis of existing
   data, or combining data from multiple studies, can recover a valid estimate 
 - **Non-remediable** (B, C): the target quantity was never within reach of
   the sampled data 
@@ -829,6 +890,15 @@ studies land.
 - Maria Cuellar `mcuellar@sas.upenn.edu`
 - Code and simulations: `github.com/mariacuellar/validity-firearms`
 :::
+
+:::: comment-right
+### References
+
+::: {#refs}
+:::
+
+::::
+
 
 <!-- TODO: confirm repo URL / visibility before the talk -->
 
