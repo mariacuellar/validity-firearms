@@ -15,6 +15,40 @@ library(DT)
 source("R/simulate_dgp.R", local = TRUE)
 source("R/simulate_dgp_types.R", local = TRUE)
 
+# Colours and fonts shared with the slides (icfis-saguaro.scss)
+pal <- list(blue = "#127088", orange = "#C85729", amber = "#CD8A39", green = "#57643C",
+            ink = "#0F1419", muted = "#5B6470", wash = "#F4F6F8", rule = "#DDE2E7")
+
+app_css <- sprintf("
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+body { font-family: 'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif; color: %1$s; background: #fff; line-height: 1.5; }
+.container-fluid { max-width: 1400px; }
+h2, h3, h4 { font-family: 'IBM Plex Sans', sans-serif; font-weight: 600; letter-spacing: -0.02em; color: %1$s; }
+h2 { padding-bottom: .35em; margin-bottom: .6em; border-bottom: 4px solid transparent;
+     border-image: linear-gradient(90deg, #127088, #C85729, #92874B, #CD8A39) 1; }
+h4 { margin-top: 1.4em; }
+a { color: %2$s; }
+strong, b { color: %3$s; font-weight: 600; }
+.well { background: %4$s; border: 1px solid %5$s; border-radius: 4px; box-shadow: none; }
+label, .control-label { font-family: 'IBM Plex Mono', Menlo, monospace; font-size: 0.78em; font-weight: 500;
+     text-transform: uppercase; letter-spacing: 0.04em; color: %6$s; }
+.checkbox label { text-transform: none; letter-spacing: 0; }
+.nav-tabs { border-bottom: 1px solid %5$s; }
+.nav-tabs > li > a { color: %6$s; font-weight: 500; border-radius: 0; }
+.nav-tabs > li.active > a, .nav-tabs > li.active > a:hover, .nav-tabs > li.active > a:focus {
+     color: %2$s; border: 1px solid %5$s; border-bottom: 3px solid %2$s; }
+.btn-default { background: %2$s; border-color: %2$s; color: #fff; font-weight: 500; border-radius: 3px; }
+.btn-default:hover, .btn-default:focus { background: #0B4352; border-color: #0B4352; color: #fff; }
+table, .table { font-variant-numeric: tabular-nums; }
+.table > thead > tr > th { font-family: 'IBM Plex Mono', monospace; font-size: 0.78em; font-weight: 500;
+     text-transform: uppercase; letter-spacing: 0.04em; color: %6$s; border-bottom: 2px solid %1$s; }
+.table-striped > tbody > tr:nth-of-type(odd) { background: %4$s; }
+code, pre { font-family: 'IBM Plex Mono', monospace; background: %4$s; color: #0B4352; border: none; }
+.irs--shiny .irs-bar, .irs--shiny .irs-handle { background: %2$s; border-color: %2$s; }
+.irs--shiny .irs-single, .irs--shiny .irs-from, .irs--shiny .irs-to { background: %2$s; }
+.progress-bar { background-color: %2$s; }
+", pal$ink, pal$blue, pal$orange, pal$wash, pal$rule, pal$muted)
+
 build_summary <- function(sim_data) {
   tibble(
     quantity = c(
@@ -215,6 +249,7 @@ reported_and_worst_case <- function(sim_data) {
 }
 
 ui <- fluidPage(
+  tags$head(tags$style(HTML(app_css))),
   titlePanel("Firearms Validity Data Generator"),
   p(
     "This app simulates data from the model behind our ICFIS talk on ",
@@ -334,17 +369,17 @@ server <- function(input, output, session) {
     plot_data <- sim_data() %>% distinct(examiner_id, examiner_skill)
 
     p <- ggplot(plot_data, aes(x = examiner_skill)) +
-      geom_histogram(aes(y = after_stat(density)), bins = 15, fill = "grey70", color = "white")
+      geom_histogram(aes(y = after_stat(density)), bins = 15, fill = "#A9C9D2", color = "white")
 
     if (skill_sd > 0) {
       p <- p + stat_function(
         fun = dnorm,
         args = list(mean = 0, sd = skill_sd),
-        color = "#D55E00",
+        color = pal$orange,
         linewidth = 1
       )
     } else {
-      p <- p + geom_vline(xintercept = 0, linetype = "dashed", color = "#D55E00", linewidth = 1)
+      p <- p + geom_vline(xintercept = 0, linetype = "dashed", color = pal$orange, linewidth = 1)
     }
 
     p +
@@ -361,17 +396,17 @@ server <- function(input, output, session) {
     plot_data <- sim_data() %>% distinct(question_id, question_difficulty)
 
     p <- ggplot(plot_data, aes(x = question_difficulty)) +
-      geom_histogram(aes(y = after_stat(density)), bins = 15, fill = "grey70", color = "white")
+      geom_histogram(aes(y = after_stat(density)), bins = 15, fill = "#A9C9D2", color = "white")
 
     if (question_sd > 0) {
       p <- p + stat_function(
         fun = dnorm,
         args = list(mean = 0, sd = question_sd),
-        color = "#D55E00",
+        color = pal$orange,
         linewidth = 1
       )
     } else {
-      p <- p + geom_vline(xintercept = 0, linetype = "dashed", color = "#D55E00", linewidth = 1)
+      p <- p + geom_vline(xintercept = 0, linetype = "dashed", color = pal$orange, linewidth = 1)
     }
 
     p +
@@ -453,12 +488,12 @@ server <- function(input, output, session) {
     ggplot(points_long, aes(x = setting)) +
       geom_errorbar(
         data = d, aes(ymin = reported, ymax = worst_case),
-        width = 0.18, linewidth = 0.9, color = "#0072B2"
+        width = 0.18, linewidth = 0.9, color = pal$blue
       ) +
       geom_point(aes(y = value, shape = measure, color = measure), size = 3.5, stroke = 1.4) +
       facet_wrap(~ rate) +
       scale_shape_manual(values = setNames(c(16, 4), c("Reported", x_label))) +
-      scale_color_manual(values = setNames(c("#0072B2", "#D55E00"), c("Reported", x_label))) +
+      scale_color_manual(values = setNames(c(pal$blue, pal$orange), c("Reported", x_label))) +
       scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
       labs(
         title = "Reported rates understate the true rate; bounds show what could be hidden",
@@ -566,8 +601,8 @@ server <- function(input, output, session) {
   output$nonrep_plot <- renderPlot({
     r <- nonrep_result()
     ggplot(r$results, aes(x = scenario, y = rate)) +
-      geom_hline(data = r$truth, aes(yintercept = rate), color = "#D55E00", linetype = "dashed", linewidth = 1) +
-      geom_point(size = 4) +
+      geom_hline(data = r$truth, aes(yintercept = rate), color = pal$orange, linetype = "dashed", linewidth = 1) +
+      geom_point(size = 4, color = pal$blue) +
       geom_text(aes(label = scales::percent(rate, accuracy = 0.1)), vjust = -1.1, size = 3.8) +
       facet_wrap(~ metric, scales = "free_y") +
       scale_y_continuous(labels = scales::percent_format(accuracy = 0.1), expand = expansion(mult = c(0.05, 0.2))) +

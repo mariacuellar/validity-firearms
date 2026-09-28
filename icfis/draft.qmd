@@ -892,7 +892,9 @@ studies land.
 :::
 
 :::: comment-right
-### References
+```{=html}
+<h3>References</h3>
+```
 
 ::: {#refs}
 :::
